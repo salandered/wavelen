@@ -1,0 +1,9 @@
+CREATE EXTENSION IF NOT EXISTS citext;
+
+CREATE TABLE users (
+    id         bigserial PRIMARY KEY,
+	-- case insensitive comparisons
+    email      citext NOT NULL UNIQUE,
+    name       text NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
