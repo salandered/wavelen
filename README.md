@@ -20,13 +20,34 @@ go run ./cmd/api
 
 The app reads `WAVELEN_DB_DSN`, `PORT` (default 8080) and `SHUTDOWN_TIMEOUT` (default 10s).
 
+## Logging
+
+Configured from the environment by [slogenv](https://github.com/salandered/slogenv).
+
+Example:
+
+```sh
+LOG_LEVEL=debug LOG_FORMAT=json go run ./cmd/api
+```
+
+Every request gets a server-generated correlation id, echoed in the `X-Request-Id` response
+header. An inbound `X-Request-Id` is ignored.
+
 ## Tests
 
 ```sh
 go test ./...
 ```
 
-Integration test auto applies all migrations.
+Integration tests need Docker (use a throwaway Postgres via testcontainers and apply all
+migrations to it).
+
+```sh
+go test -tags integration ./internal/storage/...
+```
+
+Set `WAVELEN_TEST_DB_DSN` to reuse the compose database instead of starting a container
+(it will drop all the data!).
 
 ```sh
 export WAVELEN_TEST_DB_DSN='postgres://justuser:justuser@localhost:5433/wavelen?sslmode=disable'

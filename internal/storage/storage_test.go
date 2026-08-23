@@ -14,33 +14,61 @@ import (
 	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/user"
 	"github.com/stretchr/testify/suite"
+	"github.com/testcontainers/testcontainers-go"
+	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 )
 
-const dsnEnv = "WAVELEN_TEST_DB_DSN"
+const (
+	// set it to run against an already running Postgres instead of a container
+	dsnEnv = "WAVELEN_TEST_DB_DSN"
+
+	testDBImage = "postgres:18-alpine"
+	testDBName  = "wavelen"
+	testDBUser  = "justuser"
+	testDBPass  = "justuser"
+)
 
 func TestStorageSuite(t *testing.T) {
-	dsn := os.Getenv(dsnEnv)
-	if dsn == "" {
-		t.Skipf("%s is not set", dsnEnv)
-	}
-	suite.Run(t, &StorageSuite{dsn: dsn})
+	suite.Run(t, new(StorageSuite))
 }
 
 type StorageSuite struct {
 	suite.Suite
-	dsn     string
 	pool    *pgxpool.Pool
 	storage *storage.Store
 }
 
 func (s *StorageSuite) SetupSuite() {
-	pool, err := pgxpool.New(s.ctx(), s.dsn)
+	dsn := os.Getenv(dsnEnv)
+	if dsn == "" {
+		dsn = s.runContainer()
+	}
+
+	pool, err := pgxpool.New(s.ctx(), dsn)
 	s.Require().NoError(err)
 	s.Require().NoError(pool.Ping(s.ctx()))
 
 	s.pool = pool
 	s.storage = storage.New(pool)
 	s.applyMigrations()
+}
+
+// Starts a throwaway Postgres on a random host port and returns its DSN.
+func (s *StorageSuite) runContainer() string {
+	ctx := context.Background() // outlives s.ctx(), the container is torn down by Cleanup
+
+	ctr, err := tcpostgres.Run(ctx, testDBImage,
+		tcpostgres.WithDatabase(testDBName),
+		tcpostgres.WithUsername(testDBUser),
+		tcpostgres.WithPassword(testDBPass),
+		tcpostgres.BasicWaitStrategies(),
+	)
+	testcontainers.CleanupContainer(s.T(), ctr) // registered before the error check
+	s.Require().NoError(err)
+
+	dsn, err := ctr.ConnectionString(ctx, "sslmode=disable")
+	s.Require().NoError(err)
+	return dsn
 }
 
 func (s *StorageSuite) TearDownSuite() {

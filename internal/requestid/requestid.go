@@ -5,12 +5,13 @@ import (
 	"crypto/rand"
 )
 
-// Header carries the correlation id in and back out.
+// Header is where the id is echoed back. An inbound one is ignored, see requestIDMiddleware.
 const Header = "X-Request-Id"
 
 type contextKey struct{}
 
 func New() string {
+	// TODO: consider using uuid with go 1.27
 	return rand.Text()
 }
 

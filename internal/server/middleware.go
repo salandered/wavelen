@@ -9,62 +9,106 @@ import (
 	"github.com/salandered/wavelen/internal/requestid"
 )
 
-// Reuses an inbound header so a correlation id survives across hops.
-// Consider doing the Apex approach
+// A wrapper that embeds the [http.ResponseWriter] and some of its methods.
+// Captures the response status and size for logging.
+type statusRecorder struct {
+	http.ResponseWriter
+	status      int
+	bytes       int
+	wroteHeader bool
+}
+
+/*
+Known limitation: no 1xx checks, they would be recorded as if they were final.
+net/http does not commit the response on 1xx (except 101), so the real status
+that follows is lost, and recoveryMiddleware sees a header that was not written.
+See 'response.WriteHeader' in GOROOT/src/net/http/server.go
+*/
+func (r *statusRecorder) WriteHeader(code int) {
+	// only the first write matters, net/http WriteHeader returns on a second one
+	if !r.wroteHeader {
+		r.status = code
+		r.wroteHeader = true
+	}
+	r.ResponseWriter.WriteHeader(code)
+}
+
+func (r *statusRecorder) Write(b []byte) (int, error) {
+	if !r.wroteHeader {
+		r.WriteHeader(http.StatusOK) // mirror net/http: first Write commits a 200
+	}
+	n, err := r.ResponseWriter.Write(b)
+	r.bytes += n
+	return n, err
+}
+
+// [http.ResponseController] walks the wrappers using 'Unwrap' to reach the real writer
+// (e.g for Flush or SetWriteDeadline). Embedding does not promote those.
+func (r *statusRecorder) Unwrap() http.ResponseWriter {
+	return r.ResponseWriter
+}
+
+// The correlation id is always server-generated. An inbound header is ignored, never trusted.
+// The id goes into the request context, from where the slog context handler picks it up:
+// every log call taking a ctx below this middleware carries the id, so no log site adds it
+// by hand. It is echoed in the response header too.
 func requestIDMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		id := req.Header.Get(requestid.Header)
-		if id == "" {
-			id = requestid.New()
-		}
+		id := requestid.New()
 		w.Header().Set(requestid.Header, id)
 		next.ServeHTTP(w, req.WithContext(requestid.NewContext(req.Context(), id)))
 	})
 }
 
-// Records the status code for the access log. Optional ResponseWriter interfaces
-// (Flush, Hijack) are not forwarded, this API has no use for them.
-type statusRecorder struct {
-	http.ResponseWriter
-	status int
-}
-
-func (r *statusRecorder) WriteHeader(status int) {
-	r.status = status
-	r.ResponseWriter.WriteHeader(status)
-}
-
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		start := time.Now()
-		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK} // default 200
 
 		next.ServeHTTP(rec, req)
 
-		slog.InfoContext(req.Context(), "request",
-			"request_id", requestid.FromContext(req.Context()),
-			"method", req.Method,
-			"path", req.URL.Path,
-			"status", rec.status,
-			"duration", time.Since(start),
+		level := slog.LevelInfo
+		switch {
+		case rec.status >= 500:
+			level = slog.LevelError
+		case rec.status >= 400:
+			level = slog.LevelWarn
+		}
+		slog.LogAttrs(
+			req.Context(),
+			level,
+			"request",
+			slog.String("method", req.Method),
+			slog.String("path", req.URL.Path),
+			slog.Int("status", rec.status),
+			slog.Duration("duration", time.Since(start)),
+			slog.Int("bytes", rec.bytes),
 		)
 	})
 }
 
+// Catches a panic from the downstream handler and turns it into a logged 500.
+// Should be inside loggingMiddleware so the 500 it produces gets logged.
 func recoveryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		defer func() {
-			p := recover()
-			if p == nil {
+			v := recover()
+			if v == nil {
 				return
 			}
-			slog.ErrorContext(req.Context(), "panic in handler",
-				"request_id", requestid.FromContext(req.Context()),
-				"panic", p,
-				"stack", string(debug.Stack()),
+			if v == http.ErrAbortHandler { //nolint:errorlint // panic value, not a wrapped err
+				panic(v) // sentinel, we repanic
+			}
+			slog.LogAttrs(req.Context(), slog.LevelError, "panic recovered",
+				slog.Any("panic", v),
+				slog.String("stack", string(debug.Stack())),
 			)
-			w.Header().Set("Connection", "close")
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			// don't write the header if the handler already started doing it
+			rec, ok := w.(*statusRecorder)
+			if !ok || !rec.wroteHeader {
+				w.Header().Set("Connection", "close")
+				w.WriteHeader(http.StatusInternalServerError)
+			}
 		}()
 		next.ServeHTTP(w, req)
 	})

@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/salandered/wavelen/internal/requestid"
 	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/user"
 )
@@ -61,8 +60,7 @@ func writeJSON(ctx context.Context, w http.ResponseWriter, statusCode int, data 
 
 	if _, err := w.Write(rawJSON); err != nil {
 		// the status line already went out, nothing left to do but record it
-		slog.ErrorContext(ctx, "failed writing response body",
-			"request_id", requestid.FromContext(ctx), "status", statusCode, "error", err)
+		slog.ErrorContext(ctx, "failed writing response body", "status", statusCode, "error", err)
 	}
 	slog.DebugContext(ctx, "response sent",
 		"bytes", len(rawJSON), "payload", truncatePayload(rawJSON))
@@ -75,12 +73,10 @@ type errorResponse struct {
 func writeError(ctx context.Context, w http.ResponseWriter, err error, statusCode int) {
 	msg := err.Error()
 	if statusCode >= http.StatusInternalServerError {
-		slog.ErrorContext(ctx, "request failed",
-			"request_id", requestid.FromContext(ctx), "status", statusCode, "error", err)
+		slog.ErrorContext(ctx, "request failed", "status", statusCode, "error", err)
 		msg = "internal server error" // the client should not see the actual error
 	} else {
-		slog.WarnContext(ctx, "request rejected",
-			"request_id", requestid.FromContext(ctx), "status", statusCode, "error", err)
+		slog.WarnContext(ctx, "request rejected", "status", statusCode, "error", err)
 	}
 
 	rawJSON, marshalErr := json.Marshal(errorResponse{Error: msg})

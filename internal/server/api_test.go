@@ -73,16 +73,18 @@ func (s *APISuite) TestUnknownPathReturnsNotFound() {
 	s.Require().Equal(http.StatusNotFound, resp.StatusCode)
 }
 
-func (s *APISuite) TestRequestIDIsEchoedBack() {
+func (s *APISuite) TestRequestIDIsGeneratedAndClientHeaderIgnored() {
 	req, err := http.NewRequest(http.MethodGet, s.server.URL+"/", nil)
 	s.Require().NoError(err)
-	req.Header.Set(requestid.Header, "known-id")
+	req.Header.Set(requestid.Header, "client-sent-id")
 
 	resp, err := s.client.Do(req)
 	s.Require().NoError(err)
 	defer resp.Body.Close()
 
-	s.Require().Equal("known-id", resp.Header.Get(requestid.Header))
+	got := resp.Header.Get(requestid.Header)
+	s.Require().NotEmpty(got)
+	s.Require().NotEqual("client-sent-id", got)
 }
 
 // Users

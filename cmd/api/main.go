@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -12,8 +13,11 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/salandered/wavelen/internal/requestid"
 	"github.com/salandered/wavelen/internal/server"
 	"github.com/salandered/wavelen/internal/storage"
+
+	logging "github.com/salandered/slogenv"
 )
 
 var ErrConfig = errors.New("invalid config")
@@ -26,12 +30,28 @@ const (
 )
 
 func main() {
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, nil)))
+	logCloser, err := setupLogging()
+	if err != nil {
+		// the logger isn't ready yet, report to stderr directly
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	defer func() { _ = logCloser.Close() }()
 
 	if err := run(); err != nil {
 		slog.Error("wavelen failed", "error", err)
 		os.Exit(1)
 	}
+}
+
+// LOG_LEVEL, LOG_FORMAT, LOG_FILE and LOG_TIME are read by slogenv, see its README.
+// requestid.LogAttrs puts the correlation id in every record logged with a request ctx
+func setupLogging() (io.Closer, error) {
+	cfg, err := logging.ConfigFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	return logging.Setup(cfg, requestid.LogAttrs)
 }
 
 func run() error {
