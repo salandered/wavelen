@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
+	"net/url"
 	"os"
 	"os/signal"
 	"strconv"
@@ -23,10 +25,17 @@ import (
 var ErrConfig = errors.New("invalid config")
 
 const (
-	defaultDSN      = "postgres://justuser:justuser@localhost:5433/wavelen?sslmode=disable"
 	maxConns        = 25
 	maxConnIdleTime = 15 * time.Minute
 	connectTimeout  = 5 * time.Second
+)
+
+// Defaults for the the database DSN
+const (
+	defaultDBHost    = "localhost"
+	defaultDBPort    = "5433"
+	defaultDBName    = "wavelen"
+	defaultDBSSLMode = "disable"
 )
 
 func main() {
@@ -80,14 +89,14 @@ func run() error {
 }
 
 func openPool(ctx context.Context) (*pgxpool.Pool, error) {
-	dsn := os.Getenv("WAVELEN_DB_DSN")
-	if dsn == "" {
-		dsn = defaultDSN
+	dsn, err := dsnFromEnv()
+	if err != nil {
+		return nil, err
 	}
 
 	poolCfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
-		return nil, fmt.Errorf("%w: WAVELEN_DB_DSN: %w", ErrConfig, err)
+		return nil, fmt.Errorf("%w: database: %w", ErrConfig, err)
 	}
 	poolCfg.MaxConns = maxConns
 	poolCfg.MaxConnIdleTime = maxConnIdleTime
@@ -107,6 +116,25 @@ func openPool(ctx context.Context) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
+// url.URL escapes every part, so the password may contain any character.
+func dsnFromEnv() (string, error) {
+	user, password := os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD")
+	if user == "" || password == "" {
+		return "", fmt.Errorf("%w: POSTGRES_USER and POSTGRES_PASSWORD are required", ErrConfig)
+	}
+	dsn := url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(user, password),
+		Host: net.JoinHostPort(
+			stringFromEnv("POSTGRES_HOST", defaultDBHost),
+			stringFromEnv("POSTGRES_PORT", defaultDBPort),
+		),
+		Path:     "/" + stringFromEnv("POSTGRES_DB", defaultDBName),
+		RawQuery: url.Values{"sslmode": {stringFromEnv("POSTGRES_SSLMODE", defaultDBSSLMode)}}.Encode(),
+	}
+	return dsn.String(), nil
+}
+
 func serverConfig() (server.Config, error) {
 	port, err := intFromEnv("PORT", server.DefaultPort)
 	if err != nil {
@@ -124,6 +152,13 @@ func serverConfig() (server.Config, error) {
 			"%w: SHUTDOWN_TIMEOUT should be positive, got %v", ErrConfig, shutdownTimeout)
 	}
 	return server.Config{Port: port, ShutdownTimeout: shutdownTimeout}, nil
+}
+
+func stringFromEnv(name, def string) string {
+	if v := os.Getenv(name); v != "" {
+		return v
+	}
+	return def
 }
 
 func intFromEnv(name string, def int) (int, error) {

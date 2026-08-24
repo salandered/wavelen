@@ -18,14 +18,12 @@ import (
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 )
 
+// throwaway container info
 const (
-	// set it to run against an already running Postgres instead of a container
-	dsnEnv = "WAVELEN_TEST_DB_DSN"
-
 	testDBImage = "postgres:18-alpine"
 	testDBName  = "wavelen"
-	testDBUser  = "justuser"
-	testDBPass  = "justuser"
+	testDBUser  = "testuser"
+	testDBPass  = "testpass"
 )
 
 func TestStorageSuite(t *testing.T) {
@@ -39,12 +37,7 @@ type StorageSuite struct {
 }
 
 func (s *StorageSuite) SetupSuite() {
-	dsn := os.Getenv(dsnEnv)
-	if dsn == "" {
-		dsn = s.runContainer()
-	}
-
-	pool, err := pgxpool.New(s.ctx(), dsn)
+	pool, err := pgxpool.New(s.ctx(), s.runContainer())
 	s.Require().NoError(err)
 	s.Require().NoError(pool.Ping(s.ctx()))
 

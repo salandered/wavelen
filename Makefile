@@ -1,18 +1,20 @@
-# Optional. Holds WAVELEN_DB_DSN and any log settings.
-# 'export' hands every variable defined here to the recipes.
+# Holds the database creds and any log settings
 -include .env
 export
 
+# For psql and the migrate CLI.
+# Keep the defaults in sync with cmd/api/main.go. 
+# A password with URL-special characters needs quoting by hand.
+DB_URL = postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(or $(POSTGRES_HOST),localhost):$(or $(POSTGRES_PORT),5433)/$(or $(POSTGRES_DB),wavelen)?sslmode=$(or $(POSTGRES_SSLMODE),disable)
+
+# Prints every "## target: description" comment in this file.
 .PHONY: help
 help:
-	@echo targets: run/api db/up db/down db/psql db/migrations/new db/migrations/up db/migrations/down tidy lint fmt audit test test/all build/api
+	@awk '/^## /{sub(/^## /,""); i=index($$0,": "); printf "  %-26s %s\n", substr($$0,1,i-1), substr($$0,i+2)}' $(MAKEFILE_LIST)
 
 # ==================================================================================== #
 # DEVELOPMENT
 # ==================================================================================== #
-
-# The app falls back to this DSN when WAVELEN_DB_DSN is unset. Compose maps 5433, not 5432.
-WAVELEN_DB_DSN ?= postgres://justuser:justuser@localhost:5433/wavelen?sslmode=disable
 
 ## run/api: run the cmd/api application
 .PHONY: run/api
@@ -32,31 +34,29 @@ db/down:
 ## db/psql: connect to the database using psql
 .PHONY: db/psql
 db/psql:
-	psql "$(WAVELEN_DB_DSN)"
+	@psql "$(DB_URL)"
 
-## db/migrations/new name=$1: create a new migration pair
+## db/migrations/new name=$1: create a new migration
 .PHONY: db/migrations/new
 db/migrations/new:
 	@echo Creating migration files for ${name}...
 	migrate create -seq -ext=.sql -dir=./migrations ${name}
 
-## db/migrations/up: apply all up migrations
+## db/migrations/up: apply all migrations
 .PHONY: db/migrations/up
 db/migrations/up:
 	@echo Running up migrations...
-	migrate -path "./migrations" -database "$(WAVELEN_DB_DSN)" up
+	@migrate -path "./migrations" -database "$(DB_URL)" up
 
 ## db/migrations/down: revert all migrations
 .PHONY: db/migrations/down
 db/migrations/down:
 	@echo Reverting all migrations...
-	migrate -path "./migrations" -database "$(WAVELEN_DB_DSN)" down
+	@migrate -path "./migrations" -database "$(DB_URL)" down
 
 # ==================================================================================== #
 # QUALITY CONTROL
 # ==================================================================================== #
-# golangci-lint carries the linters and the formatters, config is .golangci.yml.
-# 'run' only reports, 'fmt' rewrites files. go vet is included as the govet linter.
 
 ## tidy: tidy module dependencies
 .PHONY: tidy

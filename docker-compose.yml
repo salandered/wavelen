@@ -1,17 +1,19 @@
+# Values come from .env; ${VAR:?msg} fails fast when VAR is unset or empty.
 services:
   postgres:
     image: postgres:18-alpine
     container_name: wavelen-postgres
     environment:
-      POSTGRES_USER: justuser
-      POSTGRES_PASSWORD: justuser
-      POSTGRES_DB: wavelen
+      POSTGRES_USER: ${POSTGRES_USER:?set it in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set it in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-wavelen}
     ports:
-      - "5433:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - wavelen-pgdata:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U justuser -d wavelen"]
+      # $$ escapes the interpolation, the container shell expands these from its own env
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 3s
       retries: 10
