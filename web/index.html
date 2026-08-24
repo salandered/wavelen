@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>wavelen</title>
+
+	<!--
+		Deliberately NOT deferred, and deliberately not in app.js: this has to stamp the
+		attribute before the first paint, otherwise a stored theme that disagrees with the
+		system one flashes on every load. It also runs before <body> exists, which is why the
+		attribute goes on <html>. The swatch-info class needs none of this: swatches are
+		rendered by app.js long after the first paint.
+	-->
+	<script>
+		try {
+			const stored = localStorage.getItem("theme");
+			if (stored) {
+				document.documentElement.dataset.theme = stored;
+			}
+		} catch {
+			// no storage, the system preference is used
+		}
+	</script>
+
+	<!-- defer, so the document exists when the script runs and it needs no load listener -->
+	<script defer src="/app.js"></script>
+	<style>
+		:root {
+			/* with no data-theme the browser decides, and light-dark() follows color-scheme */
+			color-scheme: light dark;
+			--fg: light-dark(#1c1a17, #ece7de);
+			--muted: light-dark(#6b6357, #9b9184);
+			--line: light-dark(#d6cfc2, #403a32);
+			--error: light-dark(#9b2f1c, #ee967d);
+		}
+
+		/* overriding color-scheme re-resolves every light-dark() above in one repaint */
+		:root[data-theme="light"] {
+			color-scheme: light;
+		}
+
+		:root[data-theme="dark"] {
+			color-scheme: dark;
+		}
+
+		:root.no-swatch-info .swatch span {
+			display: none;
+		}
+
+		html {
+			/* reserve the scrollbar track, so a short list does not shift the centered body */
+			scrollbar-gutter: stable;
+		}
+
+		body {
+			font-family: system-ui, sans-serif;
+			max-width: 60rem;
+			margin: 2rem auto;
+			padding: 0 1rem;
+			color: var(--fg);
+		}
+
+		header {
+			display: flex;
+			align-items: baseline;
+			gap: 0.5rem;
+			margin-bottom: 1.5rem;
+		}
+
+		h1 {
+			font-size: 1.25rem;
+			margin: 0;
+			margin-right: auto;
+		}
+
+		summary {
+			font-size: 0.8rem;
+			font-weight: 600;
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			color: var(--muted);
+			cursor: pointer;
+			user-select: none;
+			margin-bottom: 0.75rem;
+			padding-bottom: 0.35rem;
+			border-bottom: 1px solid var(--line);
+		}
+
+		details:not([open]) summary {
+			margin-bottom: 0;
+		}
+
+		details {
+			margin-bottom: 2rem;
+		}
+
+		.row {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			flex-wrap: wrap;
+			margin-bottom: 0.5rem;
+		}
+
+		label {
+			color: var(--muted);
+			font-size: 0.85rem;
+		}
+
+		input,
+		button {
+			font: inherit;
+			font-size: 0.85rem;
+			padding: 0.25rem 0.5rem;
+			border: 1px solid var(--line);
+			border-radius: 3px;
+			background: transparent;
+			color: inherit;
+		}
+
+		button {
+			cursor: pointer;
+		}
+
+		#user-id {
+			width: 5rem;
+		}
+
+		#hex {
+			width: 8rem;
+			font-family: ui-monospace, monospace;
+		}
+
+		#status {
+			min-height: 1.2rem;
+			margin: 0 0 0.75rem;
+			font-size: 0.85rem;
+			color: var(--muted);
+		}
+
+		#status.failed {
+			color: var(--error);
+		}
+
+		.grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+			gap: 0.4rem;
+		}
+
+		.swatch {
+			display: flex;
+			flex-direction: column;
+			gap: 0.1rem;
+			/* min-height keeps the grid readable once the labels are hidden */
+			min-height: 3.2rem;
+			padding: 0.6rem 0.5rem;
+			border: 1px solid var(--line);
+			text-align: left;
+			font-family: ui-monospace, monospace;
+			font-size: 0.75rem;
+		}
+
+		/*
+			A box-shadow rather than an outline: the swatch keeps its own focus ring, and the
+			inner Canvas ring separates the marker from the swatch color, so it reads on any
+			of them.
+		*/
+		.swatch.selected {
+			box-shadow: 0 0 0 2px Canvas, 0 0 0 4px var(--fg);
+		}
+
+		.swatch .label {
+			font-family: system-ui, sans-serif;
+			opacity: 0.75;
+			/* names and timestamps are longer than the swatch, and wrapping breaks the grid */
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.empty {
+			color: var(--muted);
+			font-size: 0.85rem;
+			margin: 0;
+		}
+	</style>
+</head>
+
+<body>
+	<header>
+		<h1>wavelen</h1>
+		<button type="button" id="swatch-info"></button>
+		<button type="button" id="theme"></button>
+	</header>
+
+	<details data-collapse-key="user" open>
+		<summary>User</summary>
+		<div class="row">
+			<label for="user-id">user id</label>
+			<input id="user-id" type="number" min="1" value="1">
+			<button type="button" id="load">load colors</button>
+		</div>
+		<div class="row">
+			<label for="new-email">or a new one</label>
+			<input id="new-email" type="email" placeholder="email">
+			<input id="new-name" placeholder="name">
+			<button type="button" id="create-user">create user</button>
+		</div>
+	</details>
+
+	<details data-collapse-key="saved" open>
+		<summary>Saved colors</summary>
+		<form class="row" id="add-form">
+			<input id="hex" placeholder="#ff00aa" aria-label="hex color">
+			<button>add</button>
+		</form>
+		<p id="status" role="status"></p>
+		<div class="grid" id="saved"></div>
+	</details>
+
+	<details data-collapse-key="palette" open>
+		<summary>Palette</summary>
+		<div class="grid" id="palette"></div>
+	</details>
+</body>
+
+</html>

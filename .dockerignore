@@ -1,0 +1,40 @@
+# Build context: only source + go.mod/go.sum
+
+
+# git / docker
+.git
+.gitignore
+.dockerignore
+Dockerfile
+docker-compose.yml
+docker-compose.web.yml
+
+# web ui, caddy serves it from a bind mount
+Caddyfile
+web/
+
+# credentials
+.env
+.env.template
+
+# build outputs / test artifacts
+bin/
+*.exe
+*.exe~
+*.test
+*.out
+coverage.*
+*.coverprofile
+
+# docs / configs
+__docs/
+docs/
+README.md
+LICENSE
+Makefile
+.golangci.yml
+.markdownlint.yaml
+.vscode/
+.idea/
+.claude/
+CLAUDE.md

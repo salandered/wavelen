@@ -1,5 +1,27 @@
-# Values come from .env; ${VAR:?msg} fails fast when VAR is unset or empty.
+# Values come from .env
 services:
+  app:
+    build: .
+    container_name: wavelen-api
+    ports:
+      - "127.0.0.1:${PORT:-8080}:${PORT:-8080}" # loopback only
+    environment:
+      PORT: "${PORT:-8080}"
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432" # use 5432, how app reaches the service
+      POSTGRES_SSLMODE: disable
+      POSTGRES_USER: ${POSTGRES_USER:?set it in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set it in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-wavelen}
+      SHUTDOWN_TIMEOUT: "${SHUTDOWN_TIMEOUT:-10s}"
+      LOG_LEVEL: "${LOG_LEVEL:-info}"
+      LOG_FORMAT: "${LOG_FORMAT:-text}"
+      LOG_FILE: "${LOG_FILE:-}"
+      LOG_TIME: "${LOG_TIME:-dt-milli}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   postgres:
     image: postgres:18-alpine
     container_name: wavelen-postgres

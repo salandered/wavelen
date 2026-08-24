@@ -21,20 +21,39 @@ help:
 run/api:
 	go run ./cmd/api
 
-## db/up: start the postgres container
+## dc/up: build and run the stack in docker
+.PHONY: dc/up
+dc/up:
+	docker compose up -d --build
+
+## dc/down: stop the stack
+.PHONY: dc/down
+dc/down:
+	docker compose down
+
+## ui/up: run the stack + web ui
+.PHONY: ui/up
+ui/up:
+	docker compose -f docker-compose.yml -f docker-compose.web.yml up -d --build
+
+## ui/down: stop the stack + ui
+.PHONY: ui/down
+ui/down:
+	docker compose -f docker-compose.yml -f docker-compose.web.yml down
+
+## db/up: start only the postgres container
 .PHONY: db/up
 db/up:
-	docker compose up -d
-
-## db/down: stop the postgres container
-.PHONY: db/down
-db/down:
-	docker compose down
+	docker compose up -d postgres
 
 ## db/psql: connect to the database using psql
 .PHONY: db/psql
 db/psql:
 	@psql "$(DB_URL)"
+
+# ==================================================================================== #
+# MIGRATIONS
+# ==================================================================================== #
 
 ## db/migrations/new name=$1: create a new migration
 .PHONY: db/migrations/new
@@ -74,7 +93,7 @@ lint:
 fmt:
 	golangci-lint fmt ./...
 
-## audit: run quality control checks
+## audit: all - tidy, lints, tests
 .PHONY: audit
 audit:
 	@echo Checking module dependencies...

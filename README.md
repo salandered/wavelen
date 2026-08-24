@@ -15,12 +15,32 @@ cp .env.template .env
 ```
 
 ```sh
-make db/up
+make db/up # starts db in docker
 make db/migrations/up
-make run/api
+make run/api # run app
 ```
 
 `make help` lists the other targets.
+
+## Running in Docker
+
+```sh
+make dc/up # docker compose stack - app and db
+make db/migrations/up
+
+make dc/down # stop the stack
+```
+
+## Web UI
+
+Optional, nothing needs it.
+
+```sh
+make ui/up   # the stack plus a caddy container
+make ui/down
+```
+
+Open <http://localhost:8089>.
 
 ## Logging
 
