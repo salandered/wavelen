@@ -6,6 +6,8 @@ const API = "/api/v1";
 // through readStored below is JSON, so the two never share a key.
 const DETAILS_KEY = "details_open";
 const SWATCH_INFO_KEY = "swatch_info";
+const USER_ID_KEY = "user_id";
+const CONTROLS_KEY = "controls";
 
 const $ = (id) => document.getElementById(id);
 
@@ -20,6 +22,14 @@ function readStored(key, fallback) {
 	} catch {
 		return fallback;
 	}
+}
+
+// A stored JSON object, or {} for anything else in the key. Two callers keep a map under one
+// key, and both would rather ignore a hand-edited value than run into it later.
+function readStoredObject(key) {
+	const stored = readStored(key, null);
+	const usable = stored !== null && typeof stored === "object" && !Array.isArray(stored);
+	return usable ? stored : {};
 }
 
 function writeStored(key, value) {
@@ -60,9 +70,12 @@ function setStatus(message, failed = false) {
 	$("status").classList.toggle("failed", failed);
 }
 
+// min="1" on a number input only drives its arrows: the value is whatever was typed, and "5.5"
+// and "1e2" are both valid there. valueAsNumber is that value parsed, or NaN when the field holds
+// nothing usable, which is the check the interpolated path needs.
 function userID() {
-	const id = $("user-id").value.trim();
-	if (id === "") {
+	const id = $("user-id").valueAsNumber;
+	if (!Number.isInteger(id) || id < 1) {
 		setStatus("enter a user id", true);
 		return null;
 	}
@@ -71,9 +84,11 @@ function userID() {
 
 // ---- swatches ----
 
-// The hex the last clicked swatch put in the field. Marks that swatch in both grids, and is
-// dropped as soon as the field says something else.
+// The hex the last clicked swatch put in the field, and the caption that swatch carried: a palette
+// name or a saved timestamp. Marks the swatch in both grids and fills the panel beside them, and
+// both are dropped as soon as the field says something else.
 let selectedHex = null;
+let selectedLabel = "";
 
 // Perceived brightness (the YIQ weights) decides between a black and a white label. It is not
 // a contrast ratio, but it is one line and enough to keep every swatch readable.
@@ -108,12 +123,30 @@ function swatch(hex, label) {
 	caption.textContent = label;
 
 	el.append(code, caption);
-	el.addEventListener("click", () => {
-		selectedHex = hex;
-		$("hex").value = hex;
-		markSelected();
-	});
+	el.addEventListener("click", () => selectSwatch(hex, label));
 	return el;
+}
+
+function selectSwatch(hex, label) {
+	selectedHex = hex;
+	selectedLabel = label;
+	$("hex").value = hex;
+	markSelected();
+	renderDetail();
+}
+
+function clearSelection() {
+	selectedHex = null;
+	selectedLabel = "";
+	markSelected();
+	renderDetail();
+}
+
+// The field is the only input to the add form, so anything writing it programmatically has to
+// drop the mark too: an input event does not fire for a scripted value.
+function setHexField(hex) {
+	$("hex").value = hex;
+	clearSelection();
 }
 
 function renderEmpty(container, message) {
@@ -123,43 +156,242 @@ function renderEmpty(container, message) {
 	container.replaceChildren(p);
 }
 
+// The Fullscreen API needs a user gesture, which the click is, but it can still be refused by an
+// iframe without allowfullscreen or by a browser policy. Nothing is broken when it is, so the
+// refusal only has to be visible.
+async function toggleFullscreen(el) {
+	try {
+		if (document.fullscreenElement === null) {
+			await el.requestFullscreen();
+		} else {
+			await document.exitFullscreen();
+		}
+	} catch (err) {
+		setStatus(`full screen refused - ${err.message}`, true);
+	}
+}
+
+// navigator.clipboard exists only in a secure context, so over plain http the property is missing
+// and reading through it throws. Inside an async function that is a rejection like any other.
+async function copyHex(hex) {
+	try {
+		await navigator.clipboard.writeText(hex);
+		setStatus(`copied ${hex}`);
+	} catch (err) {
+		setStatus(`could not copy - ${err.message}`, true);
+	}
+}
+
+// The panel beside the grids. One panel for both of them, since the selection they share is one
+// hex: clicking in either grid replaces what this shows.
+function renderDetail() {
+	if (selectedHex === null) {
+		renderEmpty($("detail"), "click a color");
+		return;
+	}
+	const hex = selectedHex; // captured, so a later selection does not rewrite these handlers
+
+	// Siblings, not one inside the other: a button cannot contain a button, and stacking them
+	// means neither click has to be kept from reaching the other.
+	const stack = document.createElement("div");
+	stack.className = "detail-stack";
+
+	// no text of its own, so the color is the whole control and the name has to be spelled out
+	const block = document.createElement("button");
+	block.type = "button";
+	block.className = "detail-color";
+	block.style.background = hex;
+	block.title = "full screen, click again to leave";
+	block.setAttribute("aria-label", `show ${hex} full screen`);
+	block.addEventListener("click", () => toggleFullscreen(block));
+
+	const code = document.createElement("button");
+	code.type = "button";
+	code.className = "detail-hex";
+	code.style.color = labelColor(hex);
+	code.textContent = hex;
+	code.title = "copy";
+	code.addEventListener("click", () => copyHex(hex));
+
+	stack.append(block, code);
+
+	const caption = document.createElement("p");
+	caption.className = "detail-label";
+	caption.textContent = selectedLabel;
+
+	$("detail").replaceChildren(stack, caption);
+}
+
 // A swatch keeps its mark across a re-render, so adding a color does not clear it.
 function renderSwatches(container, swatches) {
 	container.replaceChildren(...swatches);
 	markSelected();
 }
 
+// Keeps the pages already shown. markSelected has to run again either way: these swatches were
+// built after the last call and carry no mark of their own.
+function appendSwatches(container, swatches) {
+	container.append(...swatches);
+	markSelected();
+}
+
 // ---- data ----
 
+// Sorting by hex is lexicographic, so it groups by the red channel rather than by anything
+// perceptual. It is still the useful second view: names and hex codes disagree completely.
 async function loadPalette() {
+	const params = new URLSearchParams({
+		sort: $("palette-sort").value,
+		order: $("palette-order").dataset.order,
+	});
 	try {
-		const { data } = await call("GET", "/colors");
+		const { data } = await call("GET", `/colors?${params}`);
 		renderSwatches($("palette"), data.colors.map((c) => swatch(c.hex, c.name)));
 	} catch (err) {
 		renderEmpty($("palette"), err.message);
 	}
 }
 
-// An unknown user answers 200 with an empty array, same as one who saved nothing, so an empty
-// grid here does not mean the user exists.
-async function loadSaved() {
+// The cursor for the next page of the saved list, or null when there is no next page. It carries
+// the sort and the order it was minted under, so the API itself rejects it once either of those
+// changes. It carries no user, so nothing but this page can notice the user id moving: a fresh
+// load drops the cursor, and so does editing the field.
+let nextCursor = null;
+
+// loadSaved can be in flight more than once, since the controls stay live while a request is out.
+// Each call takes the next number and only touches the grid while its number is still the current
+// one, so a request that started earlier and landed later cannot overwrite a fresher one.
+let savedGeneration = 0;
+
+// The button is the only way to page, so hiding it is the end-of-list signal made visible.
+function setNextCursor(cursor) {
+	nextCursor = cursor;
+	$("load-more").hidden = cursor === null;
+}
+
+function savedQuery(cursor) {
+	const params = new URLSearchParams({
+		sort: $("sort").value,
+		order: $("order").dataset.order,
+		limit: $("limit").value,
+	});
+	if (cursor !== null) {
+		params.set("cursor", cursor);
+	}
+	return params;
+}
+
+// An unknown user answers 200 with an empty array, same as one who saved nothing and same as a
+// cursor that ran off the end, so an empty grid here does not mean the user exists.
+async function loadSaved({ append = false } = {}) {
 	const id = userID();
 	if (id === null) {
 		return;
 	}
+	const cursor = append ? nextCursor : null;
+	const generation = ++savedGeneration;
+
+	// the cursor stays in nextCursor until the response replaces it, so a second click while this
+	// one is out would send it again and append the same page twice
+	$("load-more").disabled = true;
 	try {
-		const { data } = await call("GET", `/users/${id}/colors`);
-		if (data.colors.length === 0) {
-			renderEmpty($("saved"), "nothing saved");
-			return;
+		const { data } = await call("GET", `/users/${id}/colors?${savedQuery(cursor)}`);
+		if (generation !== savedGeneration) {
+			return; // a later load owns the grid now
 		}
 		const swatches = data.colors.map((c) =>
 			swatch(c.hex, new Date(c.created_at).toLocaleString()));
-		renderSwatches($("saved"), swatches);
+
+		if (append) {
+			appendSwatches($("saved"), swatches);
+		} else if (swatches.length === 0) {
+			renderEmpty($("saved"), "nothing saved");
+		} else {
+			renderSwatches($("saved"), swatches);
+		}
+		setNextCursor(data.metadata.next_cursor ?? null);
 	} catch (err) {
-		renderEmpty($("saved"), "");
+		if (generation !== savedGeneration) {
+			return;
+		}
+		if (!append) {
+			renderEmpty($("saved"), ""); // an appended page failing leaves the pages already shown
+		}
+		setNextCursor(null);
 		setStatus(err.message, true);
+	} finally {
+		// only the newest request re-enables it, so it stays disabled while another one is still out
+		if (generation === savedGeneration) {
+			$("load-more").disabled = false;
+		}
 	}
+}
+
+// ---- random values ----
+// For poking at the API by hand. Math.random is enough: nothing here is a secret, and the only
+// collision that matters is a taken email, which answers 409 and asks again.
+
+// Six hex digits. A color is these with a "#" in front; a user takes them as a tag shared by
+// the email and the name, so the two read as one user.
+function randomDigits() {
+	return Math.floor(Math.random() * 0x1000000).toString(16).padStart(6, "0");
+}
+
+// ---- bulk add ----
+// Dev only. There is no bulk endpoint and this does not ask for one: it is ordinary POSTs, a few
+// in flight at a time. All 100 at once is a burst nothing else on this page produces, and one at
+// a time is 100 round trips end to end.
+
+const BULK_COUNT = 100;
+const BULK_IN_FLIGHT = 8;
+
+async function addRandomColors() {
+	const id = userID();
+	if (id === null) {
+		return;
+	}
+
+	// a set, so the run is BULK_COUNT distinct colors rather than 100 draws with collisions
+	const queue = new Set();
+	while (queue.size < BULK_COUNT) {
+		queue.add("#" + randomDigits());
+	}
+	const hexes = [...queue];
+
+	let done = 0;
+	let created = 0;
+	let failed = 0;
+	let firstError = null;
+
+	// Each worker drains the same array, so a slow request does not hold up the others.
+	const worker = async () => {
+		while (hexes.length > 0) {
+			const hex = hexes.pop();
+			try {
+				const { status } = await call("POST", `/users/${id}/colors`, { hex });
+				if (status === 201) {
+					created++;
+				}
+			} catch (err) {
+				failed++;
+				firstError ??= err.message;
+			}
+			done++;
+			setStatus(`adding colors... ${done}/${BULK_COUNT}`);
+		}
+	};
+
+	$("bulk-add").disabled = true;
+	try {
+		await Promise.all(Array.from({ length: BULK_IN_FLIGHT }, worker));
+	} finally {
+		$("bulk-add").disabled = false;
+	}
+
+	// created counts 201s only, so the rest were colors this user already had
+	const summary = `added ${created} of ${BULK_COUNT}`;
+	setStatus(failed === 0 ? summary : `${summary}, ${failed} failed - ${firstError}`, failed > 0);
+	await loadSaved();
 }
 
 // ---- preferences ----
@@ -186,11 +418,98 @@ function applySwatchInfo(hidden) {
 	writeStored(SWATCH_INFO_KEY, hidden);
 }
 
+// Two values, so a button beats a menu: one click is the whole choice. The order itself lives in
+// data-order, which is where the query builders read it; the label only reports it.
+function initOrderToggle(id, onChange) {
+	const el = $(id);
+	const render = () => {
+		const desc = el.dataset.order === "desc";
+		el.textContent = desc ? "desc \u2193" : "asc \u2191";
+		el.title = `switch to ${desc ? "ascending" : "descending"}`;
+	};
+	el.addEventListener("click", () => {
+		el.dataset.order = el.dataset.order === "desc" ? "asc" : "desc";
+		render();
+		onChange();
+	});
+	render();
+}
+
+// The id is what every saved-colors call is about, so losing it on reload means retyping it
+// before the page is useful again. Stored as the raw field string; anything else in the key is
+// ignored and the markup's own value stands.
+function rememberUserID() {
+	writeStored(USER_ID_KEY, $("user-id").value);
+}
+
+function initUserID() {
+	const stored = readStored(USER_ID_KEY, null);
+	if (typeof stored === "string" && /^[1-9][0-9]*$/.test(stored)) {
+		$("user-id").value = stored;
+	}
+	$("user-id").addEventListener("change", () => {
+		rememberUserID();
+		// the cursor was minted for the previous user and carries no user of its own, so load-more
+		// would answer with this one's page and append it under the other one's colors
+		setNextCursor(null);
+	});
+}
+
+// Every listing control and the values it accepts, mirroring the options in the markup. A stale
+// or hand-edited key must not put the page in a state the API answers with a 400, so anything not
+// listed here is dropped and the markup's own value stands.
+const CONTROL_VALUES = {
+	"sort": ["created_at", "hex", "color"],
+	"order": ["desc", "asc"],
+	"limit": ["10", "20", "50", "100"],
+	"palette-sort": ["name", "hex", "color"],
+	"palette-order": ["asc", "desc"],
+};
+
+// The two toggles keep their value in data-order and everything else in .value. That is the only
+// difference between the controls, and these three functions are where it lives.
+function isOrderToggle(id) {
+	return id === "order" || id === "palette-order";
+}
+
+function readControl(id) {
+	return isOrderToggle(id) ? $(id).dataset.order : $(id).value;
+}
+
+function writeControl(id, value) {
+	if (isOrderToggle(id)) {
+		$(id).dataset.order = value;
+	} else {
+		$(id).value = value;
+	}
+}
+
+function validControl(id, value) {
+	return typeof value === "string" && CONTROL_VALUES[id].includes(value);
+}
+
+function rememberControls() {
+	const state = {};
+	for (const id of Object.keys(CONTROL_VALUES)) {
+		state[id] = readControl(id);
+	}
+	writeStored(CONTROLS_KEY, state);
+}
+
+// Runs before the toggles are labelled and before the first load, so both read what was restored.
+function initControls() {
+	const state = readStoredObject(CONTROLS_KEY);
+	for (const id of Object.keys(CONTROL_VALUES)) {
+		if (validControl(id, state[id])) {
+			writeControl(id, state[id]);
+		}
+	}
+}
+
 // app.js is deferred, so the document is complete here. A section with no stored preference
 // keeps whatever `open` its markup declares.
 function initCollapsibleSections() {
-	const stored = readStored(DETAILS_KEY, {});
-	const state = stored !== null && typeof stored === "object" && !Array.isArray(stored) ? stored : {};
+	const state = readStoredObject(DETAILS_KEY);
 	for (const section of document.querySelectorAll("details[data-collapse-key]")) {
 		const key = section.dataset.collapseKey;
 		if (typeof state[key] === "boolean") {
@@ -216,14 +535,46 @@ $("swatch-info").addEventListener("click", () => {
 // A mark that no longer matches the field would lie about what is about to be added.
 $("hex").addEventListener("input", () => {
 	if (selectedHex !== null && $("hex").value !== selectedHex) {
-		selectedHex = null;
-		markSelected();
+		clearSelection();
 	}
+});
+
+$("bulk-add").addEventListener("click", addRandomColors);
+
+$("random-hex").addEventListener("click", () => {
+	setHexField("#" + randomDigits());
+});
+
+// Fills the two fields and stops there. Creating is still the create button, so a generated
+// user can be edited or discarded before it reaches the API.
+$("random-user").addEventListener("click", () => {
+	const tag = randomDigits();
+	$("new-email").value = `user-${tag}@example.com`;
+	$("new-name").value = `user ${tag}`;
 });
 
 $("load").addEventListener("click", () => {
 	setStatus("");
 	loadSaved();
+});
+
+$("load-more").addEventListener("click", () => {
+	loadSaved({ append: true });
+});
+
+// Changing either of these invalidates the cursor, and loadSaved without append drops it. The
+// order toggle does the same through initOrderToggle, which fires on click rather than change.
+for (const control of [$("sort"), $("limit")]) {
+	control.addEventListener("change", () => {
+		setStatus("");
+		rememberControls();
+		loadSaved();
+	});
+}
+
+$("palette-sort").addEventListener("change", () => {
+	rememberControls();
+	loadPalette();
 });
 
 $("create-user").addEventListener("click", async () => {
@@ -233,6 +584,7 @@ $("create-user").addEventListener("click", async () => {
 			name: $("new-name").value,
 		});
 		$("user-id").value = data.user.id;
+		rememberUserID(); // a scripted value fires no change event
 		$("new-email").value = "";
 		$("new-name").value = "";
 		setStatus(`user ${data.user.id} created`);
@@ -264,6 +616,18 @@ $("add-form").addEventListener("submit", async (event) => {
 $("theme").textContent = currentTheme() === "dark" ? "light" : "dark";
 applySwatchInfo(readStored(SWATCH_INFO_KEY, false) === true);
 initCollapsibleSections();
+initUserID(); // before loadSaved below, which reads the field
+initControls(); // before the toggles below, which label themselves from data-order
+initOrderToggle("order", () => {
+	setStatus("");
+	rememberControls();
+	loadSaved();
+});
+initOrderToggle("palette-order", () => {
+	rememberControls();
+	loadPalette();
+});
 
+renderDetail(); // the placeholder, until a swatch is clicked
 loadPalette();
 loadSaved();

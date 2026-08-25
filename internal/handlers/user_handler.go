@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/salandered/httputils/httputils"
 	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/user"
 )
@@ -33,7 +34,7 @@ func (h *UserHandler) HandleCreateUser(w http.ResponseWriter, req *http.Request)
 	ctx := req.Context()
 
 	var data CreateUserReq
-	if err := readJSON(w, req, &data); err != nil {
+	if err := httputils.ReadJSON(w, req, &data, maxRequestBodyBytes); err != nil {
 		writeRequestError(ctx, w, err)
 		return
 	}
@@ -56,7 +57,7 @@ func (h *UserHandler) HandleCreateUser(w http.ResponseWriter, req *http.Request)
 	}
 
 	w.Header().Set("Location", fmt.Sprintf("/api/v1/users/%d", u.ID))
-	writeJSON(ctx, w, http.StatusCreated, CreateUserResp{User: userToResp(&u)})
+	httputils.WriteJSON(ctx, w, http.StatusCreated, CreateUserResp{User: userToResp(&u)})
 }
 
 func userToResp(u *user.User) UserResp {

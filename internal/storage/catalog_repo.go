@@ -8,13 +8,20 @@ import (
 	"github.com/salandered/wavelen/internal/color"
 )
 
-func (s *Store) ListCommonColors(ctx context.Context) ([]color.Common, error) {
-	const query = `
+func (s *Store) ListCommonColors(
+	ctx context.Context, p ListCommonColorsParams,
+) ([]color.Common, error) {
+	const template = `
 		SELECT hex, name
 		FROM common_colors
-		ORDER BY name`
+		ORDER BY %s`
 
-	rows, err := s.pool.Query(ctx, query)
+	orderBy, err := p.normalized().orderBy()
+	if err != nil {
+		return nil, fmt.Errorf("storage list common colors: %w", err)
+	}
+
+	rows, err := s.pool.Query(ctx, fmt.Sprintf(template, orderBy))
 	if err != nil {
 		return nil, fmt.Errorf("storage list common colors: %w", err)
 	}

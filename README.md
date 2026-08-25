@@ -36,8 +36,8 @@ make dc/down # stop the stack
 Optional, nothing needs it.
 
 ```sh
-make ui/up   # the stack plus a caddy container
-make ui/down
+make web/up   # the stack plus a caddy container
+make web/down
 ```
 
 Open <http://localhost:8089>.
@@ -79,4 +79,5 @@ curl -X POST localhost:8080/api/v1/users -d '{"email":"ada@example.com","name":"
 curl -X POST localhost:8080/api/v1/users/1/colors -d '{"hex":"FF00AA"}'
 curl localhost:8080/api/v1/users/1/colors
 curl localhost:8080/api/v1/colors
+curl 'localhost:8080/api/v1/colors?sort=hex&order=desc'
 ```

@@ -236,7 +236,7 @@ func (s *APISuite) TestListColorsRendersEmptyArrayNotNull() {
 
 	resp := s.get("/api/v1/users/1/colors")
 	s.Require().Equal(http.StatusOK, resp.StatusCode)
-	s.Require().JSONEq(`{"colors":[]}`, s.body(resp))
+	s.Require().JSONEq(`{"colors":[],"metadata":{"limit":50}}`, s.body(resp))
 }
 
 func (s *APISuite) TestListColorsKeepsRepoOrderAndNormalizesTimeToUTC() {
@@ -254,6 +254,79 @@ func (s *APISuite) TestListColorsKeepsRepoOrderAndNormalizesTimeToUTC() {
 	s.Require().Equal(time.UTC, out.Colors[0].CreatedAt.Location())
 }
 
+func (s *APISuite) TestListColorsAppliesDefaultsWhenNoParamsAreGiven() {
+	s.get("/api/v1/users/1/colors")
+
+	s.Require().Equal(storage.ListColorsParams{
+		Sort:  storage.SortByCreatedAt,
+		Order: storage.OrderDesc,
+		Limit: 50,
+	}, s.storage.gotParams)
+}
+
+func (s *APISuite) TestListColorsPassesEveryParsedParamDownIncludingACursorRoundTrip() {
+	s.storage.colors = []color.Color{{Hex: "#00ff00", CreatedAt: stubTime}}
+	s.storage.hasMore = true
+
+	var first handlers.ListColorsResp
+	s.decode(s.get("/api/v1/users/1/colors?sort=hex&order=asc&limit=1"), &first)
+	s.Require().NotEmpty(first.Metadata.NextCursor)
+	s.Require().Equal(1, first.Metadata.Limit)
+
+	// when the client feeds that cursor back
+	s.get("/api/v1/users/1/colors?sort=hex&order=asc&limit=1&cursor=" + first.Metadata.NextCursor)
+
+	got := s.storage.gotParams
+	s.Require().Equal(storage.SortByHex, got.Sort)
+	s.Require().Equal(storage.OrderAsc, got.Order)
+	s.Require().Equal(1, got.Limit)
+	s.Require().NotNil(got.After)
+	s.Require().Equal(color.Hex("#00ff00"), got.After.Hex)
+}
+
+func (s *APISuite) TestListColorsPassesTheColorSortDownAndRoundTripsItsCursor() {
+	s.storage.colors = []color.Color{{Hex: "#00ff00", CreatedAt: stubTime}}
+	s.storage.hasMore = true
+
+	var first handlers.ListColorsResp
+	s.decode(s.get("/api/v1/users/1/colors?sort=color&order=asc&limit=1"), &first)
+	s.Require().Equal(storage.SortByColor, s.storage.gotParams.Sort)
+	s.Require().NotEmpty(first.Metadata.NextCursor)
+
+	s.get("/api/v1/users/1/colors?sort=color&order=asc&limit=1&cursor=" + first.Metadata.NextCursor)
+
+	got := s.storage.gotParams
+	s.Require().Equal(storage.SortByColor, got.Sort)
+	s.Require().NotNil(got.After)
+	s.Require().Equal(color.Hex("#00ff00"), got.After.Hex)
+}
+
+func (s *APISuite) TestListColorsOmitsNextCursorAtTheEndOfTheList() {
+	s.storage.colors = []color.Color{{Hex: "#00ff00", CreatedAt: stubTime}}
+	s.storage.hasMore = false
+
+	var out handlers.ListColorsResp
+	s.decode(s.get("/api/v1/users/1/colors"), &out)
+
+	s.Require().Empty(out.Metadata.NextCursor)
+}
+
+func (s *APISuite) TestListColorsRejectsUnusableQueryParams() {
+	for _, query := range []string{
+		"limit=0", "limit=101", "limit=all",
+		"sort=name", "order=sideways",
+		"cursor=!!!", "sort=hex&cursor=" + encodedCreatedAtCursor,
+	} {
+		s.Run(query, func() {
+			resp := s.get("/api/v1/users/1/colors?" + query)
+			s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
+		})
+	}
+}
+
+// created under created_at, any request sorting by hex must reject it
+const encodedCreatedAtCursor = "Y3JlYXRlZF9hdHxkZXNjfDIwMjYtMDgtMjNUMTQ6MDA6MDBafCNmZjAwYWE"
+
 // The shared palette
 
 func (s *APISuite) TestListCommonColorsRendersTheCatalog() {
@@ -267,6 +340,43 @@ func (s *APISuite) TestListCommonColorsRendersTheCatalog() {
 
 	s.Require().Len(out.Colors, 2)
 	s.Require().Equal(handlers.CommonColorResp{Hex: "#000000", Name: "black"}, out.Colors[0])
+}
+
+func (s *APISuite) TestListCommonColorsAppliesDefaultsWhenNoParamsAreGiven() {
+	s.get("/api/v1/colors")
+
+	s.Require().Equal(storage.ListCommonColorsParams{
+		Sort:  storage.CatalogSortByName,
+		Order: storage.OrderAsc,
+	}, s.storage.gotCatalogParams)
+}
+
+func (s *APISuite) TestListCommonColorsPassesTheSortDown() {
+	s.get("/api/v1/colors?sort=hex&order=desc")
+
+	s.Require().Equal(storage.ListCommonColorsParams{
+		Sort:  storage.CatalogSortByHex,
+		Order: storage.OrderDesc,
+	}, s.storage.gotCatalogParams)
+}
+
+func (s *APISuite) TestListCommonColorsPassesTheColorSortDown() {
+	s.get("/api/v1/colors?sort=color")
+
+	s.Require().Equal(storage.ListCommonColorsParams{
+		Sort:  storage.CatalogSortByColor,
+		Order: storage.OrderAsc,
+	}, s.storage.gotCatalogParams)
+}
+
+// created_at is a column of user_colors only, the palette has no such column
+func (s *APISuite) TestListCommonColorsRejectsUnusableQueryParams() {
+	for _, query := range []string{"sort=created_at", "sort=names", "order=sideways"} {
+		s.Run(query, func() {
+			resp := s.get("/api/v1/colors?" + query)
+			s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
+		})
+	}
 }
 
 // Failure mapping

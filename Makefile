@@ -36,14 +36,14 @@ dc/up:
 dc/down:
 	docker compose down
 
-## ui/up: run the stack + web ui
-.PHONY: ui/up
-ui/up:
+## web/up: run the stack + web web
+.PHONY: web/up
+web/up:
 	docker compose -f docker-compose.yml -f docker-compose.web.yml up -d --build
 
-## ui/down: stop the stack + ui
-.PHONY: ui/down
-ui/down:
+## web/down: stop the stack + web
+.PHONY: web/down
+web/down:
 	docker compose -f docker-compose.yml -f docker-compose.web.yml down
 
 ## db/up: start only the postgres container

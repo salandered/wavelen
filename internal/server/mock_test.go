@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/salandered/wavelen/internal/color"
+	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/user"
 )
 
@@ -17,16 +18,19 @@ type mockStorage struct {
 	added     bool
 	addErr    error
 	colors    []color.Color
+	hasMore   bool
 	colorsErr error
 	common    []color.Common
 	commonErr error
 	pingErr   error
 
 	// what the handler passed down
-	gotUser   *user.User
-	gotUserID user.ID
-	gotHex    color.Hex
-	pingCalls int
+	gotUser          *user.User
+	gotUserID        user.ID
+	gotHex           color.Hex
+	gotParams        storage.ListColorsParams
+	gotCatalogParams storage.ListCommonColorsParams
+	pingCalls        int
 }
 
 // not UTC, a response carrying Z proves the handler normalized it.
@@ -53,12 +57,17 @@ func (s *mockStorage) AddColor(_ context.Context, userID user.ID, hex color.Hex)
 	return s.added, s.addErr
 }
 
-func (s *mockStorage) ListColors(_ context.Context, userID user.ID) ([]color.Color, error) {
-	s.gotUserID = userID
-	return s.colors, s.colorsErr
+func (s *mockStorage) ListColors(
+	_ context.Context, userID user.ID, p storage.ListColorsParams,
+) (storage.ColorPage, error) {
+	s.gotUserID, s.gotParams = userID, p
+	return storage.ColorPage{Colors: s.colors, HasMore: s.hasMore}, s.colorsErr
 }
 
-func (s *mockStorage) ListCommonColors(_ context.Context) ([]color.Common, error) {
+func (s *mockStorage) ListCommonColors(
+	_ context.Context, p storage.ListCommonColorsParams,
+) ([]color.Common, error) {
+	s.gotCatalogParams = p
 	return s.common, s.commonErr
 }
 

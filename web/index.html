@@ -45,8 +45,13 @@
 			color-scheme: dark;
 		}
 
+		/*
+			visibility, not display: the labels keep their box, so hiding them does not resize
+			a single swatch. With display:none the grid rows collapse to the min-height below
+			and every swatch visibly shrinks.
+		*/
 		:root.no-swatch-info .swatch span {
-			display: none;
+			visibility: hidden;
 		}
 
 		html {
@@ -75,17 +80,21 @@
 			margin-right: auto;
 		}
 
-		summary {
+		summary,
+		.panel-title {
 			font-size: 0.8rem;
 			font-weight: 600;
 			text-transform: uppercase;
 			letter-spacing: 0.05em;
 			color: var(--muted);
-			cursor: pointer;
-			user-select: none;
-			margin-bottom: 0.75rem;
+			margin: 0 0 0.75rem;
 			padding-bottom: 0.35rem;
 			border-bottom: 1px solid var(--line);
+		}
+
+		summary {
+			cursor: pointer;
+			user-select: none;
 		}
 
 		details:not([open]) summary {
@@ -94,6 +103,39 @@
 
 		details {
 			margin-bottom: 2rem;
+		}
+
+		/* the grids on the left, the clicked color on the right */
+		.split {
+			display: flex;
+			align-items: flex-start;
+			gap: 1.5rem;
+		}
+
+		/* min-width, or a grid row sized by its content would push the aside past the edge */
+		main {
+			flex: 1;
+			min-width: 0;
+		}
+
+		/* sticky, so the color stays in view while a long list scrolls beside it */
+		aside {
+			flex: 0 0 12rem;
+			position: sticky;
+			top: 2rem;
+		}
+
+		/* below this the two columns are both too narrow to be worth keeping side by side */
+		@media (max-width: 38rem) {
+			.split {
+				flex-direction: column;
+			}
+
+			aside {
+				flex: none;
+				position: static;
+				align-self: stretch;
+			}
 		}
 
 		.row {
@@ -110,6 +152,7 @@
 		}
 
 		input,
+		select,
 		button {
 			font: inherit;
 			font-size: 0.85rem;
@@ -128,6 +171,16 @@
 			width: 5rem;
 		}
 
+		/* fixed, so flipping the label does not shift the controls beside it */
+		#order,
+		#palette-order {
+			min-width: 4.5rem;
+		}
+
+		#load-more {
+			margin-top: 0.75rem;
+		}
+
 		#hex {
 			width: 8rem;
 			font-family: ui-monospace, monospace;
@@ -144,9 +197,14 @@
 			color: var(--error);
 		}
 
+		/*
+			Six across. There is no border-box reset, so max-width is body's content box: the grids
+			get 60rem less the aside and the gap, which is 46.5rem. Six of these need 45.2rem and a
+			seventh would need 52.8rem, so auto-fill settles on six and stretches them to 7.4rem.
+		*/
 		.grid {
 			display: grid;
-			grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+			grid-template-columns: repeat(auto-fill, minmax(7.2rem, 1fr));
 			gap: 0.4rem;
 		}
 
@@ -154,7 +212,7 @@
 			display: flex;
 			flex-direction: column;
 			gap: 0.1rem;
-			/* min-height keeps the grid readable once the labels are hidden */
+			/* a floor for the shortest labels, the two lines are taller than this anyway */
 			min-height: 3.2rem;
 			padding: 0.6rem 0.5rem;
 			border: 1px solid var(--line);
@@ -181,6 +239,61 @@
 			white-space: nowrap;
 		}
 
+		/* the hex sits on the color rather than inside it, so the two clicks stay separate */
+		.detail-stack {
+			position: relative;
+		}
+
+		.detail-color {
+			/* the one border-box on the page: aspect-ratio squares the content box, not this one */
+			box-sizing: border-box;
+			display: block;
+			width: 100%;
+			/* square, and wider than a swatch: this is the one meant to be looked at */
+			aspect-ratio: 1;
+			padding: 0;
+			border: 1px solid var(--line);
+		}
+
+		/*
+			The UA stylesheet sizes the fullscreen element, but this file's own square, border and
+			radius all survive it: the first letterboxes the color, the second draws a hairline along
+			the screen edge, and the third rounds the corners and shows the backdrop through them.
+		*/
+		.detail-color:fullscreen {
+			aspect-ratio: auto;
+			width: 100%;
+			height: 100%;
+			border: none;
+			border-radius: 0;
+		}
+
+		.detail-hex {
+			position: absolute;
+			left: 0.5rem;
+			bottom: 0.6rem;
+			padding: 0.1rem 0.25rem;
+			border: none;
+			background: transparent;
+			font-family: ui-monospace, monospace;
+		}
+
+		/*
+			The only sign it is clickable: it sits on the color with no chrome of its own, and an
+			underline is the one mark that reads against every background.
+		*/
+		.detail-hex:hover {
+			text-decoration: underline;
+		}
+
+		.detail-label {
+			margin: 0.4rem 0 0;
+			color: var(--muted);
+			font-size: 0.8rem;
+			/* a name or a timestamp is wider than the panel, and here there is room to wrap it */
+			overflow-wrap: break-word;
+		}
+
 		.empty {
 			color: var(--muted);
 			font-size: 0.85rem;
@@ -196,35 +309,81 @@
 		<button type="button" id="theme"></button>
 	</header>
 
-	<details data-collapse-key="user" open>
-		<summary>User</summary>
-		<div class="row">
-			<label for="user-id">user id</label>
-			<input id="user-id" type="number" min="1" value="1">
-			<button type="button" id="load">load colors</button>
-		</div>
-		<div class="row">
-			<label for="new-email">or a new one</label>
-			<input id="new-email" type="email" placeholder="email">
-			<input id="new-name" placeholder="name">
-			<button type="button" id="create-user">create user</button>
-		</div>
-	</details>
+	<div class="split">
+		<main>
+		<details data-collapse-key="user" open>
+			<summary>User</summary>
+			<div class="row">
+				<label for="user-id">user id</label>
+				<input id="user-id" type="number" min="1" value="1">
+				<button type="button" id="load">load colors</button>
+			</div>
+			<div class="row">
+				<label for="new-email">add new</label>
+				<input id="new-email" type="email" placeholder="email">
+				<input id="new-name" placeholder="name">
+				<button type="button" id="create-user">create user</button>
+				<button type="button" id="random-user">random</button>
+			</div>
+		</details>
 
-	<details data-collapse-key="saved" open>
-		<summary>Saved colors</summary>
-		<form class="row" id="add-form">
-			<input id="hex" placeholder="#ff00aa" aria-label="hex color">
-			<button>add</button>
-		</form>
-		<p id="status" role="status"></p>
-		<div class="grid" id="saved"></div>
-	</details>
+		<details data-collapse-key="saved" open>
+			<summary>Saved colors</summary>
+			<form class="row" id="add-form">
+				<input id="hex" placeholder="#ff00aa" aria-label="hex color">
+				<button>add</button>
+				<!-- type=button, or it would submit the form instead of filling the field -->
+				<button type="button" id="random-hex">random</button>
+				<button type="button" id="bulk-add" title="dev only: 100 separate POSTs">
+					add 100 random
+				</button>
+			</form>
+			<!-- order reads as descending/ascending rather than newest/oldest, it applies to hex too -->
+			<div class="row">
+				<label for="sort">sort by</label>
+				<select id="sort">
+					<option value="created_at">date</option>
+					<option value="hex">hex</option>
+					<option value="color">color</option>
+				</select>
+				<!-- the label is the current order and is written by app.js, the title is the action -->
+				<button type="button" id="order" data-order="desc"></button>
+				<label for="limit">per page</label>
+				<select id="limit">
+					<option value="10">10</option>
+					<option value="20" selected>20</option>
+					<option value="50">50</option>
+					<option value="100">100</option>
+				</select>
+			</div>
+			<p id="status" role="status"></p>
+			<div class="grid" id="saved"></div>
+			<!-- hidden until a response carries a next_cursor, which is the end-of-list signal -->
+			<button type="button" id="load-more" hidden>load more</button>
+		</details>
 
-	<details data-collapse-key="palette" open>
-		<summary>Palette</summary>
-		<div class="grid" id="palette"></div>
-	</details>
+		<details data-collapse-key="palette" open>
+			<summary>Palette</summary>
+			<!-- the palette is 100 fixed rows, so it sorts but never pages -->
+			<div class="row">
+				<label for="palette-sort">sort by</label>
+				<select id="palette-sort">
+					<option value="name">name</option>
+					<option value="hex">hex</option>
+					<option value="color">color</option>
+				</select>
+				<button type="button" id="palette-order" data-order="asc"></button>
+			</div>
+			<div class="grid" id="palette"></div>
+		</details>
+		</main>
+
+		<aside>
+			<h2 class="panel-title">Selected</h2>
+			<!-- filled by app.js: the empty state is a placeholder, not a blank panel -->
+			<div id="detail"></div>
+		</aside>
+	</div>
 </body>
 
 </html>

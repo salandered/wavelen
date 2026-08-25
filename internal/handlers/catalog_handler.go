@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 
+	"github.com/salandered/httputils/httputils"
 	"github.com/salandered/wavelen/internal/storage"
 )
 
@@ -22,7 +23,13 @@ type ListCommonColorsResp struct {
 func (h *CatalogHandler) HandleListCommonColors(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
 
-	common, err := h.Catalog.ListCommonColors(ctx)
+	params, err := listCommonColorsParams(req)
+	if err != nil {
+		writeRequestError(ctx, w, err)
+		return
+	}
+
+	common, err := h.Catalog.ListCommonColors(ctx, params)
 	if err != nil {
 		writeStorageError(ctx, w, err)
 		return
@@ -32,5 +39,27 @@ func (h *CatalogHandler) HandleListCommonColors(w http.ResponseWriter, req *http
 	for _, c := range common {
 		resp.Colors = append(resp.Colors, CommonColorResp{Hex: string(c.Hex), Name: c.Name})
 	}
-	writeJSON(ctx, w, http.StatusOK, resp)
+	httputils.WriteJSON(ctx, w, http.StatusOK, resp)
+}
+
+// Both params are optional; the defaults come from storage.
+func listCommonColorsParams(req *http.Request) (storage.ListCommonColorsParams, error) {
+	params := storage.ListCommonColorsParams{
+		Sort:  storage.DefaultCatalogSort,
+		Order: storage.DefaultCatalogOrder,
+	}
+
+	var err error
+	query := req.URL.Query()
+	if raw := query.Get(sortQuery); raw != "" {
+		if params.Sort, err = storage.ParseCatalogSort(raw); err != nil {
+			return params, err
+		}
+	}
+	if raw := query.Get(orderQuery); raw != "" {
+		if params.Order, err = storage.ParseSortOrder(raw); err != nil {
+			return params, err
+		}
+	}
+	return params, nil
 }

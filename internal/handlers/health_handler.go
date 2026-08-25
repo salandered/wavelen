@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/salandered/httputils/httputils"
 	"github.com/salandered/wavelen/internal/storage"
 )
 
-// Bounds the readiness probe on its own, whatever the caller allows.
 const readinessTimeout = time.Second
 
 const healthDependency = "postgres"
@@ -24,7 +24,7 @@ type HealthResp struct {
 }
 
 func (h *HealthHandler) HandleLive(w http.ResponseWriter, req *http.Request) {
-	writeJSON(req.Context(), w, http.StatusOK, HealthResp{Status: "ok"})
+	httputils.WriteJSON(req.Context(), w, http.StatusOK, HealthResp{Status: "ok"})
 }
 
 func (h *HealthHandler) HandleReady(w http.ResponseWriter, req *http.Request) {
@@ -34,11 +34,11 @@ func (h *HealthHandler) HandleReady(w http.ResponseWriter, req *http.Request) {
 	if err := h.Health.Ping(ctx); err != nil {
 		slog.WarnContext(ctx, "readiness check failed",
 			"dependency", healthDependency, "error", err)
-		writeJSON(ctx, w, http.StatusServiceUnavailable, HealthResp{
+		httputils.WriteJSON(ctx, w, http.StatusServiceUnavailable, HealthResp{
 			Status:     "unavailable",
 			Dependency: healthDependency,
 		})
 		return
 	}
-	writeJSON(ctx, w, http.StatusOK, HealthResp{Status: "ok"})
+	httputils.WriteJSON(ctx, w, http.StatusOK, HealthResp{Status: "ok"})
 }

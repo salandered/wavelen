@@ -14,12 +14,12 @@ type UserRepo interface {
 
 type ColorRepo interface {
 	AddColor(ctx context.Context, userID user.ID, hex color.Hex) (bool, error)
-	ListColors(ctx context.Context, userID user.ID) ([]color.Color, error)
+	ListColors(ctx context.Context, userID user.ID, p ListColorsParams) (ColorPage, error)
 }
 
 type CatalogRepo interface {
-	// The shared palette, by name.
-	ListCommonColors(ctx context.Context) ([]color.Common, error)
+	// The whole shared palette, ordered by p.
+	ListCommonColors(ctx context.Context, p ListCommonColorsParams) ([]color.Common, error)
 }
 
 type HealthRepo interface {

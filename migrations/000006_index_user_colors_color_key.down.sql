@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS user_colors_user_id_color_key_hex_idx;
