@@ -1,6 +1,6 @@
 module github.com/salandered/wavelen
 
-go 1.26.7
+go 1.26.7 // TODO try go 1.27 !
 
 require (
 	github.com/getkin/kin-openapi v0.147.0

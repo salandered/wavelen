@@ -18,6 +18,7 @@ import (
 	"github.com/salandered/wavelen/internal/requestid"
 	"github.com/salandered/wavelen/internal/server"
 	"github.com/salandered/wavelen/internal/storage"
+	"github.com/salandered/wavelen/internal/version"
 
 	logging "github.com/salandered/slogenv"
 )
@@ -64,6 +65,8 @@ func setupLogging() (io.Closer, error) {
 }
 
 func run() error {
+	slog.Info("wavelen starting", "version", version.Get())
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	go func() {

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -31,6 +32,10 @@ var _ Storage = (*Store)(nil) // compile-time interface assertion
 // New wraps an already connected pool. The caller owns its lifetime.
 func New(pool *pgxpool.Pool) *Store {
 	return &Store{pool: pool}
+}
+
+func (s *Store) Ping(ctx context.Context) error {
+	return s.pool.Ping(ctx)
 }
 
 // pgErrCode returns "" when err did not come from the server.

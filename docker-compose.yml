@@ -1,7 +1,10 @@
 # Values come from .env
 services:
   app:
-    build: .
+    build:
+      context: .
+      args:
+        VERSION: "${VERSION:-dev}"
     container_name: wavelen-api
     ports:
       - "127.0.0.1:${PORT:-8080}:${PORT:-8080}" # loopback only

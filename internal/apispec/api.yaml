@@ -19,7 +19,7 @@ paths:
   /:
     get:
       tags: [System]
-      summary: Returns the service name
+      summary: Returns the service name and build-time version
       responses:
         "200":
           description: Successful response
@@ -27,7 +27,37 @@ paths:
             text/plain:
               schema:
                 type: string
-                example: "wavelen"
+                example: "wavelen version 0.1.0"
+
+  /livez:
+    get:
+      tags: [System]
+      summary: Checks if the service is alive
+      responses:
+        "200":
+          description: The process is up
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /readyz:
+    get:
+      tags: [System]
+      summary: Checks if the service can reach its database
+      responses:
+        "200":
+          description: The service and Postgres are ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: Postgres is unreachable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DependencyUnavailableResponse"
 
   /api/v1/users:
     post:
@@ -289,6 +319,27 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CommonColor"
+
+    HealthResponse:
+      type: object
+      required: [status]
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [ok]
+
+    DependencyUnavailableResponse:
+      type: object
+      required: [status, dependency]
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [unavailable]
+        dependency:
+          type: string
+          enum: [postgres]
 
     ErrorResponse:
       type: object

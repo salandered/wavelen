@@ -13,6 +13,7 @@ func NewHandler(s storage.Storage) http.Handler {
 }
 
 func newMux(s storage.Storage) *http.ServeMux {
+	health := &handlers.HealthHandler{Health: s}
 	users := &handlers.UserHandler{Users: s}
 	colors := &handlers.ColorHandler{Colors: s}
 	catalog := &handlers.CatalogHandler{Catalog: s}
@@ -20,6 +21,8 @@ func newMux(s storage.Storage) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /{$}", handlers.HandleRoot)
+	mux.HandleFunc("GET /livez", health.HandleLive)
+	mux.HandleFunc("GET /readyz", health.HandleReady)
 	// users
 	mux.HandleFunc("POST /api/v1/users", users.HandleCreateUser)
 	// user's colors

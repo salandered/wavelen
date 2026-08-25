@@ -10,13 +10,14 @@ COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
 # CGO_ENABLED=0 - no libc dependency, runs on `scratch`/distroless
-# -ldflags "-s -w" strips both symbol tables and DWARF
+# -ldflags "-s -w" strips both symbol tables and DWARF; -X injects the build-time version
+ARG VERSION=dev
 ARG TARGETARCH # injected by buildx: amd64 | arm64
 COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod \
 	--mount=type=cache,target=/root/.cache/go-build \
 	CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build \
-	-ldflags="-s -w" \
+	-ldflags="-s -w -X github.com/salandered/wavelen/internal/version.version=${VERSION}" \
 	-o /out/api ./cmd/api
 
 

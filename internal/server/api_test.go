@@ -35,7 +35,7 @@ type APISuite struct {
 	server  *httptest.Server
 	client  *http.Client
 	router  routers.Router
-	storage *stubStorage
+	storage *mockStorage
 }
 
 func (s *APISuite) SetupSuite() {
@@ -51,7 +51,7 @@ func (s *APISuite) SetupSuite() {
 }
 
 func (s *APISuite) SetupTest() {
-	s.storage = newStubStorage()
+	s.storage = newMockStorage()
 	s.server = httptest.NewServer(server.NewHandler(s.storage))
 	s.client = s.server.Client()
 }
@@ -62,10 +62,33 @@ func (s *APISuite) TearDownTest() {
 
 // Routing and middleware
 
-func (s *APISuite) TestRootReturnsServiceName() {
+func (s *APISuite) TestRootReturnsServiceNameAndVersion() {
 	resp := s.get("/")
 	s.Require().Equal(http.StatusOK, resp.StatusCode)
-	s.Require().Contains(s.body(resp), "wavelen")
+	// the version itself is build-time injected
+	s.Require().Contains(s.body(resp), "wavelen version")
+}
+
+func (s *APISuite) TestLivezReturnsOkWithoutTouchingStorage() {
+	resp := s.get("/livez")
+	s.Require().Equal(http.StatusOK, resp.StatusCode)
+	s.Require().JSONEq(`{"status":"ok"}`, s.body(resp))
+	s.Require().Zero(s.storage.pingCalls)
+}
+
+func (s *APISuite) TestReadyzReturnsOkWhenTheDatabaseAnswers() {
+	resp := s.get("/readyz")
+	s.Require().Equal(http.StatusOK, resp.StatusCode)
+	s.Require().JSONEq(`{"status":"ok"}`, s.body(resp))
+	s.Require().Equal(1, s.storage.pingCalls)
+}
+
+func (s *APISuite) TestReadyzReturnsServiceUnavailableAndNamesTheDependency() {
+	s.storage.pingErr = errors.New("connection refused")
+
+	resp := s.get("/readyz")
+	s.Require().Equal(http.StatusServiceUnavailable, resp.StatusCode)
+	s.Require().JSONEq(`{"status":"unavailable","dependency":"postgres"}`, s.body(resp))
 }
 
 func (s *APISuite) TestUnknownPathReturnsNotFound() {

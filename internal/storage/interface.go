@@ -22,8 +22,13 @@ type CatalogRepo interface {
 	ListCommonColors(ctx context.Context) ([]color.Common, error)
 }
 
+type HealthRepo interface {
+	Ping(ctx context.Context) error
+}
+
 type Storage interface {
 	UserRepo
 	ColorRepo
 	CatalogRepo
+	HealthRepo
 }

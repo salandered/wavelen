@@ -63,6 +63,13 @@ apply all migrations.
 go test -tags integration ./internal/storage/...
 ```
 
+## Versioning and CI
+
+```sh
+make build/api VERSION=0.2.0
+VERSION=0.2.0 docker compose build   # the compose default is dev
+```
+
 ## API
 
 See [internal/apispec/api.yaml](internal/apispec/api.yaml).

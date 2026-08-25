@@ -1,3 +1,8 @@
+# Injected into the binary as version.version. The CI release job passes the computed tag;
+# a plain `make build/api` leaves it at the Go default.
+VERSION ?= dev
+LDFLAGS = -s -X github.com/salandered/wavelen/internal/version.version=$(VERSION)
+
 # Holds the database creds and any log settings
 -include .env
 export
@@ -121,7 +126,7 @@ test/all:
 # ==================================================================================== #
 # BUILD
 # ==================================================================================== #
-# -ldflags='-s' strips both symbol tables and DWARF
+# -ldflags carries '-s' (strips both symbol tables and DWARF) and the version -X
 # build/api runs both: the local (windows/amd64) build and the Ubuntu Linux one.
 # Windows needs "-o=./bin/api.exe", not "-o=./bin/api"
 ## build/api: build the cmd/api application for both platforms
@@ -132,7 +137,7 @@ build/api: build/api/local build/api/linux
 .PHONY: build/api/local
 build/api/local:
 	@echo Building cmd/api for windows/amd64...
-	go build -ldflags='-s' -o=./bin/api.exe ./cmd/api
+	go build -ldflags='$(LDFLAGS)' -o=./bin/api.exe ./cmd/api
 
 ## build/api/linux: build the cmd/api application for Ubuntu Linux
 # GOOS/GOARCH come from a target-specific export: make puts them into the child
@@ -146,4 +151,4 @@ build/api/linux: export GOARCH=amd64
 build/api/linux: export CGO_ENABLED=0
 build/api/linux:
 	@echo Building cmd/api for linux/amd64...
-	go build -ldflags='-s' -o=./bin/linux_amd64/api ./cmd/api
+	go build -ldflags='$(LDFLAGS)' -o=./bin/linux_amd64/api ./cmd/api

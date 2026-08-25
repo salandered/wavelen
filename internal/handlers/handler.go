@@ -12,6 +12,7 @@ import (
 
 	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/user"
+	"github.com/salandered/wavelen/internal/version"
 )
 
 const userIDPathValue = "user_id"
@@ -20,7 +21,7 @@ const userIDPathValue = "user_id"
 const maxRequestBodyBytes = 1 << 16 // 64 kb
 
 func HandleRoot(w http.ResponseWriter, req *http.Request) {
-	if _, err := io.WriteString(w, "wavelen\n"); err != nil {
+	if _, err := fmt.Fprintf(w, "wavelen version %v\n", version.Get()); err != nil {
 		slog.ErrorContext(req.Context(), "failed writing root response", "error", err)
 	}
 }
