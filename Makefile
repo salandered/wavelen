@@ -59,6 +59,9 @@ db/psql:
 # ==================================================================================== #
 # MIGRATIONS
 # ==================================================================================== #
+# TODO: using migrate CLI, could be a version drift from the lib cmd/migrate uses
+# Also consider: build/migrate (so build/api no longer covers what the
+# image builds) and a run/migrate sibling for run/api
 
 ## db/migrations/new name=$1: create a new migration
 .PHONY: db/migrations/new

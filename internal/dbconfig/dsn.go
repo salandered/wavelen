@@ -16,6 +16,9 @@ const (
 	defaultSSLMode = "disable"
 )
 
+// MigrateScheme is the DSN scheme golang-migrate maps to its pgx/v5 driver.
+const MigrateScheme = "pgx5"
+
 var ErrMissingCreds = errors.New("POSTGRES_USER and POSTGRES_PASSWORD are required")
 
 // DSN reads POSTGRES_* and returns a conn string.

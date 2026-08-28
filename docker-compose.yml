@@ -1,6 +1,8 @@
 # Values come from .env
 services:
   app:
+    # same image as migrate, both run the exact artifact the schema shipped in
+    image: wavelen:${VERSION:-dev}
     build:
       context: .
       args:
@@ -19,6 +21,33 @@ services:
       DB_CONNECT_TIMEOUT: "${DB_CONNECT_TIMEOUT:-30s}"
       DB_PING_BACKOFF: "${DB_PING_BACKOFF:-1s}"
       SHUTDOWN_TIMEOUT: "${SHUTDOWN_TIMEOUT:-10s}"
+      LOG_LEVEL: "${LOG_LEVEL:-info}"
+      LOG_FORMAT: "${LOG_FORMAT:-text}"
+      LOG_FILE: "${LOG_FILE:-}"
+      LOG_TIME: "${LOG_TIME:-dt-milli}"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # Same image as app.
+  # Runs /migrate instead of the /api entrypoint and exits.
+  # app waits for exit 0.
+  migrate:
+    image: wavelen:${VERSION:-dev}
+    build:
+      context: .
+      args:
+        VERSION: "${VERSION:-dev}"
+    container_name: wavelen-migrate
+    entrypoint: ["/migrate"]
+    restart: "no"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_SSLMODE: disable
+      POSTGRES_USER: ${POSTGRES_USER:?set it in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set it in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-wavelen}
       LOG_LEVEL: "${LOG_LEVEL:-info}"
       LOG_FORMAT: "${LOG_FORMAT:-text}"
       LOG_FILE: "${LOG_FILE:-}"

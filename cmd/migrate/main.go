@@ -5,6 +5,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 
@@ -17,19 +18,34 @@ import (
 	"github.com/salandered/wavelen"
 	"github.com/salandered/wavelen/internal/dbconfig"
 	"github.com/salandered/wavelen/internal/version"
+
+	logging "github.com/salandered/slogenv"
 )
 
-// golang-migrate selects its db driver from the DSN scheme
-const migrateScheme = "pgx5"
-
-// migrations are embedded
+// sourceName labels the source driver in golang-migrate errors
 const sourceName = "iofs"
 
 func main() {
+	// same log setup as cmd/api/main.go, but no AttrsFunc
+	logCloser, err := setupLogging()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	defer func() { _ = logCloser.Close() }()
+
 	if err := run(); err != nil {
 		slog.Error("migrate failed", "error", err)
 		os.Exit(1)
 	}
+}
+
+func setupLogging() (io.Closer, error) {
+	cfg, err := logging.ConfigFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	return logging.Setup(cfg, nil)
 }
 
 func run() error {
@@ -40,7 +56,7 @@ func run() error {
 		return fmt.Errorf("reading embedded migrations: %w", err)
 	}
 
-	dsn, err := dbconfig.DSN(migrateScheme)
+	dsn, err := dbconfig.DSN(dbconfig.MigrateScheme)
 	if err != nil {
 		return err
 	}

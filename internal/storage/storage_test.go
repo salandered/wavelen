@@ -4,13 +4,19 @@ package storage_test
 
 import (
 	"context"
-	"os"
-	"path/filepath"
-	"slices"
+	"net/url"
 	"testing"
 	"time"
 
+	"github.com/golang-migrate/migrate/v4"
+
+	// registers the driver for the migrateScheme URL scheme
+	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
+
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/salandered/wavelen"
+	"github.com/salandered/wavelen/internal/dbconfig"
 	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/user"
 	"github.com/stretchr/testify/suite"
@@ -26,6 +32,9 @@ const (
 	testDBPass  = "testpass"
 )
 
+// same as in cmd/migrate
+const sourceName = "iofs"
+
 func TestStorageSuite(t *testing.T) {
 	suite.Run(t, new(StorageSuite))
 }
@@ -37,13 +46,15 @@ type StorageSuite struct {
 }
 
 func (s *StorageSuite) SetupSuite() {
-	pool, err := pgxpool.New(s.ctx(), s.runContainer())
+	dsn := s.runContainer()
+
+	pool, err := pgxpool.New(s.ctx(), dsn)
 	s.Require().NoError(err)
 	s.Require().NoError(pool.Ping(s.ctx()))
 
 	s.pool = pool
 	s.storage = storage.New(pool)
-	s.applyMigrations()
+	s.applyMigrations(dsn)
 }
 
 // Starts a throwaway Postgres on a random host port and returns its DSN.
@@ -71,31 +82,30 @@ func (s *StorageSuite) TearDownSuite() {
 func (s *StorageSuite) SetupTest() {
 	// truncate all except for common_colors.
 	// RESTART IDENTITY - resets things like users.id bigserial
+	// TODO: kinda fragile
 	_, err := s.pool.Exec(s.ctx(), `TRUNCATE users, user_colors RESTART IDENTITY CASCADE`)
 	s.Require().NoError(err)
 }
 
-// Rebuilds the schema from migrations/*.up.sql.
-func (s *StorageSuite) applyMigrations() {
-	ctx := s.ctx()
-
-	_, err := s.pool.Exec(ctx,
-		`DROP TABLE IF EXISTS user_colors, common_colors, users, schema_migrations CASCADE`)
+// Builds the schema the same way as deploy (the embedded SQL via golang-migrate)
+func (s *StorageSuite) applyMigrations(dsn string) {
+	src, err := iofs.New(wavelen.MigrationsFS, "migrations")
 	s.Require().NoError(err)
 
-	files, err := filepath.Glob(filepath.Join("..", "..", "migrations", "*.up.sql"))
+	// the container hands out a "postgres://" dsn, golang-migrate picks its driver by scheme
+	u, err := url.Parse(dsn)
 	s.Require().NoError(err)
-	s.Require().NotEmpty(files)
-	slices.Sort(files) // version order is the apply order
+	u.Scheme = dbconfig.MigrateScheme
 
-	for _, f := range files {
-		raw, err := os.ReadFile(f)
-		s.Require().NoError(err, f)
+	m, err := migrate.NewWithSourceInstance(sourceName, src, u.String())
+	s.Require().NoError(err)
+	defer func() {
+		srcErr, dbErr := m.Close()
+		s.Require().NoError(srcErr)
+		s.Require().NoError(dbErr)
+	}()
 
-		// no args, so pgx takes the simple protocol and a file may hold several statements
-		_, err = s.pool.Exec(ctx, string(raw))
-		s.Require().NoError(err, f)
-	}
+	s.Require().NoError(m.Up())
 }
 
 func (s *StorageSuite) ctx() context.Context {

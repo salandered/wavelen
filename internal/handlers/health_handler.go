@@ -12,6 +12,11 @@ import (
 
 const readinessTimeout = time.Second
 
+// TODO: Ping succeeds on an empty db, so a pod reports Ready while the migrations
+// Job is still pending or has failed. Check the applied schema version
+// (schema_migrations) against the one this binary embeds.
+// Compare with >=, not ==
+
 const healthDependency = "postgres"
 
 type HealthHandler struct {
