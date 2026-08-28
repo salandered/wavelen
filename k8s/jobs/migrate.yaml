@@ -1,0 +1,22 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: wavelen-migrate
+spec:
+  backoffLimit: 3 # attempts before failed
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: wavelen-migrate
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: ghcr.io/salandered/wavelen:0.1.3
+          command: ["/migrate"] # overrides the image's ENTRYPOINT
+          envFrom:
+            - configMapRef:
+                name: wavelen-config
+            - secretRef:
+                name: wavelen-db

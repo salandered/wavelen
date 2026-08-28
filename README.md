@@ -16,7 +16,7 @@ cp .env.template .env
 
 ```sh
 make db/up # starts db in docker
-make db/migrations/up
+make migrate/up
 make run/api # run app
 ```
 
@@ -26,7 +26,7 @@ make run/api # run app
 
 ```sh
 make dc/up # docker compose stack - app and db
-make db/migrations/up
+make migrate/up
 
 make dc/down # stop the stack
 ```

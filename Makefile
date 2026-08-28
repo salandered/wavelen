@@ -63,21 +63,21 @@ db/psql:
 # Also consider: build/migrate (so build/api no longer covers what the
 # image builds) and a run/migrate sibling for run/api
 
-## db/migrations/new name=$1: create a new migration
-.PHONY: db/migrations/new
-db/migrations/new:
+## migrate/new name=$1: create a new migration
+.PHONY: migrate/new
+migrate/new:
 	@echo Creating migration files for ${name}...
 	migrate create -seq -ext=.sql -dir=./migrations ${name}
 
-## db/migrations/up: apply all migrations
-.PHONY: db/migrations/up
-db/migrations/up:
+## migrate/up: apply all migrations
+.PHONY: migrate/up
+migrate/up:
 	@echo Running up migrations...
 	@migrate -path "./migrations" -database "$(DB_URL)" up
 
-## db/migrations/down: revert all migrations
-.PHONY: db/migrations/down
-db/migrations/down:
+## migrate/down: revert all migrations
+.PHONY: migrate/down
+migrate/down:
 	@echo Reverting all migrations...
 	@migrate -path "./migrations" -database "$(DB_URL)" down
 
@@ -104,12 +104,9 @@ fmt:
 ## audit: all - tidy, lints, tests
 .PHONY: audit
 audit:
-	@echo Checking module dependencies...
 	go mod tidy -diff
 	go mod verify
-	@echo Linting...
 	golangci-lint run ./...
-	@echo Running tests...
 	go test -race -vet=off ./...
 
 # ==================================================================================== #
@@ -170,7 +167,14 @@ k8s/secret:
 		--from-literal=POSTGRES_PASSWORD='$(POSTGRES_PASSWORD)' \
 		--dry-run=client -o yaml | kubectl apply -f -
 
-## k8s/up: apply manifests from k8s/
-.PHONY: k8s/up
-k8s/up:
+## k8s/apply: apply manifests from k8s/
+.PHONY: k8s/apply
+k8s/apply:
 	kubectl apply -f k8s/
+
+## k8s/migrate: run the migrations Job 
+.PHONY: k8s/migrate
+k8s/migrate:
+	kubectl delete job wavelen-migrate --ignore-not-found
+	kubectl apply -f k8s/jobs/migrate.yaml
+	kubectl wait --for=condition=complete job/wavelen-migrate --timeout=120s

@@ -40,7 +40,13 @@ func Start(ctx context.Context, handler http.Handler, cfg Config) error {
 		// Content-Length, TLS handshake errors). Route them through slog.
 		ErrorLog: slog.NewLogLogger(slog.Default().Handler(), slog.LevelWarn),
 	}
-	slog.Info("starting server", "addr", srv.Addr)
+	slog.Info("starting server",
+		"addr", srv.Addr,
+		"read_timeout", srv.ReadTimeout,
+		"write_timeout", srv.WriteTimeout,
+		"idle_timeout", srv.IdleTimeout,
+		"shutdown_timeout", cfg.ShutdownTimeout,
+	)
 
 	// Start the server. Unexpected error is sent to errServeCh
 	errServeCh := make(chan error, 1)

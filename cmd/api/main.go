@@ -28,9 +28,7 @@ const (
 	maxConns        = 25
 	maxConnIdleTime = 15 * time.Minute
 
-	pingTimeout           = 3 * time.Second  // a single attempt
-	defaultConnectTimeout = 30 * time.Second // total budget
-	defaultPingBackoff    = 1 * time.Second  // doubles
+	pingTimeout = 3 * time.Second // a single attempt
 )
 
 func main() {
@@ -65,6 +63,7 @@ func run() error {
 	defer stop()
 	go func() {
 		<-ctx.Done()
+		slog.Info("shutdown signal received")
 		// after the first signal, restore default handling
 		// a second Ctrl+C kills immediately (not a graceful shutdown)
 		stop()
@@ -75,28 +74,18 @@ func run() error {
 		return err
 	}
 
-	pingCfg, err := pingConfigFromEnv()
-	if err != nil {
-		return err
-	}
-
-	pool, err := openPool(ctx, pingCfg)
+	// Startup does not wait for the database
+	pool, err := openPool(ctx)
 	if err != nil {
 		return err
 	}
 	defer pool.Close()
-	slog.Info("database connection pool established")
+	go logDBReachable(ctx, pool)
 
 	return server.Start(ctx, server.NewHandler(storage.New(pool)), cfg)
 }
 
-// how long the app waits for the db at start
-type pingConfig struct {
-	connectTimeout time.Duration
-	backoff        time.Duration
-}
-
-func openPool(ctx context.Context, pingCfg pingConfig) (*pgxpool.Pool, error) {
+func openPool(ctx context.Context) (*pgxpool.Pool, error) {
 	dsn, err := dbconfig.DSN("postgres")
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrConfig, err)
@@ -109,63 +98,37 @@ func openPool(ctx context.Context, pingCfg pingConfig) (*pgxpool.Pool, error) {
 	poolCfg.MaxConns = maxConns
 	poolCfg.MaxConnIdleTime = maxConnIdleTime
 
+	// The effective db config.
+	// ConnConfig carries the parsed DSN; the password is never logged.
+	slog.Info("database config",
+		"host", poolCfg.ConnConfig.Host,
+		"port", poolCfg.ConnConfig.Port,
+		"database", poolCfg.ConnConfig.Database,
+		"user", poolCfg.ConnConfig.User,
+		"tls", poolCfg.ConnConfig.TLSConfig != nil,
+		"max_conns", poolCfg.MaxConns,
+		"max_conn_idle_time", poolCfg.MaxConnIdleTime,
+	)
+
+	// NewWithConfig does not dial: MinConns is 0, so the pool is usable with the
+	// db down and opens connections on first use.
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
 		return nil, fmt.Errorf("database pool: %w", err)
 	}
-
-	if err := pingWithRetry(ctx, pool, pingCfg); err != nil {
-		pool.Close()
-		return nil, err
-	}
 	return pool, nil
 }
 
-// pingWithRetry waits for the db to accept queries;
-// retries with exp backoff
-func pingWithRetry(ctx context.Context, pool *pgxpool.Pool, pingCfg pingConfig) error {
-	ctx, cancel := context.WithTimeout(ctx, pingCfg.connectTimeout)
+// logDBReachable only logs whether the database answers at boot.
+func logDBReachable(ctx context.Context, pool *pgxpool.Pool) {
+	ctx, cancel := context.WithTimeout(ctx, pingTimeout)
 	defer cancel()
 
-	backoff := pingCfg.backoff
-	for attempt := 1; ; attempt++ {
-		attemptCtx, cancelAttempt := context.WithTimeout(ctx, pingTimeout)
-		err := pool.Ping(attemptCtx)
-		cancelAttempt()
-		if err == nil {
-			return nil
-		}
-		slog.Debug("database not ready", "attempt", attempt, "error", err)
-
-		timer := time.NewTimer(backoff)
-		select {
-		case <-ctx.Done():
-			timer.Stop()
-			return fmt.Errorf("database ping after %d attempts: %w", attempt, err)
-		case <-timer.C:
-		}
-		backoff *= 2
+	if err := pool.Ping(ctx); err != nil {
+		slog.Warn("database not reachable at startup", "error", err)
+		return
 	}
-}
-
-func pingConfigFromEnv() (pingConfig, error) {
-	connectTimeout, err := durationFromEnv("DB_CONNECT_TIMEOUT", defaultConnectTimeout)
-	if err != nil {
-		return pingConfig{}, err
-	}
-	backoff, err := durationFromEnv("DB_PING_BACKOFF", defaultPingBackoff)
-	if err != nil {
-		return pingConfig{}, err
-	}
-	if connectTimeout <= 0 {
-		return pingConfig{}, fmt.Errorf(
-			"%w: DB_CONNECT_TIMEOUT should be positive, got %v", ErrConfig, connectTimeout)
-	}
-	if backoff <= 0 {
-		return pingConfig{}, fmt.Errorf(
-			"%w: DB_PING_BACKOFF should be positive, got %v", ErrConfig, backoff)
-	}
-	return pingConfig{connectTimeout: connectTimeout, backoff: backoff}, nil
+	slog.Info("database connection pool established")
 }
 
 func serverConfig() (server.Config, error) {

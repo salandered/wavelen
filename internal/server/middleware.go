@@ -74,16 +74,19 @@ func loggingMiddleware(next http.Handler) http.Handler {
 		case rec.status >= 400:
 			level = slog.LevelWarn
 		}
-		slog.LogAttrs(
-			req.Context(),
-			level,
-			"request",
+		attrs := []slog.Attr{
 			slog.String("method", req.Method),
 			slog.String("path", req.URL.Path),
 			slog.Int("status", rec.status),
 			slog.Duration("duration", time.Since(start)),
 			slog.Int("bytes", rec.bytes),
-		)
+		}
+		// If the client hung up, or the request deadline passed.
+		// Without this we will log the default 200
+		if err := req.Context().Err(); err != nil {
+			attrs = append(attrs, slog.String("aborted", err.Error()))
+		}
+		slog.LogAttrs(req.Context(), level, "request", attrs...)
 	})
 }
 
