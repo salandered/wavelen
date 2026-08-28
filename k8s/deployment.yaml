@@ -14,13 +14,18 @@ spec:
     spec: # Pod runs one container (api app)
       containers:
         - name: api
-          image: ghcr.io/salandered/wavelen:0.1.3
+          image: ghcr.io/salandered/wavelen:0.1.4
           envFrom:
             - configMapRef:
                 name: wavelen-config
             - secretRef:
                 name: wavelen-db
-          
+          env:
+            # ceiling for the Go GC, ~80% of the memory limit below.
+            # keep in sync with resources.limits.memory
+            - name: GOMEMLIMIT
+              value: 100MiB
+
           ports:
             - name: http
               containerPort: 8080
@@ -39,3 +44,10 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 2
             failureThreshold: 3
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              memory: 128Mi

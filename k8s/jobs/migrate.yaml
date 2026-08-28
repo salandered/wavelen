@@ -13,8 +13,17 @@ spec:
       restartPolicy: Never
       containers:
         - name: migrate
-          image: ghcr.io/salandered/wavelen:0.1.3
+          image: ghcr.io/salandered/wavelen:0.1.4
           command: ["/migrate"] # overrides the image's ENTRYPOINT
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+          env:
+            - name: GOMEMLIMIT # ~80% of the 64Mi limit above
+              value: 48MiB
           envFrom:
             - configMapRef:
                 name: wavelen-config

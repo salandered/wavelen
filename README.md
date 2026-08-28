@@ -72,7 +72,7 @@ VERSION=0.2.0 docker compose build   # the compose default is dev
 
 ## API
 
-See [internal/apispec/api.yaml](internal/apispec/api.yaml).
+See [api/api.yaml](api/api.yaml).
 
 ```sh
 curl -X POST localhost:8080/api/v1/users -d '{"email":"ada@example.com","name":"Ada"}'

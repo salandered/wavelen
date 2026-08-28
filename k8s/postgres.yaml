@@ -35,11 +35,22 @@ spec:
           ports:
             - name: postgres
               containerPort: 5432
-          # container spec
+
+          # request == limit for memory.
+          # default shared_buffers is 128MB + work_mem per connection +
+          #   what Postgres expects the page cache to hold
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 512Mi
+
+          # in container spec
           volumeMounts:
             # Same as in docker-compose.yml. Pre-18 used /var/lib/postgresql/data
             # PGDATA is /var/lib/postgresql/18/docker
-            # anything written here goes to the volume; 
+            # anything written here goes to the volume;
             # written elsewhere goes to container's writable layer and dies within it
             - name: pgdata
               mountPath: /var/lib/postgresql
@@ -74,5 +85,5 @@ spec:
   selector:
     app: postgres
   ports: # does nothing here
-  - port: 5432
-    targetPort: postgres
+    - port: 5432
+      targetPort: postgres
