@@ -16,7 +16,7 @@ import (
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/getkin/kin-openapi/routers"
 	"github.com/getkin/kin-openapi/routers/gorillamux"
-	"github.com/salandered/wavelen/internal/apispec"
+	"github.com/salandered/wavelen"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/handlers"
 	"github.com/salandered/wavelen/internal/requestid"
@@ -42,7 +42,7 @@ func (s *APISuite) SetupSuite() {
 	slog.SetDefault(slog.New(slog.DiscardHandler)) // the handlers log every rejection
 
 	loader := openapi3.NewLoader()
-	spec, err := loader.LoadFromData(apispec.Spec)
+	spec, err := loader.LoadFromData(wavelen.APISpec)
 	s.Require().NoError(err)
 	s.Require().NoError(spec.Validate(loader.Context)) // check if api.yaml is ok
 
@@ -420,7 +420,7 @@ func (s *APISuite) send(method, path string, body io.Reader) *http.Response {
 	return resp
 }
 
-// Checks that resp satisfies internal/apispec/api.yaml.
+// Checks that resp satisfies api/api.yaml.
 // See https://github.com/getkin/kin-openapi#validating-http-requestsresponses
 //
 // Responses only. The suite sends malformed bodies on purpose to exercise the 400s,

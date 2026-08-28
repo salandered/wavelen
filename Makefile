@@ -8,14 +8,14 @@ LDFLAGS = -s -X github.com/salandered/wavelen/internal/version.version=$(VERSION
 export
 
 # For psql and the migrate CLI.
-# Keep the defaults in sync with cmd/api/main.go. 
+# NOTE: Keep the defaults in sync with internal/dbconfig. 
 # A password with URL-special characters needs quoting by hand.
 DB_URL = postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(or $(POSTGRES_HOST),localhost):$(or $(POSTGRES_PORT),5433)/$(or $(POSTGRES_DB),wavelen)?sslmode=$(or $(POSTGRES_SSLMODE),disable)
 
 # Prints every "## target: description" comment in this file.
 .PHONY: help
 help:
-	@awk '/^## /{sub(/^## /,""); i=index($$0,": "); printf "  %-26s %s\n", substr($$0,1,i-1), substr($$0,i+2)}' $(MAKEFILE_LIST)
+	@echo "see the file :D"
 
 # ==================================================================================== #
 # DEVELOPMENT
@@ -152,3 +152,22 @@ build/api/linux: export CGO_ENABLED=0
 build/api/linux:
 	@echo Building cmd/api for linux/amd64...
 	go build -ldflags='$(LDFLAGS)' -o=./bin/linux_amd64/api ./cmd/api
+
+
+# ==================================================================================== #
+# KUBERNETES
+# ==================================================================================== #
+
+## k8s/secret: create the db secret in the cluster from .env
+# --dry-run ... - kubectl create fails if the object exists
+.PHONY: k8s/secret
+k8s/secret:
+	@kubectl create secret generic wavelen-db \
+		--from-literal=POSTGRES_USER='$(POSTGRES_USER)' \
+		--from-literal=POSTGRES_PASSWORD='$(POSTGRES_PASSWORD)' \
+		--dry-run=client -o yaml | kubectl apply -f -
+
+## k8s/up: apply manifests from k8s/
+.PHONY: k8s/up
+k8s/up:
+	kubectl apply -f k8s/

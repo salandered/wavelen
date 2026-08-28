@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: wavelen
+# requests for host wavelen.local, path prefix /, go to Service wavelen on port 8080.
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: wavelen.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: wavelen
+                port:
+                  number: 8080 # Service port

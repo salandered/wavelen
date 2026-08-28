@@ -16,6 +16,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:?set it in .env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set it in .env}
       POSTGRES_DB: ${POSTGRES_DB:-wavelen}
+      DB_CONNECT_TIMEOUT: "${DB_CONNECT_TIMEOUT:-30s}"
+      DB_PING_BACKOFF: "${DB_PING_BACKOFF:-1s}"
       SHUTDOWN_TIMEOUT: "${SHUTDOWN_TIMEOUT:-10s}"
       LOG_LEVEL: "${LOG_LEVEL:-info}"
       LOG_FORMAT: "${LOG_FORMAT:-text}"

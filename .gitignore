@@ -39,3 +39,6 @@ AGENTS.md
 *__internal*
 *__docs*
 _tmp*.json
+
+# macOS
+.DS_Store

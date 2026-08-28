@@ -1,0 +1,65 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pgdata
+spec:
+  accessModes:
+    - ReadWriteOnce # one Node may mount it read-write. Not one Pod
+  resources:
+    requests:
+      storage: 2Gi
+  # no storageClassName: use the cluster's default class.
+  # on k3s is local-path; the VPS may differ
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  strategy: 
+    type: Recreate # <--
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:18-alpine
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: wavelen-db
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wavelen-db
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: wavelen-config
+                  key: POSTGRES_DB
+          ports:
+            - name: postgres
+              containerPort: 5432
+          # container spec
+          volumeMounts:
+            # Same as in docker-compose.yml. Pre-18 used /var/lib/postgresql/data
+            # PGDATA is /var/lib/postgresql/18/docker
+            # anything written here goes to the volume; 
+            # written elsewhere goes to container's writable layer and dies within it
+            - name: pgdata
+              mountPath: /var/lib/postgresql
+      # pod spec
+      volumes:
+        - name: pgdata
+          persistentVolumeClaim:
+            claimName: pgdata

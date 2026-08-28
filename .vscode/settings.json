@@ -146,4 +146,5 @@
 		"ARGV"
 	],
 	"search.useIgnoreFiles": true,
+	"makefile.configureOnOpen": false,
 }

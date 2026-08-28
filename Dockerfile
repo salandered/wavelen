@@ -18,7 +18,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 	--mount=type=cache,target=/root/.cache/go-build \
 	CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build \
 	-ldflags="-s -w -X github.com/salandered/wavelen/internal/version.version=${VERSION}" \
-	-o /out/api ./cmd/api
+	-o /out/ ./cmd/api ./cmd/migrate
 
 
 FROM alpine:3.22
@@ -29,6 +29,8 @@ RUN addgroup -S wavelen && adduser -S -G wavelen wavelen
 USER wavelen
 
 COPY --from=build /out/api /api
+# the migrations Job runs this instead of the entrypoint
+COPY --from=build /out/migrate /migrate
 
 # only records the default port for `docker run -P` and inspect tools.
 # The listen port is PORT at runtime; compose publishes it explicitly.
