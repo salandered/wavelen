@@ -277,9 +277,8 @@ paths:
       tags: [Harmony]
       summary: The opposite color
       description: >-
-        The hue turned half a circle in OkLCh, lightness and chroma kept. The hex needs not be
-        one of the palette colors; any valid color has an answer, so this never returns 404 and
-        cannot fail once the path parses. A gray has no hue to turn and is its own complement.
+        The hue turned half a circle in OkLCh, chroma kept and lightness moved only as far as
+        sRGB forces.
       responses:
         "200":
           description: The complement
@@ -302,9 +301,8 @@ paths:
       tags: [Harmony]
       summary: The two colors evenly spaced from this one
       description: >-
-        The hue turned a third and two thirds of a circle in OkLCh, lightness and chroma kept.
-        Same rules as the complement: any valid color has an answer, and a gray is answered with
-        itself twice.
+        The hue turned a third and two thirds of a circle in OkLCh, chroma kept and lightness
+        moved only as far as sRGB forces.
       responses:
         "200":
           description: The other two corners of the triangle
