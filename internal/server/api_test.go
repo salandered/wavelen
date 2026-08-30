@@ -168,7 +168,7 @@ func (s *APISuite) TestCreateUserRejectsBadInput() {
 		s.Run(name, func() {
 			resp := s.postRaw("/api/v1/users", body)
 			s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
-			s.Require().Nil(s.storage.gotUser, "storage should not be reached")
+			s.Require().Nil(s.storage.gotUser)
 		})
 	}
 }
@@ -227,7 +227,7 @@ func (s *APISuite) TestAddColorRejectsBadHex() {
 		s.Run(hex, func() {
 			resp := s.post("/api/v1/users/1/colors", handlers.AddColorReq{Hex: hex})
 			s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
-			s.Require().Empty(s.storage.gotHex, "storage should not be reached")
+			s.Require().Empty(s.storage.gotHex)
 		})
 	}
 }
@@ -238,7 +238,50 @@ func (s *APISuite) TestMalformedUserIDReturnsBadRequest() {
 			s.Require().Equal(http.StatusBadRequest, s.get("/api/v1/users/"+id+"/colors").StatusCode)
 			s.Require().Equal(http.StatusBadRequest,
 				s.post("/api/v1/users/"+id+"/colors", handlers.AddColorReq{Hex: "#ff0000"}).StatusCode)
-			s.Require().Zero(s.storage.gotUserID, "storage should not be reached")
+			s.Require().Equal(http.StatusBadRequest,
+				s.del("/api/v1/users/"+id+"/colors/ff0000").StatusCode)
+			s.Require().Zero(s.storage.gotUserID)
+		})
+	}
+}
+
+// Deleting a color
+
+func (s *APISuite) TestDeleteColorReturnsNoContent() {
+	resp := s.del("/api/v1/users/42/colors/FF00AA")
+	s.Require().Equal(http.StatusNoContent, resp.StatusCode)
+	s.Require().Empty(s.body(resp))
+
+	s.Require().Equal(user.ID(42), s.storage.gotUserID)
+	s.Require().Equal(color.Hex("#ff00aa"), s.storage.gotHex)
+}
+
+func (s *APISuite) TestDeleteColorRejectsAnEscapedHash() {
+	resp := s.del("/api/v1/users/1/colors/%23ff00aa")
+	s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
+	s.Require().Empty(s.storage.gotHex)
+}
+
+// A '#' sent unescaped is a fragment: the server sees an empty segment and no route.
+func (s *APISuite) TestDeleteColorWithAnEmptyHexSegmentIsNotFound() {
+	s.Require().Equal(http.StatusNotFound, s.del("/api/v1/users/1/colors/").StatusCode)
+	s.Require().Empty(s.storage.gotHex)
+}
+
+func (s *APISuite) TestDeleteColorTheUserDoesNotHaveReturnsNotFound() {
+	s.storage.deleteErr = storage.ErrNotFound
+
+	resp := s.del("/api/v1/users/1/colors/ff0000")
+	s.Require().Equal(http.StatusNotFound, resp.StatusCode)
+	s.Require().Equal("not found", s.errorMessage(resp))
+}
+
+func (s *APISuite) TestDeleteColorRejectsBadHex() {
+	for _, hex := range []string{"fff", "red", "ff00gg", "ff0000ff", "%23fff"} {
+		s.Run(hex, func() {
+			resp := s.del("/api/v1/users/1/colors/" + hex)
+			s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
+			s.Require().Empty(s.storage.gotHex)
 		})
 	}
 }
@@ -367,7 +410,7 @@ func (s *APISuite) TestListCommonColorsPassesTheColorSortDown() {
 }
 
 // created_at is a column of user_colors only, the palette has no such column
-func (s *APISuite) TestListCommonColorsRejectsUnusableQueryParams() {
+func (s *APISuite) TestListCommonColorsRejectsInvalidQueryParams() {
 	for _, query := range []string{"sort=created_at", "sort=names", "order=sideways"} {
 		s.Run(query, func() {
 			resp := s.get("/api/v1/colors?" + query)
@@ -376,9 +419,61 @@ func (s *APISuite) TestListCommonColorsRejectsUnusableQueryParams() {
 	}
 }
 
+// Harmony
+
+func (s *APISuite) TestComplement() {
+	var out handlers.ComplementResp
+	s.decode(s.get("/api/v1/colors/FF0000/complement"), &out)
+
+	s.Require().Equal("#ff0000", out.Hex)
+	s.Require().Equal(string(color.Complement("#ff0000")), out.Complement)
+}
+
+func (s *APISuite) TestTriadAnswersOtherTwoColorsInHueOrder() {
+	var out handlers.TriadResp
+	s.decode(s.get("/api/v1/colors/ff0000/triad"), &out)
+
+	second, third := color.Triad("#ff0000")
+	s.Require().Equal("#ff0000", out.Hex)
+	s.Require().Equal([]string{string(second), string(third)}, out.Triad)
+}
+
+func (s *APISuite) TestHarmonyIsCacheableForever() {
+	resp := s.get("/api/v1/colors/ff0000/complement")
+
+	s.Require().Equal("public, max-age=31536000, immutable", resp.Header.Get("Cache-Control"))
+}
+
+// A gray has no hue to turn, so it answers with itself rather than with an invented color.
+func (s *APISuite) TestHarmonyOfAGrayAnswersWithThatGray() {
+	var complement handlers.ComplementResp
+	s.decode(s.get("/api/v1/colors/808080/complement"), &complement)
+	s.Require().Equal("#808080", complement.Complement)
+
+	var triad handlers.TriadResp
+	s.decode(s.get("/api/v1/colors/808080/triad"), &triad)
+	s.Require().Equal([]string{"#808080", "#808080"}, triad.Triad)
+}
+
+// Same path rule as DELETE
+func (s *APISuite) TestHarmonyRejectsAMalformedHexInThePath() {
+	for _, path := range []string{
+		"/api/v1/colors/%23ff0000/complement",
+		"/api/v1/colors/%23ff0000/triad",
+		"/api/v1/colors/fff/complement",
+		"/api/v1/colors/ff00gg/triad",
+	} {
+		s.Run(path, func() {
+			resp := s.get(path)
+			s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
+			s.Require().Contains(s.errorMessage(resp), "invalid hex color")
+		})
+	}
+}
+
 // Failure mapping
 
-func (s *APISuite) TestStorageFailureReturnsServerErrorWithoutLeakingIt() {
+func (s *APISuite) TestStorageFailureReturnsAbstractMessageNoInternalInfo() {
 	s.storage.commonErr = errors.New("connection refused to 10.0.0.5:5432")
 
 	resp := s.get("/api/v1/colors")
@@ -403,6 +498,10 @@ func (s *APISuite) post(path string, body any) *http.Response {
 
 func (s *APISuite) postRaw(path, body string) *http.Response {
 	return s.send(http.MethodPost, path, strings.NewReader(body))
+}
+
+func (s *APISuite) del(path string) *http.Response {
+	return s.send(http.MethodDelete, path, nil)
 }
 
 func (s *APISuite) send(method, path string, body io.Reader) *http.Response {

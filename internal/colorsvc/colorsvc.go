@@ -60,6 +60,11 @@ func (c *Colors) AddColor(ctx context.Context, userID user.ID, hex color.Hex) (b
 	return created, nil
 }
 
+// ErrNotFound if retried.
+func (c *Colors) DeleteColor(ctx context.Context, userID user.ID, hex color.Hex) error {
+	return c.storage.DeleteColor(ctx, userID, hex)
+}
+
 func (c *Colors) ListColors(
 	ctx context.Context, userID user.ID, p storage.ListColorsParams,
 ) (storage.ColorPage, error) {

@@ -29,8 +29,12 @@ func newMux(s storage.Storage, colorQuota int) *http.ServeMux {
 	// user's colors
 	mux.HandleFunc("GET /api/v1/users/{user_id}/colors", colors.HandleListColors)
 	mux.HandleFunc("POST /api/v1/users/{user_id}/colors", colors.HandleAddColor)
+	mux.HandleFunc("DELETE /api/v1/users/{user_id}/colors/{hex}", colors.HandleDeleteColor)
 	// common colors palette
 	mux.HandleFunc("GET /api/v1/colors", catalog.HandleListCommonColors)
+	// harmonies
+	mux.HandleFunc("GET /api/v1/colors/{hex}/complement", handlers.HandleComplement)
+	mux.HandleFunc("GET /api/v1/colors/{hex}/triad", handlers.HandleTriad)
 
 	return mux
 }

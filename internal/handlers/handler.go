@@ -6,15 +6,20 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/salandered/httputils/httputils"
+	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/colorsvc"
 	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/user"
 	"github.com/salandered/wavelen/internal/version"
 )
 
-const userIDPathValue = "user_id"
+const (
+	userIDPathValue = "user_id"
+	hexPathValue    = "hex"
+)
 
 const (
 	limitQuery  = "limit"
@@ -34,6 +39,17 @@ func HandleRoot(w http.ResponseWriter, req *http.Request) {
 
 func userIDFromPath(req *http.Request) (user.ID, error) {
 	return user.ParseID(req.PathValue(userIDPathValue))
+}
+
+func hexFromPath(req *http.Request) (color.Hex, error) {
+	raw := req.PathValue(hexPathValue)
+	if strings.Contains(raw, "#") {
+		return "", fmt.Errorf(
+			"%w: want 6 hex digits without '#', got %q",
+			color.ErrInvalidHex, raw,
+		)
+	}
+	return color.ParseHex(raw)
 }
 
 // Response cursor metadata.

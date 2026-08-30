@@ -47,6 +47,19 @@ func (s *Postgres) HasColor(ctx context.Context, userID user.ID, hex color.Hex) 
 	return has, nil
 }
 
+func (s *Postgres) DeleteColor(ctx context.Context, userID user.ID, hex color.Hex) error {
+	const query = `DELETE FROM user_colors WHERE user_id = $1 AND hex = $2`
+
+	tag, err := s.db.Exec(ctx, query, userID, hex)
+	if err != nil {
+		return fmt.Errorf("storage delete color: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 // One page after the cursor, ordered by the column p names with hex as the tiebreak
 func (s *Postgres) ListColors(
 	ctx context.Context, userID user.ID, p ListColorsParams,

@@ -5,7 +5,6 @@ import (
 	"fmt"
 )
 
-// SortOrder is the direction of any listing, shared by every sortable endpoint.
 type SortOrder string
 
 const (
@@ -20,5 +19,8 @@ func ParseSortOrder(s string) (SortOrder, error) {
 	case OrderAsc, OrderDesc:
 		return order, nil
 	}
-	return "", fmt.Errorf("%w: want %q or %q, got %q", ErrInvalidSortOrder, OrderAsc, OrderDesc, s)
+	return "", fmt.Errorf(
+		"%w: want %q or %q, got %q",
+		ErrInvalidSortOrder, OrderAsc, OrderDesc, s,
+	)
 }

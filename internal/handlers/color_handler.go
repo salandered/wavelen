@@ -16,6 +16,7 @@ type ColorService interface {
 	ListColors(
 		ctx context.Context, userID user.ID, p storage.ListColorsParams,
 	) (storage.ColorPage, error)
+	DeleteColor(ctx context.Context, userID user.ID, hex color.Hex) error
 }
 
 type ColorHandler struct {
@@ -113,6 +114,28 @@ func (h *ColorHandler) HandleListColors(w http.ResponseWriter, req *http.Request
 	}
 
 	httputils.WriteJSON(ctx, w, http.StatusOK, resp)
+}
+
+func (h *ColorHandler) HandleDeleteColor(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+
+	userID, err := userIDFromPath(req)
+	if err != nil {
+		writeRequestError(ctx, w, err)
+		return
+	}
+
+	hex, err := hexFromPath(req)
+	if err != nil {
+		writeRequestError(ctx, w, err)
+		return
+	}
+
+	if err := h.ColorSrv.DeleteColor(ctx, userID, hex); err != nil {
+		writeStorageError(ctx, w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // Every param is optional,  defaults come from storage

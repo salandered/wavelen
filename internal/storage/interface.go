@@ -19,6 +19,7 @@ type ColorRepo interface {
 	ListColors(ctx context.Context, userID user.ID, p ListColorsParams) (ColorPage, error)
 	CountColors(ctx context.Context, userID user.ID) (int, error)
 	HasColor(ctx context.Context, userID user.ID, hex color.Hex) (bool, error)
+	DeleteColor(ctx context.Context, userID user.ID, hex color.Hex) error
 }
 
 type CatalogRepo interface {

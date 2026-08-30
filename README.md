@@ -80,6 +80,8 @@ curl -X POST localhost:8080/api/v1/users/1/colors -d '{"hex":"FF00AA"}'
 curl localhost:8080/api/v1/users/1/colors
 curl localhost:8080/api/v1/colors
 curl 'localhost:8080/api/v1/colors?sort=hex&order=desc'
+curl localhost:8080/api/v1/colors/ff00aa/complement
+curl localhost:8080/api/v1/colors/ff00aa/triad
 ```
 
 ## Config

@@ -95,6 +95,38 @@ func (s *StorageSuite) TestHasColorIsFalseForAnUnknownUser() {
 	s.Require().False(has)
 }
 
+func (s *StorageSuite) TestDeleteColorOk() {
+	userID := s.createUser("olya@example.com", "Olya")
+	s.addColors(userID, "#ff0000", "#00ff00")
+
+	// when
+	err := s.storage.DeleteColor(s.ctx(), userID, "#ff0000")
+
+	// then
+	s.Require().NoError(err)
+
+	page, err := s.storage.ListColors(s.ctx(), userID, storage.ListColorsParams{})
+	s.Require().NoError(err)
+	s.Require().Equal([]color.Hex{"#00ff00"}, hexesOf(page.Colors))
+}
+
+func (s *StorageSuite) TestDeleteColorTheUserDoesNotHave() {
+	userID := s.createUser("olya@example.com", "Olya")
+	s.addColors(userID, "#ff0000")
+
+	// when
+	err := s.storage.DeleteColor(s.ctx(), userID, "#00ff00")
+
+	// then
+	s.Require().ErrorIs(err, storage.ErrNotFound)
+}
+
+func (s *StorageSuite) TestDeleteColorUnknownUser() {
+	err := s.storage.DeleteColor(s.ctx(), 999, "#ff0000")
+
+	s.Require().ErrorIs(err, storage.ErrNotFound)
+}
+
 func (s *StorageSuite) TestAddColorConstraintRejectsInvalidHex() {
 	userID := s.createUser("olya@example.com", "Olya")
 

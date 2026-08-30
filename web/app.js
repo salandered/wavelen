@@ -65,9 +65,47 @@ async function call(method, path, body) {
 	return { status: res.status, data };
 }
 
+// ---- log ----
+
+// The last few things that happened, newest first. In memory only: it says what this page just
+// did, which is not worth a sixth localStorage key and would be a lie after a reload.
+const LOG_LIMIT = 10;
+const logEntries = [];
+
+// A transient entry is a live counter - the bulk run rewrites one line rather than filling the
+// panel with its own progress - so the next entry replaces it instead of landing under it. That
+// makes the line that finishes a run read as the one the run left behind.
+function pushLog(message, { failed = false, transient = false } = {}) {
+	if (message === "") {
+		return; // nothing happened, and an empty entry would push a real one out of the panel
+	}
+	if (logEntries[0]?.transient) {
+		logEntries.shift();
+	}
+	logEntries.unshift({ message, failed, transient });
+	logEntries.length = Math.min(logEntries.length, LOG_LIMIT);
+	renderLog();
+}
+
+function renderLog() {
+	if (logEntries.length === 0) {
+		renderEmpty($("log"), "nothing yet");
+		return;
+	}
+	$("log").replaceChildren(...logEntries.map((entry) => {
+		const line = document.createElement("p");
+		line.textContent = entry.message;
+		line.classList.toggle("failed", entry.failed);
+		return line;
+	}));
+}
+
 function setStatus(message, failed = false) {
-	$("status").textContent = message;
-	$("status").classList.toggle("failed", failed);
+	pushLog(message, { failed });
+}
+
+function setProgress(message) {
+	pushLog(message, { transient: true });
 }
 
 // min="1" on a number input only drives its arrows: the value is whatever was typed, and "5.5"
@@ -80,6 +118,28 @@ function userID() {
 		return null;
 	}
 	return id;
+}
+
+// A saved swatch is captioned with its timestamp, and the label is one line that must fit a
+// swatch: a 2-digit year keeps the whole stamp on it, where toLocaleString's 4-digit one does
+// not. Locale order is still the browser's, this only shortens the year.
+const savedTime = new Intl.DateTimeFormat(undefined, {
+	year: "2-digit",
+	month: "2-digit",
+	day: "2-digit",
+	hour: "2-digit",
+	minute: "2-digit",
+	second: "2-digit",
+});
+
+// The comma most locales put between the date and the time is the one separator this caption does
+// not need - a space already reads as the break. Dropped through formatToParts rather than off the
+// formatted string, so only the format's own literals are touched and the locale keeps its order.
+function savedLabel(at) {
+	return savedTime
+		.formatToParts(at)
+		.map((part) => (part.type === "literal" ? part.value.replace(",", "") : part.value))
+		.join("");
 }
 
 // ---- swatches ----
@@ -131,15 +191,74 @@ function selectSwatch(hex, label) {
 	selectedHex = hex;
 	selectedLabel = label;
 	$("hex").value = hex;
-	markSelected();
-	renderDetail();
+	selectionChanged();
 }
 
 function clearSelection() {
 	selectedHex = null;
 	selectedLabel = "";
+	selectionChanged();
+}
+
+// Both aside panels are about the one selected color, so nothing may move only one of them.
+function selectionChanged() {
 	markSelected();
 	renderDetail();
+	$("complement").disabled = selectedHex === null;
+	$("triad").disabled = selectedHex === null;
+
+	// A strip built for the previous color would be a wrong answer sitting on the page, so the
+	// harmony either follows the selection or goes back to its placeholder.
+	if (harmonyMode !== null && selectedHex !== null) {
+		showHarmony(harmonyMode);
+	} else {
+		renderHarmonyPlaceholder();
+	}
+}
+
+// A saved swatch carries a delete control, the palette's does not: the palette is read-only.
+// Siblings inside a cell, not one inside the other, same as the detail stack - a button cannot
+// contain a button. The cell is what the grid lays out and what the hover rule keys off.
+function savedSwatch(hex, label) {
+	const cell = document.createElement("div");
+	cell.className = "cell";
+
+	const remove = document.createElement("button");
+	remove.type = "button";
+	remove.className = "remove";
+	remove.textContent = "×";
+	remove.style.color = labelColor(hex); // it sits on the color, like the hex does
+	remove.title = `delete ${hex}`;
+	remove.setAttribute("aria-label", `delete ${hex}`);
+	remove.addEventListener("click", () => deleteColor(hex, cell, remove));
+
+	cell.append(swatch(hex, label), remove);
+	return cell;
+}
+
+// The path takes the six digits bare: api.yaml rejects a '#' however it is escaped, and an
+// unescaped one would be a fragment and never leave the browser.
+//
+// The cell is dropped rather than the list reloaded, because a reload would drop every appended
+// page and send the user back to the first one. The cursor survives a delete on its own: it is a
+// value compared against, not a reference to the row it was minted from.
+async function deleteColor(hex, cell, button) {
+	const id = userID();
+	if (id === null) {
+		return;
+	}
+	button.disabled = true; // a second click while the first is out would answer 404
+	try {
+		await call("DELETE", `/users/${id}/colors/${hex.slice(1)}`);
+		cell.remove();
+		if ($("saved").childElementCount === 0) {
+			renderEmpty($("saved"), "nothing saved");
+		}
+		setStatus(`deleted ${hex}`);
+	} catch (err) {
+		button.disabled = false;
+		setStatus(err.message, true);
+	}
 }
 
 // The field is the only input to the add form, so anything writing it programmatically has to
@@ -222,6 +341,85 @@ function renderDetail() {
 	$("detail").replaceChildren(stack, caption);
 }
 
+// ---- harmony ----
+
+// Which harmony the panel is showing, so clicking a different swatch answers with the same one
+// for the new color instead of making the button be pressed again.
+let harmonyMode = null;
+
+// Same guard as loadSaved: the buttons stay live while a request is out, so an earlier response
+// landing later must not replace a fresher strip.
+let harmonyGeneration = 0;
+
+// The endpoint answers with the color asked about beside the others, and the strip shows all of
+// them: the point is the pairing, and a complement on its own is not one.
+const HARMONIES = {
+	complement: (data) => [data.hex, data.complement],
+	triad: (data) => [data.hex, ...data.triad],
+};
+
+function renderHarmonyPlaceholder() {
+	renderEmpty($("harmony"), selectedHex === null ? "click a color" : "pick a harmony");
+}
+
+// Only reached with a selection: both buttons are disabled without one.
+async function showHarmony(mode) {
+	harmonyMode = mode;
+	const generation = ++harmonyGeneration;
+	const hex = selectedHex;
+
+	try {
+		// bare six digits in the path, same rule as the delete above
+		const { data } = await call("GET", `/colors/${hex.slice(1)}/${mode}`);
+		if (generation !== harmonyGeneration) {
+			return; // a later click owns the panel now
+		}
+		renderHarmony(HARMONIES[mode](data));
+	} catch (err) {
+		if (generation !== harmonyGeneration) {
+			return;
+		}
+		renderHarmonyPlaceholder();
+		setStatus(err.message, true);
+	}
+}
+
+// The strip is what goes full screen, not a band: the harmony is the thing worth looking at, and
+// one color of it full screen is what the Selected panel already does. Each band is a stack of
+// two controls for the usual reason - a button cannot contain a button - so the strip itself is a
+// plain element and every band carries its own pair.
+function renderHarmony(hexes) {
+	const strip = document.createElement("div");
+	strip.className = "harmony";
+	// every band opens the same strip, so they share one label rather than each naming its color
+	const fullscreenLabel = `show ${hexes.join(" ")} full screen`;
+
+	for (const hex of hexes) {
+		const band = document.createElement("div");
+		band.className = "band";
+
+		const block = document.createElement("button");
+		block.type = "button";
+		block.className = "band-color";
+		block.style.background = hex;
+		block.title = "full screen, click again to leave";
+		block.setAttribute("aria-label", fullscreenLabel);
+		block.addEventListener("click", () => toggleFullscreen(strip));
+
+		const code = document.createElement("button");
+		code.type = "button";
+		code.className = "band-hex";
+		code.style.color = labelColor(hex);
+		code.textContent = hex;
+		code.title = "copy";
+		code.addEventListener("click", () => copyHex(hex));
+
+		band.append(block, code);
+		strip.append(band);
+	}
+	$("harmony").replaceChildren(strip);
+}
+
 // A swatch keeps its mark across a re-render, so adding a color does not clear it.
 function renderSwatches(container, swatches) {
 	container.replaceChildren(...swatches);
@@ -300,7 +498,7 @@ async function loadSaved({ append = false } = {}) {
 			return; // a later load owns the grid now
 		}
 		const swatches = data.colors.map((c) =>
-			swatch(c.hex, new Date(c.created_at).toLocaleString()));
+			savedSwatch(c.hex, savedLabel(new Date(c.created_at))));
 
 		if (append) {
 			appendSwatches($("saved"), swatches);
@@ -339,10 +537,10 @@ function randomDigits() {
 
 // ---- bulk add ----
 // Dev only. There is no bulk endpoint and this does not ask for one: it is ordinary POSTs, a few
-// in flight at a time. All 100 at once is a burst nothing else on this page produces, and one at
-// a time is 100 round trips end to end.
+// in flight at a time. All of them at once is a burst nothing else on this page produces, and one
+// at a time is a round trip each.
 
-const BULK_COUNT = 100;
+const BULK_COUNT = 20;
 const BULK_IN_FLIGHT = 8;
 
 async function addRandomColors() {
@@ -351,7 +549,7 @@ async function addRandomColors() {
 		return;
 	}
 
-	// a set, so the run is BULK_COUNT distinct colors rather than 100 draws with collisions
+	// a set, so the run is BULK_COUNT distinct colors rather than that many draws with collisions
 	const queue = new Set();
 	while (queue.size < BULK_COUNT) {
 		queue.add("#" + randomDigits());
@@ -377,7 +575,7 @@ async function addRandomColors() {
 				firstError ??= err.message;
 			}
 			done++;
-			setStatus(`adding colors... ${done}/${BULK_COUNT}`);
+			setProgress(`adding colors... ${done}/${BULK_COUNT}`);
 		}
 	};
 
@@ -539,6 +737,10 @@ $("hex").addEventListener("input", () => {
 	}
 });
 
+for (const mode of Object.keys(HARMONIES)) {
+	$(mode).addEventListener("click", () => showHarmony(mode));
+}
+
 $("bulk-add").addEventListener("click", addRandomColors);
 
 $("random-hex").addEventListener("click", () => {
@@ -554,7 +756,6 @@ $("random-user").addEventListener("click", () => {
 });
 
 $("load").addEventListener("click", () => {
-	setStatus("");
 	loadSaved();
 });
 
@@ -566,7 +767,6 @@ $("load-more").addEventListener("click", () => {
 // order toggle does the same through initOrderToggle, which fires on click rather than change.
 for (const control of [$("sort"), $("limit")]) {
 	control.addEventListener("change", () => {
-		setStatus("");
 		rememberControls();
 		loadSaved();
 	});
@@ -619,7 +819,6 @@ initCollapsibleSections();
 initUserID(); // before loadSaved below, which reads the field
 initControls(); // before the toggles below, which label themselves from data-order
 initOrderToggle("order", () => {
-	setStatus("");
 	rememberControls();
 	loadSaved();
 });
@@ -629,5 +828,7 @@ initOrderToggle("palette-order", () => {
 });
 
 renderDetail(); // the placeholder, until a swatch is clicked
+renderHarmonyPlaceholder(); // same, and the buttons stay disabled until then
+renderLog(); // same, until something happens
 loadPalette();
 loadSaved();

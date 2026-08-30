@@ -120,7 +120,7 @@
 
 		/* sticky, so the color stays in view while a long list scrolls beside it */
 		aside {
-			flex: 0 0 12rem;
+			flex: 0 0 15rem;
 			position: sticky;
 			top: 2rem;
 		}
@@ -163,6 +163,19 @@
 			color: inherit;
 		}
 
+		/*
+			The rule above is wrong for a select and only for a select: the popup is painted by the
+			browser, which cannot paint it transparent, so it came out light while the inherited
+			color stayed light - unreadable in the dark theme. Canvas and CanvasText resolve
+			against color-scheme, which the theme button already flips, so naming them here follows
+			the toggle for free. Same mechanism .swatch.selected uses for its inner ring.
+		*/
+		select,
+		option {
+			background: Canvas;
+			color: CanvasText;
+		}
+
 		button {
 			cursor: pointer;
 		}
@@ -186,25 +199,44 @@
 			font-family: ui-monospace, monospace;
 		}
 
-		#status {
-			min-height: 1.2rem;
-			margin: 0 0 0.75rem;
-			font-size: 0.85rem;
-			color: var(--muted);
+		/* the aside's panels: the same heading and spacing a details section gets on the left */
+		.panel {
+			margin-bottom: 2rem;
 		}
 
-		#status.failed {
+		.panel:last-child {
+			margin-bottom: 0;
+		}
+
+		/*
+			Capped rather than free-growing: ten entries of one line each fit, but a couple of long
+			failures would push the panel past the viewport and take the sticky aside with it.
+		*/
+		#log {
+			max-height: 14rem;
+			overflow-y: auto;
+		}
+
+		#log p {
+			margin: 0 0 0.4rem;
+			font-size: 0.8rem;
+			color: var(--muted);
+			/* a hex or a proxy error has no spaces to break at, and the panel is 15rem */
+			overflow-wrap: anywhere;
+		}
+
+		#log p.failed {
 			color: var(--error);
 		}
 
 		/*
-			Six across. There is no border-box reset, so max-width is body's content box: the grids
-			get 60rem less the aside and the gap, which is 46.5rem. Six of these need 45.2rem and a
-			seventh would need 52.8rem, so auto-fill settles on six and stretches them to 7.4rem.
+			Five across. There is no border-box reset, so max-width is body's content box: the grids
+			get 60rem less the aside and the gap, which is 43.5rem. Five of these need 41.6rem and a
+			sixth would need 50rem, so auto-fill settles on five and stretches them to 8.4rem.
 		*/
 		.grid {
 			display: grid;
-			grid-template-columns: repeat(auto-fill, minmax(7.2rem, 1fr));
+			grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
 			gap: 0.4rem;
 		}
 
@@ -237,6 +269,53 @@
 			overflow: hidden;
 			text-overflow: ellipsis;
 			white-space: nowrap;
+		}
+
+		/*
+			Same shape as .detail-stack below and for the same reason: a button cannot contain a
+			button, so the delete control is a sibling stacked on the swatch rather than inside it.
+			The grid sizes this cell, and the swatch stretches to fill it in both directions, which
+			is what keeps a row of swatches one height.
+
+			minmax(0, 1fr), not the default auto track: an auto track grows toward the swatch's
+			max-content width, which is its label on one line. The swatch would then be wider than
+			the cell the outer grid sized, overflow to the right and paint over the gap - the
+			saved list showing it first only because a timestamp is longer than a color name.
+		*/
+		.cell {
+			position: relative;
+			display: grid;
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		/*
+			Hidden until the pointer or the keyboard reaches the cell. visibility, not display, for
+			the same reason as the labels above: the button keeps its box, so nothing reflows when
+			it appears. Deleting is the one destructive thing this page does, which is why it does
+			not sit in the tab order of a grid that is otherwise all navigation.
+		*/
+		.cell .remove {
+			position: absolute;
+			top: 0.15rem;
+			right: 0.15rem;
+			padding: 0 0.25rem;
+			border: none;
+			background: none;
+			font-size: 0.9rem;
+			line-height: 1.2;
+			visibility: hidden;
+		}
+
+		.cell:hover .remove,
+		.cell:focus-within .remove {
+			visibility: visible;
+		}
+
+		/* a touch screen never hovers, so there the control has nothing to come out of */
+		@media (hover: none) {
+			.cell .remove {
+				visibility: visible;
+			}
 		}
 
 		/* the hex sits on the color rather than inside it, so the two clicks stay separate */
@@ -294,6 +373,78 @@
 			overflow-wrap: break-word;
 		}
 
+		/*
+			A plain element, not a button: each band is its own stack of two controls and a button
+			cannot contain a button. This is what requestFullscreen is called on, so the whole
+			strip goes at once however many bands it has.
+		*/
+		.harmony {
+			display: flex;
+			gap: 0.25rem;
+			width: 100%;
+		}
+
+		/* the same shape as .detail-stack: the color is the control, the hex sits on it */
+		.harmony .band {
+			position: relative;
+			flex: 1;
+		}
+
+		.harmony .band-color {
+			/* border-box for the same reason .detail-color needs it: aspect-ratio squares the
+			   content box, and a border would make the square taller than it is wide */
+			box-sizing: border-box;
+			display: block;
+			width: 100%;
+			/* squares in the panel; the fullscreen rule below drops this so they become bands */
+			aspect-ratio: 1;
+			padding: 0;
+			border: 1px solid var(--line);
+		}
+
+		/*
+			Full width and centered rather than sized to its text: the whole bottom of a band is
+			the copy target, which at three bands is the difference between an easy click and a
+			careful one.
+		*/
+		.harmony .band-hex {
+			position: absolute;
+			left: 0;
+			right: 0;
+			bottom: 0.3rem;
+			padding: 0;
+			border: none;
+			background: transparent;
+			font-family: ui-monospace, monospace;
+			font-size: 0.8rem;
+			text-align: center;
+		}
+
+		/* same single affordance .detail-hex uses, and for the same reason */
+		.harmony .band-hex:hover {
+			text-decoration: underline;
+		}
+
+		/*
+			The gap goes with it: the UA paints the fullscreen element on black, which would
+			otherwise show through as lines down the screen.
+		*/
+		.harmony:fullscreen {
+			height: 100%;
+			gap: 0;
+		}
+
+		.harmony:fullscreen .band-color {
+			height: 100%;
+			aspect-ratio: auto;
+			border: none;
+		}
+
+		.harmony:fullscreen .band-hex {
+			bottom: 1.5rem;
+			font-size: 1.25rem;
+		}
+
 		.empty {
 			color: var(--muted);
 			font-size: 0.85rem;
@@ -305,8 +456,6 @@
 <body>
 	<header>
 		<h1>wavelen</h1>
-		<button type="button" id="swatch-info"></button>
-		<button type="button" id="theme"></button>
 	</header>
 
 	<div class="split">
@@ -334,8 +483,8 @@
 				<button>add</button>
 				<!-- type=button, or it would submit the form instead of filling the field -->
 				<button type="button" id="random-hex">random</button>
-				<button type="button" id="bulk-add" title="dev only: 100 separate POSTs">
-					add 100 random
+				<button type="button" id="bulk-add" title="dev only: 20 separate POSTs">
+					add 20 random
 				</button>
 			</form>
 			<!-- order reads as descending/ascending rather than newest/oldest, it applies to hex too -->
@@ -356,7 +505,6 @@
 					<option value="100">100</option>
 				</select>
 			</div>
-			<p id="status" role="status"></p>
 			<div class="grid" id="saved"></div>
 			<!-- hidden until a response carries a next_cursor, which is the end-of-list signal -->
 			<button type="button" id="load-more" hidden>load more</button>
@@ -379,9 +527,36 @@
 		</main>
 
 		<aside>
-			<h2 class="panel-title">Selected</h2>
-			<!-- filled by app.js: the empty state is a placeholder, not a blank panel -->
-			<div id="detail"></div>
+			<section class="panel">
+				<h2 class="panel-title">View</h2>
+				<div class="row">
+					<button type="button" id="swatch-info"></button>
+					<button type="button" id="theme"></button>
+				</div>
+			</section>
+
+			<section class="panel">
+				<h2 class="panel-title">Selected</h2>
+				<!-- filled by app.js: the empty state is a placeholder, not a blank panel -->
+				<div id="detail"></div>
+			</section>
+
+			<section class="panel">
+				<h2 class="panel-title">Harmony</h2>
+				<!-- disabled until a swatch is clicked: both are about the selected color -->
+				<div class="row">
+					<button type="button" id="complement" disabled>complement</button>
+					<button type="button" id="triad" disabled>triad</button>
+				</div>
+				<!-- filled by app.js, same as the panel above -->
+				<div id="harmony"></div>
+			</section>
+
+			<section class="panel">
+				<h2 class="panel-title">Log</h2>
+				<!-- role=log, not status: entries are added, and only the new one is worth reading out -->
+				<div id="log" role="log"></div>
+			</section>
 		</aside>
 	</div>
 </body>

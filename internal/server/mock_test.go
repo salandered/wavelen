@@ -24,6 +24,7 @@ type mockStorage struct {
 	countErr   error
 	hasColor   bool
 	hasErr     error
+	deleteErr  error
 	colors     []color.Color
 	hasMore    bool
 	colorsErr  error
@@ -87,6 +88,11 @@ func (s *mockStorage) HasColor(_ context.Context, userID user.ID, hex color.Hex)
 func (s *mockStorage) AddColor(_ context.Context, userID user.ID, hex color.Hex) (bool, error) {
 	s.gotUserID, s.gotHex = userID, hex
 	return s.added, s.addErr
+}
+
+func (s *mockStorage) DeleteColor(_ context.Context, userID user.ID, hex color.Hex) error {
+	s.gotUserID, s.gotHex = userID, hex
+	return s.deleteErr
 }
 
 func (s *mockStorage) ListColors(
