@@ -1,12 +1,24 @@
+# https://doc.traefik.io/traefik/reference/routing-configuration/kubernetes/ingress
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: wavelen
-# requests for host wavelen.local, path prefix /, go to Service wavelen on port 8080.
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # https://doc.traefik.io/traefik/reference/routing-configuration/kubernetes/ingress/#opt-traefik-ingress-kubernetes-iorouter-middlewares
+    # Old docs https://doc.traefik.io/traefik/v2.2/middlewares/overview/#provider-namespace describe format explicitly:
+    #  <middleware-namespace>-<middleware-name>@kubernetescrd
+    # Latest version: https://doc.traefik.io/traefik/reference/routing-configuration/kubernetes/crd/http/middleware/
+    traefik.ingress.kubernetes.io/router.middlewares: default-redirect-https@kubernetescrd
 spec:
   ingressClassName: traefik
+  # https://kubernetes.io/docs/concepts/services-networking/ingress/#tls
+  tls:
+    - hosts:
+        - wavelen.ink
+      secretName: wavelen-tls # created by cert-manager
   rules:
-    - host: wavelen.local
+    - host: wavelen.ink # wavelen.local
       http:
         paths:
           - path: /

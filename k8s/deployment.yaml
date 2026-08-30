@@ -50,4 +50,5 @@ spec:
               cpu: 100m
               memory: 64Mi
             limits:
+              # no cpu for now
               memory: 128Mi

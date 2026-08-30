@@ -171,4 +171,9 @@
 	],
 	"search.useIgnoreFiles": true,
 	"makefile.configureOnOpen": false,
+	"vs-kubernetes": {
+		"disable-linters": [
+			"resource-limits"
+		]
+	}
 }
