@@ -74,6 +74,12 @@ func run() error {
 		return err
 	}
 
+	// may be part of the app config later
+	colorQuota, err := getColorQuota()
+	if err != nil {
+		return err
+	}
+
 	// Startup does not wait for the database
 	pool, err := openPool(ctx)
 	if err != nil {
@@ -82,7 +88,7 @@ func run() error {
 	defer pool.Close()
 	go logDBReachable(ctx, pool)
 
-	return server.Start(ctx, server.NewHandler(storage.New(pool)), cfg)
+	return server.Start(ctx, server.NewHandler(storage.New(pool), colorQuota), cfg)
 }
 
 func openPool(ctx context.Context) (*pgxpool.Pool, error) {
@@ -148,6 +154,18 @@ func serverConfig() (server.Config, error) {
 			"%w: SHUTDOWN_TIMEOUT should be positive, got %v", ErrConfig, shutdownTimeout)
 	}
 	return server.Config{Port: port, ShutdownTimeout: shutdownTimeout}, nil
+}
+
+func getColorQuota() (int, error) {
+	colorQuota, err := intFromEnv("USER_COLOR_QUOTA", server.DefaultUserColorQuota)
+	if err != nil {
+		return 0, err
+	}
+	if colorQuota <= 0 {
+		return 0, fmt.Errorf(
+			"%w: USER_COLOR_QUOTA should be positive, got %d", ErrConfig, colorQuota)
+	}
+	return colorQuota, nil
 }
 
 func intFromEnv(name string, def int) (int, error) {

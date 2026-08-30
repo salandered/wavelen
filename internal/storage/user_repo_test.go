@@ -10,7 +10,7 @@ import (
 )
 
 func (s *StorageSuite) TestCreateUserFillsInIDAndCreatedAt() {
-	u := user.User{Email: "ada@example.com", Name: "Ada Lovelace"}
+	u := user.User{Email: "olya@example.com", Name: "Olya Lovelace"}
 
 	// when
 	err := s.storage.CreateUser(s.ctx(), &u)
@@ -22,17 +22,17 @@ func (s *StorageSuite) TestCreateUserFillsInIDAndCreatedAt() {
 }
 
 func (s *StorageSuite) TestCreateUserAssignsDistinctIDs() {
-	ada := s.createUser("ada@example.com", "Ada")
+	olya := s.createUser("olya@example.com", "Olya")
 	grace := s.createUser("grace@example.com", "Grace")
 
-	s.Require().NotEqual(ada, grace)
+	s.Require().NotEqual(olya, grace)
 }
 
 func (s *StorageSuite) TestCreateUserRejectsATakenEmail() {
-	s.createUser("ada@example.com", "Ada")
+	s.createUser("olya@example.com", "Olya")
 
 	// when
-	u := user.User{Email: "ada@example.com", Name: "Ada Again"}
+	u := user.User{Email: "olya@example.com", Name: "Olya Again"}
 	err := s.storage.CreateUser(s.ctx(), &u)
 
 	// then
@@ -40,10 +40,10 @@ func (s *StorageSuite) TestCreateUserRejectsATakenEmail() {
 }
 
 func (s *StorageSuite) TestCreateUserEmailUniquenessIgnoresCase() {
-	s.createUser("ada@example.com", "Ada")
+	s.createUser("olya@example.com", "Olya")
 
 	// when
-	u := user.User{Email: "ADA@EXAMPLE.COM", Name: "Ada Again"}
+	u := user.User{Email: "OLYA@EXAMPLE.COM", Name: "Olya Again"}
 	err := s.storage.CreateUser(s.ctx(), &u)
 
 	// then

@@ -13,6 +13,8 @@ import (
 const (
 	DefaultPort            = 8080
 	DefaultShutdownTimeout = 10 * time.Second
+
+	DefaultUserColorQuota = 50
 )
 
 var (

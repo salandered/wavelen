@@ -195,6 +195,12 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: user not found
+        "409":
+          description: The user exceeded the color quota.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "413":
           $ref: "#/components/responses/PayloadTooLarge"
         "500":
@@ -279,13 +285,13 @@ components:
           type: string
           format: email
           maxLength: 254
-          example: ada@example.com
+          example: olya@example.com
         name:
           type: string
           minLength: 1
           maxLength: 100
           description: Length is counted in runes, after trimming.
-          example: Ada Lovelace
+          example: Olya Lovelace
 
     User:
       type: object
@@ -298,10 +304,10 @@ components:
         email:
           type: string
           format: email
-          example: ada@example.com
+          example: olya@example.com
         name:
           type: string
-          example: Ada Lovelace
+          example: Olya Lovelace
         created_at:
           type: string
           format: date-time
@@ -411,8 +417,7 @@ components:
       properties:
         error:
           type: string
-          description: >-
-            For 5xx this is always the "internal server error"
+          description: For 5xx this is always the "internal server error"
           example: invalid hex color
 
   responses:

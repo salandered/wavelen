@@ -9,7 +9,7 @@ import (
 )
 
 func (s *StorageSuite) TestAddColorReportsCreatedOnTheFirstInsert() {
-	userID := s.createUser("ada@example.com", "Ada")
+	userID := s.createUser("olya@example.com", "Olya")
 
 	// when
 	created, err := s.storage.AddColor(s.ctx(), userID, "#ff0000")
@@ -20,7 +20,7 @@ func (s *StorageSuite) TestAddColorReportsCreatedOnTheFirstInsert() {
 }
 
 func (s *StorageSuite) TestAddColorReportsNotCreatedOnARepeat() {
-	userID := s.createUser("ada@example.com", "Ada")
+	userID := s.createUser("olya@example.com", "Olya")
 	_, err := s.storage.AddColor(s.ctx(), userID, "#ff0000")
 	s.Require().NoError(err)
 
@@ -45,8 +45,58 @@ func (s *StorageSuite) TestAddColorForAnUnknownUser() {
 	s.Require().False(created)
 }
 
+func (s *StorageSuite) TestCountColorsIsZeroForAnUnknownUser() {
+	n, err := s.storage.CountColors(s.ctx(), 999)
+
+	s.Require().NoError(err)
+	s.Require().Zero(n)
+}
+
+func (s *StorageSuite) TestCountColors() {
+	graceID := s.createUser("grace@example.com", "Grace")
+	s.addColors(graceID, "#ff0000", "#00ff00", "#e0d253")
+
+	// when
+	n, err := s.storage.CountColors(s.ctx(), graceID)
+
+	// then
+	s.Require().NoError(err)
+	s.Require().Equal(3, n)
+}
+
+func (s *StorageSuite) TestHasColorOk() {
+	userID := s.createUser("olya@example.com", "Olya")
+	s.addColors(userID, "#ff0000")
+
+	// when
+	has, err := s.storage.HasColor(s.ctx(), userID, "#ff0000")
+
+	// then
+	s.Require().NoError(err)
+	s.Require().True(has)
+}
+
+func (s *StorageSuite) TestHasColorNotOk() {
+	userID := s.createUser("olya@example.com", "Olya")
+	s.addColors(userID, "#ff0000")
+
+	// when
+	has, err := s.storage.HasColor(s.ctx(), userID, "#00ff00")
+
+	// then
+	s.Require().NoError(err)
+	s.Require().False(has)
+}
+
+func (s *StorageSuite) TestHasColorIsFalseForAnUnknownUser() {
+	has, err := s.storage.HasColor(s.ctx(), 999, "#ff0000")
+
+	s.Require().NoError(err)
+	s.Require().False(has)
+}
+
 func (s *StorageSuite) TestAddColorConstraintRejectsInvalidHex() {
-	userID := s.createUser("ada@example.com", "Ada")
+	userID := s.createUser("olya@example.com", "Olya")
 
 	for _, hex := range []color.Hex{"#FF0000", "ff0000", "#fff", ""} {
 		s.Run(string(hex), func() {
@@ -57,7 +107,7 @@ func (s *StorageSuite) TestAddColorConstraintRejectsInvalidHex() {
 }
 
 func (s *StorageSuite) TestListColorsReturnsNewestFirst() {
-	userID := s.createUser("ada@example.com", "Ada")
+	userID := s.createUser("olya@example.com", "Olya")
 	s.addColors(userID, "#ff0000", "#00ff00", "#0000ff")
 
 	// when
@@ -103,7 +153,7 @@ var sortCases = []struct {
 }
 
 func (s *StorageSuite) TestListColorsOrdersByTheRequestedSortAndOrder() {
-	userID := s.createUser("ada@example.com", "Ada")
+	userID := s.createUser("olya@example.com", "Olya")
 	s.addColors(userID, "#ff0000", "#00ff00", "#0000ff", "#123456")
 
 	for _, c := range sortCases {
@@ -119,7 +169,7 @@ func (s *StorageSuite) TestListColorsOrdersByTheRequestedSortAndOrder() {
 }
 
 func (s *StorageSuite) TestListColorsPagingVisitsEveryRowExactlyOnceInEveryOrder() {
-	userID := s.createUser("ada@example.com", "Ada")
+	userID := s.createUser("olya@example.com", "Olya")
 	s.addColors(userID, "#ff0000", "#00ff00", "#0000ff", "#123456")
 
 	for _, c := range sortCases {
@@ -134,7 +184,7 @@ func (s *StorageSuite) TestListColorsPagingVisitsEveryRowExactlyOnceInEveryOrder
 }
 
 func (s *StorageSuite) TestDeletingAUserCascadesToTheirColors() {
-	userID := s.createUser("ada@example.com", "Ada")
+	userID := s.createUser("olya@example.com", "Olya")
 	_, err := s.storage.AddColor(s.ctx(), userID, "#ff0000")
 	s.Require().NoError(err)
 

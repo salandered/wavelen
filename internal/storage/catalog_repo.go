@@ -8,7 +8,7 @@ import (
 	"github.com/salandered/wavelen/internal/color"
 )
 
-func (s *Store) ListCommonColors(
+func (s *Postgres) ListCommonColors(
 	ctx context.Context, p ListCommonColorsParams,
 ) ([]color.Common, error) {
 	const template = `
@@ -21,7 +21,7 @@ func (s *Store) ListCommonColors(
 		return nil, fmt.Errorf("storage list common colors: %w", err)
 	}
 
-	rows, err := s.pool.Query(ctx, fmt.Sprintf(template, orderBy))
+	rows, err := s.db.Query(ctx, fmt.Sprintf(template, orderBy))
 	if err != nil {
 		return nil, fmt.Errorf("storage list common colors: %w", err)
 	}

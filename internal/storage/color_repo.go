@@ -11,13 +11,13 @@ import (
 
 // Returns false if such color already exists for this user.
 // An unknown user yields ErrUserNotFound.
-func (s *Store) AddColor(ctx context.Context, userID user.ID, hex color.Hex) (bool, error) {
+func (s *Postgres) AddColor(ctx context.Context, userID user.ID, hex color.Hex) (bool, error) {
 	const query = `
 		INSERT INTO user_colors (user_id, hex, color_key)
 		VALUES ($1, $2, $3)
 		ON CONFLICT (user_id, hex) DO NOTHING`
 
-	tag, err := s.pool.Exec(ctx, query, userID, hex, color.Feel(hex))
+	tag, err := s.db.Exec(ctx, query, userID, hex, color.Feel(hex))
 	if err != nil {
 		if pgErrCode(err) == foreignKeyViolation {
 			return false, ErrUserNotFound
@@ -27,8 +27,28 @@ func (s *Store) AddColor(ctx context.Context, userID user.ID, hex color.Hex) (bo
 	return tag.RowsAffected() == 1, nil
 }
 
+func (s *Postgres) CountColors(ctx context.Context, userID user.ID) (int, error) {
+	const query = `SELECT count(*) FROM user_colors WHERE user_id = $1`
+
+	var n int
+	if err := s.db.QueryRow(ctx, query, userID).Scan(&n); err != nil {
+		return 0, fmt.Errorf("storage count colors: %w", err)
+	}
+	return n, nil
+}
+
+func (s *Postgres) HasColor(ctx context.Context, userID user.ID, hex color.Hex) (bool, error) {
+	const query = `SELECT EXISTS (SELECT 1 FROM user_colors WHERE user_id = $1 AND hex = $2)`
+
+	var has bool
+	if err := s.db.QueryRow(ctx, query, userID, hex).Scan(&has); err != nil {
+		return false, fmt.Errorf("storage has color: %w", err)
+	}
+	return has, nil
+}
+
 // One page after the cursor, ordered by the column p names with hex as the tiebreak
-func (s *Store) ListColors(
+func (s *Postgres) ListColors(
 	ctx context.Context, userID user.ID, p ListColorsParams,
 ) (ColorPage, error) {
 	p = p.normalized()
@@ -38,7 +58,7 @@ func (s *Store) ListColors(
 		return ColorPage{}, fmt.Errorf("storage list colors: %w", err)
 	}
 
-	rows, err := s.pool.Query(ctx, query, args...)
+	rows, err := s.db.Query(ctx, query, args...)
 	if err != nil {
 		return ColorPage{}, fmt.Errorf("storage list colors: %w", err)
 	}

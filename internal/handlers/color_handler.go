@@ -1,16 +1,25 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"time"
 
 	"github.com/salandered/httputils/httputils"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/storage"
+	"github.com/salandered/wavelen/internal/user"
 )
 
+type ColorService interface {
+	AddColor(ctx context.Context, userID user.ID, hex color.Hex) (bool, error)
+	ListColors(
+		ctx context.Context, userID user.ID, p storage.ListColorsParams,
+	) (storage.ColorPage, error)
+}
+
 type ColorHandler struct {
-	Colors storage.ColorRepo
+	ColorSrv ColorService
 }
 
 type AddColorReq struct {
@@ -53,7 +62,7 @@ func (h *ColorHandler) HandleAddColor(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	created, err := h.Colors.AddColor(ctx, userID, hex)
+	created, err := h.ColorSrv.AddColor(ctx, userID, hex)
 	if err != nil {
 		writeStorageError(ctx, w, err)
 		return
@@ -81,7 +90,7 @@ func (h *ColorHandler) HandleListColors(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	page, err := h.Colors.ListColors(ctx, userID, params)
+	page, err := h.ColorSrv.ListColors(ctx, userID, params)
 	if err != nil {
 		writeStorageError(ctx, w, err)
 		return

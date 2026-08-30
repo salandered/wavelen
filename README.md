@@ -75,9 +75,13 @@ VERSION=0.2.0 docker compose build   # the compose default is dev
 See [api/api.yaml](api/api.yaml).
 
 ```sh
-curl -X POST localhost:8080/api/v1/users -d '{"email":"ada@example.com","name":"Ada"}'
+curl -X POST localhost:8080/api/v1/users -d '{"email":"olya@example.com","name":"Olya"}'
 curl -X POST localhost:8080/api/v1/users/1/colors -d '{"hex":"FF00AA"}'
 curl localhost:8080/api/v1/users/1/colors
 curl localhost:8080/api/v1/colors
 curl 'localhost:8080/api/v1/colors?sort=hex&order=desc'
 ```
+
+## Config
+
+See [env.template](.env.template). Acts as a config doc as well.

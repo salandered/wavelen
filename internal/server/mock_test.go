@@ -11,18 +11,25 @@ import (
 
 // A minimal mocked storage.Storage.
 
+var _ storage.Storage = (*mockStorage)(nil)
+
 type mockStorage struct {
 	// what the methods answer
-	assignID  user.ID
-	createErr error
-	added     bool
-	addErr    error
-	colors    []color.Color
-	hasMore   bool
-	colorsErr error
-	common    []color.Common
-	commonErr error
-	pingErr   error
+	assignID   user.ID
+	createErr  error
+	lockErr    error
+	added      bool
+	addErr     error
+	colorCount int
+	countErr   error
+	hasColor   bool
+	hasErr     error
+	colors     []color.Color
+	hasMore    bool
+	colorsErr  error
+	common     []color.Common
+	commonErr  error
+	pingErr    error
 
 	// what the handler passed down
 	gotUser          *user.User
@@ -40,6 +47,12 @@ func newMockStorage() *mockStorage {
 	return &mockStorage{assignID: 1, added: true}
 }
 
+// Clears the mock storage.
+// In place, because the running server holds this pointer.
+func (s *mockStorage) reset() {
+	*s = *newMockStorage()
+}
+
 func (s *mockStorage) CreateUser(_ context.Context, u *user.User) error {
 	passed := *u
 	s.gotUser = &passed
@@ -50,6 +63,25 @@ func (s *mockStorage) CreateUser(_ context.Context, u *user.User) error {
 	u.ID = s.assignID
 	u.CreatedAt = stubTime
 	return nil
+}
+
+func (s *mockStorage) InTx(_ context.Context, fn func(storage.Storage) error) error {
+	return fn(s)
+}
+
+func (s *mockStorage) LockUser(_ context.Context, userID user.ID) error {
+	s.gotUserID = userID
+	return s.lockErr
+}
+
+func (s *mockStorage) CountColors(_ context.Context, userID user.ID) (int, error) {
+	s.gotUserID = userID
+	return s.colorCount, s.countErr
+}
+
+func (s *mockStorage) HasColor(_ context.Context, userID user.ID, hex color.Hex) (bool, error) {
+	s.gotUserID, s.gotHex = userID, hex
+	return s.hasColor, s.hasErr
 }
 
 func (s *mockStorage) AddColor(_ context.Context, userID user.ID, hex color.Hex) (bool, error) {

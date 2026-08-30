@@ -10,11 +10,15 @@ import (
 type UserRepo interface {
 	// Fills in u.ID and u.CreatedAt. A taken email yields ErrDuplicateEmail.
 	CreateUser(ctx context.Context, u *user.User) error
+
+	LockUser(ctx context.Context, userID user.ID) error
 }
 
 type ColorRepo interface {
 	AddColor(ctx context.Context, userID user.ID, hex color.Hex) (bool, error)
 	ListColors(ctx context.Context, userID user.ID, p ListColorsParams) (ColorPage, error)
+	CountColors(ctx context.Context, userID user.ID) (int, error)
+	HasColor(ctx context.Context, userID user.ID, hex color.Hex) (bool, error)
 }
 
 type CatalogRepo interface {
@@ -31,4 +35,8 @@ type Storage interface {
 	ColorRepo
 	CatalogRepo
 	HealthRepo
+
+	// Runs fn against a Storage bound to one transaction.
+	// Commits when fn returns nil; rolls back if fn returns error.
+	InTx(ctx context.Context, fn func(Storage) error) error
 }

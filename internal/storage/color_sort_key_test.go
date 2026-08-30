@@ -28,7 +28,7 @@ func (s *StorageSuite) TestSeededPaletteColorKeysMatchTheFormula() {
 }
 
 func (s *StorageSuite) TestAddColorStoresTheKeyItSortsBy() {
-	userID := s.createUser("ada@example.com", "Ada")
+	userID := s.createUser("olya@example.com", "Olya")
 	s.addColors(userID, "#ff0000", "#123456")
 
 	rows, err := s.pool.Query(s.ctx(),

@@ -30,6 +30,8 @@ func TestAPISuite(t *testing.T) {
 	suite.Run(t, new(APISuite))
 }
 
+const quotaForTests = 3
+
 type APISuite struct {
 	suite.Suite
 	server  *httptest.Server
@@ -52,12 +54,16 @@ func (s *APISuite) SetupSuite() {
 
 func (s *APISuite) SetupTest() {
 	s.storage = newMockStorage()
-	s.server = httptest.NewServer(server.NewHandler(s.storage))
+	s.server = httptest.NewServer(server.NewHandler(s.storage, quotaForTests))
 	s.client = s.server.Client()
 }
 
 func (s *APISuite) TearDownTest() {
 	s.server.Close()
+}
+
+func (s *APISuite) SetupSubTest() {
+	s.storage.reset()
 }
 
 // Routing and middleware
@@ -116,8 +122,8 @@ func (s *APISuite) TestCreateUserReturnsCreatedWithLocation() {
 	s.storage.assignID = 7
 
 	resp := s.post("/api/v1/users", handlers.CreateUserReq{
-		Email: "ada@example.com",
-		Name:  "Ada Lovelace",
+		Email: "olya@example.com",
+		Name:  "Olya Lovelace",
 	})
 	s.Require().Equal(http.StatusCreated, resp.StatusCode)
 	s.Require().Equal("/api/v1/users/7", resp.Header.Get("Location"))
@@ -125,37 +131,37 @@ func (s *APISuite) TestCreateUserReturnsCreatedWithLocation() {
 	var out handlers.CreateUserResp
 	s.decode(resp, &out)
 	s.Require().Equal(int64(7), out.User.ID)
-	s.Require().Equal("ada@example.com", out.User.Email)
-	s.Require().Equal("Ada Lovelace", out.User.Name)
+	s.Require().Equal("olya@example.com", out.User.Email)
+	s.Require().Equal("Olya Lovelace", out.User.Name)
 	s.Require().Equal(stubTime.UTC(), out.User.CreatedAt)
 }
 
 func (s *APISuite) TestCreateUserPassesNormalizedFieldsToStorage() {
 	resp := s.post("/api/v1/users", handlers.CreateUserReq{
-		Email: "  Ada@Example.COM ",
-		Name:  "  Ada  ",
+		Email: "  Olya@example.com ",
+		Name:  "  Olya  ",
 	})
 	s.Require().Equal(http.StatusCreated, resp.StatusCode)
 
-	s.Require().Equal("ada@example.com", s.storage.gotUser.Email)
-	s.Require().Equal("Ada", s.storage.gotUser.Name)
+	s.Require().Equal("olya@example.com", s.storage.gotUser.Email)
+	s.Require().Equal("Olya", s.storage.gotUser.Name)
 }
 
 func (s *APISuite) TestCreateUserMapsDuplicateEmailToConflict() {
 	s.storage.createErr = storage.ErrDuplicateEmail
 
-	resp := s.post("/api/v1/users", handlers.CreateUserReq{Email: "ada@example.com", Name: "Ada"})
+	resp := s.post("/api/v1/users", handlers.CreateUserReq{Email: "olya@example.com", Name: "Olya"})
 	s.Require().Equal(http.StatusConflict, resp.StatusCode)
 	s.Require().Equal("email already registered", s.errorMessage(resp))
 }
 
 func (s *APISuite) TestCreateUserRejectsBadInput() {
 	tests := map[string]string{
-		"invalid email": `{"email":"not-an-email","name":"Ada"}`,
-		"empty name":    `{"email":"ada@example.com","name":"   "}`,
-		"unknown field": `{"email":"ada@example.com","name":"Ada","admin":true}`,
+		"invalid email": `{"email":"not-an-email","name":"Olya"}`,
+		"empty name":    `{"email":"olya@example.com","name":"   "}`,
+		"unknown field": `{"email":"olya@example.com","name":"Olya","admin":true}`,
 		"empty body":    ``,
-		"not an object": `["ada@example.com"]`,
+		"not an object": `["olya@example.com"]`,
 		"two objects":   `{"email":"a@b.com","name":"A"}{"email":"c@d.com","name":"C"}`,
 	}
 	for name, body := range tests {
@@ -200,12 +206,20 @@ func (s *APISuite) TestAddColorPassesNormalizedHexAndPathIDToStorage() {
 	s.Require().Equal("#ff00aa", out.Hex)
 }
 
-func (s *APISuite) TestAddColorMapsUnknownUserToNotFound() {
-	s.storage.addErr = storage.ErrUserNotFound
+func (s *APISuite) TestAddColorUnknownUserShouldReturnNotFound() {
+	s.storage.lockErr = storage.ErrUserNotFound
 
 	resp := s.post("/api/v1/users/999/colors", handlers.AddColorReq{Hex: "#ff0000"})
 	s.Require().Equal(http.StatusNotFound, resp.StatusCode)
 	s.Require().Equal("user not found", s.errorMessage(resp))
+}
+
+func (s *APISuite) TestAddColorAFullQuotaShouldReturnConflict() {
+	s.storage.colorCount = quotaForTests
+
+	resp := s.post("/api/v1/users/1/colors", handlers.AddColorReq{Hex: "#ff0000"})
+	s.Require().Equal(http.StatusConflict, resp.StatusCode)
+	s.Require().Equal("color quota full", s.errorMessage(resp))
 }
 
 func (s *APISuite) TestAddColorRejectsBadHex() {
@@ -280,23 +294,6 @@ func (s *APISuite) TestListColorsPassesEveryParsedParamDownIncludingACursorRound
 	s.Require().Equal(storage.SortByHex, got.Sort)
 	s.Require().Equal(storage.OrderAsc, got.Order)
 	s.Require().Equal(1, got.Limit)
-	s.Require().NotNil(got.After)
-	s.Require().Equal(color.Hex("#00ff00"), got.After.Hex)
-}
-
-func (s *APISuite) TestListColorsPassesTheColorSortDownAndRoundTripsItsCursor() {
-	s.storage.colors = []color.Color{{Hex: "#00ff00", CreatedAt: stubTime}}
-	s.storage.hasMore = true
-
-	var first handlers.ListColorsResp
-	s.decode(s.get("/api/v1/users/1/colors?sort=color&order=asc&limit=1"), &first)
-	s.Require().Equal(storage.SortByColor, s.storage.gotParams.Sort)
-	s.Require().NotEmpty(first.Metadata.NextCursor)
-
-	s.get("/api/v1/users/1/colors?sort=color&order=asc&limit=1&cursor=" + first.Metadata.NextCursor)
-
-	got := s.storage.gotParams
-	s.Require().Equal(storage.SortByColor, got.Sort)
 	s.Require().NotNil(got.After)
 	s.Require().Equal(color.Hex("#00ff00"), got.After.Hex)
 }

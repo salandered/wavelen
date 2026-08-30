@@ -62,9 +62,9 @@ func TestNormalizeEmailRejectsMalformedInput(t *testing.T) {
 }
 
 func TestNormalizeNameTrimsSurroundingWhitespace(t *testing.T) {
-	got, err := user.NormalizeName("  Ada Lovelace \n")
+	got, err := user.NormalizeName("  Olya Lovelace \n")
 	require.NoError(t, err)
-	require.Equal(t, "Ada Lovelace", got)
+	require.Equal(t, "Olya Lovelace", got)
 }
 
 func TestNormalizeNameRejectsEmptyAndOverlong(t *testing.T) {

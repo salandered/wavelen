@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/salandered/httputils/httputils"
+	"github.com/salandered/wavelen/internal/colorsvc"
 	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/user"
 	"github.com/salandered/wavelen/internal/version"
@@ -52,7 +53,7 @@ func writeRequestError(ctx context.Context, w http.ResponseWriter, err error) {
 	httputils.WriteError(ctx, w, err, http.StatusBadRequest)
 }
 
-// maps a storage-layer error to an HTTP response
+// maps a storage or service error to an HTTP response
 func writeStorageError(ctx context.Context, w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, storage.ErrUserNotFound):
@@ -61,6 +62,8 @@ func writeStorageError(ctx context.Context, w http.ResponseWriter, err error) {
 		httputils.WriteError(ctx, w, errors.New("not found"), http.StatusNotFound)
 	case errors.Is(err, storage.ErrDuplicateEmail):
 		httputils.WriteError(ctx, w, errors.New("email already registered"), http.StatusConflict)
+	case errors.Is(err, colorsvc.ErrQuotaFull):
+		httputils.WriteError(ctx, w, errors.New("color quota full"), http.StatusConflict)
 	default:
 		httputils.WriteError(ctx, w, err, http.StatusInternalServerError)
 	}
