@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wavelen
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector: # how the ReplicaSet finds Pods
+    matchLabels:
+      app: wavelen
+  template:
+    metadata:
+      labels: # Pod is labeled wavelen
+        app: wavelen
+    spec: # Pod runs one container (api app)
+      containers:
+        - name: api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          envFrom:
+            - configMapRef:
+                name: wavelen-config
+            - secretRef:
+                name: wavelen-db
+          env:
+            - name: GOMEMLIMIT
+              value: {{ .Values.goMemLimit | quote }}
+
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 2
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: http
+            # run the probe every 10, an attempt has a 2 to answer, 3 attempts budget
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

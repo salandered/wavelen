@@ -1,0 +1,28 @@
+image:
+  repository: ghcr.io/salandered/wavelen
+  tag: "0.1.4"
+
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 64Mi
+  limits:
+    # no cpu for now
+    memory: 128Mi
+
+# Ceiling for the Go GC, ~80% of resources.limits.memory
+goMemLimit: 100MiB
+
+# Set per cluster
+ingress:
+  host: ""
+
+tls:
+  enabled: false
+  secretName: wavelen-tls
+  issuer: ""
+
+redirect:
+  enabled: false

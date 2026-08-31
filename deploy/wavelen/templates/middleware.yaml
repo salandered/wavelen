@@ -1,0 +1,13 @@
+{{- if .Values.redirect.enabled }}
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: redirect-https
+spec:
+  # https://doc.traefik.io/traefik/reference/routing-configuration/http/middlewares/redirectscheme/
+  redirectScheme:
+    scheme: https
+    # Traefik will respond with a 301 Moved Permanently instead of a temporary 302 Found
+    # UPD: actually 308 Permanent Redirect is used
+    permanent: true
+{{- end }}

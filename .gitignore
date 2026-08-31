@@ -42,3 +42,8 @@ _tmp*.json
 
 # macOS
 .DS_Store
+
+# misc
+desktop.ini
+/current.yaml
+/next.yaml

@@ -1,0 +1,35 @@
+apiVersion: cert-manager.io/v1 # https://cert-manager.io/docs/reference/api-docs/#cert-manager.io%2fv1
+kind: ClusterIssuer # https://cert-manager.io/docs/concepts/issuer/
+metadata:
+  name: letsencrypt-staging
+# untrusted root, generous rate limits
+spec:
+  # https://cert-manager.io/docs/reference/api-docs/#acme.cert-manager.io/v1.ACMEIssuer
+  acme:
+    # the CA's directory URL
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: ivancodes@pm.me
+    # holds ACME account key
+    privateKeySecretRef:
+      name: letsencrypt-staging-account-key # ACME account key, created by cert-manager
+    solvers:
+      - http01:
+          ingress:
+            class: traefik
+
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+# trusted, rate limited per week
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: ivancodes@pm.me
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+      - http01:
+          ingress:
+            class: traefik

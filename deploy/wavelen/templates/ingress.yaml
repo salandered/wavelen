@@ -1,0 +1,38 @@
+# https://doc.traefik.io/traefik/reference/routing-configuration/kubernetes/ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: wavelen
+{{- if or .Values.tls.enabled .Values.redirect.enabled }}
+  annotations:
+{{- if .Values.tls.enabled }}
+    cert-manager.io/cluster-issuer: {{ .Values.tls.issuer }}
+{{- end }}
+{{- if .Values.redirect.enabled }}
+    # https://doc.traefik.io/traefik/reference/routing-configuration/kubernetes/ingress/#opt-traefik-ingress-kubernetes-iorouter-middlewares
+    # Old docs https://doc.traefik.io/traefik/v2.2/middlewares/overview/#provider-namespace describe format explicitly:
+    #  <middleware-namespace>-<middleware-name>@kubernetescrd
+    # Latest version: https://doc.traefik.io/traefik/reference/routing-configuration/kubernetes/crd/http/middleware/
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Release.Namespace }}-redirect-https@kubernetescrd
+{{- end }}
+{{- end }}
+spec:
+  ingressClassName: traefik
+{{- if .Values.tls.enabled }}
+  # https://kubernetes.io/docs/concepts/services-networking/ingress/#tls
+  tls:
+    - hosts:
+        - {{ required "ingress.host must be set" .Values.ingress.host | quote }}
+      secretName: {{ .Values.tls.secretName }} # created by cert-manager
+{{- end }}
+  rules:
+    - host: {{ required "ingress.host must be set" .Values.ingress.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: wavelen
+                port:
+                  number: 8080 # Service port

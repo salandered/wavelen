@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  serviceName: postgres
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:18-alpine
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: wavelen-db
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wavelen-db
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: wavelen-config
+                  key: POSTGRES_DB
+          ports:
+            - name: postgres
+              containerPort: 5432
+
+          # request == limit for memory.
+          # default shared_buffers is 128MB + work_mem per connection +
+          #   what Postgres expects the page cache to hold
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 512Mi
+
+          # in container spec
+          volumeMounts:
+            # Same as in docker-compose.yml. Pre-18 used /var/lib/postgresql/data
+            # PGDATA is /var/lib/postgresql/18/docker
+            # anything written here goes to the volume;
+            # written elsewhere goes to container's writable layer and dies within it
+            - name: pgdata
+              mountPath: /var/lib/postgresql
+          readinessProbe:
+            exec:
+              # sh -c expands the vars
+              command:
+                - sh
+                - -c
+                - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+  volumeClaimTemplates:
+    - metadata:
+        name: pgdata
+      spec:
+        accessModes:
+          - ReadWriteOnce # one Node may mount it read-write. Not one Pod
+        resources:
+          requests:
+            storage: 2Gi
+        # no storageClassName: use the cluster's default class.
+        # on k3s is local-path; the VPS may differ
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres # matches serviceName above
+spec:
+  clusterIP: None # headless
+  selector:
+    app: postgres
+  ports: # does nothing here
+    - port: 5432
+      targetPort: postgres

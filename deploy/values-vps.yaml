@@ -1,0 +1,9 @@
+ingress:
+  host: wavelen.ink
+
+tls:
+  enabled: true
+  issuer: letsencrypt-prod
+
+redirect:
+  enabled: true

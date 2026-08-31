@@ -1,0 +1,51 @@
+# Values for the cert-manager chart.
+# Pinned version is in Makefile.
+#
+# Print the full input surface this file overrides:
+# helm show values jetstack/cert-manager --version v1.21.1
+
+crds:
+  # Install the CRDs as part of this release. Off by default, because CRDs are
+  # cluster-scoped and a chart should not assume it owns them. Nothing else here
+  # provides them.
+  enabled: true
+  # Default is true, explicitly set: the CRDs get "helm.sh/resource-policy: keep",
+  # so `helm uninstall` leaves them behind rather than garbage-collecting every
+  # Certificate and Issuer in the cluster with them.
+  keep: true
+
+# Controller. Measured 20Mi idle on rocky-cliff, 2026-08-31.
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 128Mi
+
+webhook:
+  # Measured 19Mi idle.
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
+
+cainjector:
+  # Measured 9Mi idle, but it caches cluster-wide objects, so its memory tracks
+  # cluster size rather than current work. Using larger values.
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+
+startupapicheck:
+  # A post-install hook Job that waits for the webhook to answer, then exits.
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi

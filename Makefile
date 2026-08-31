@@ -1,6 +1,6 @@
-# Injected into the binary as version.version. The CI release job passes the computed tag;
-# a plain `make build/api` leaves it at the Go default.
+# Default version (CI release job passes the computed tag)
 VERSION ?= dev
+# '-s' - strips symbol tables and DWARF; '-X' for version
 LDFLAGS = -s -X github.com/salandered/wavelen/internal/version.version=$(VERSION)
 
 # Holds the database creds and any log settings
@@ -8,11 +8,10 @@ LDFLAGS = -s -X github.com/salandered/wavelen/internal/version.version=$(VERSION
 export
 
 # For psql and the migrate CLI.
-# NOTE: Keep the defaults in sync with internal/dbconfig. 
+# NOTE: defaults as in internal/dbconfig. 
 # A password with URL-special characters needs quoting by hand.
 DB_URL = postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(or $(POSTGRES_HOST),localhost):$(or $(POSTGRES_PORT),5433)/$(or $(POSTGRES_DB),wavelen)?sslmode=$(or $(POSTGRES_SSLMODE),disable)
 
-# Prints every "## target: description" comment in this file.
 .PHONY: help
 help:
 	@echo "see the file :D"
@@ -126,26 +125,21 @@ test/all:
 # ==================================================================================== #
 # BUILD
 # ==================================================================================== #
-# -ldflags carries '-s' (strips both symbol tables and DWARF) and the version -X
-# build/api runs both: the local (windows/amd64) build and the Ubuntu Linux one.
-# Windows needs "-o=./bin/api.exe", not "-o=./bin/api"
-## build/api: build the cmd/api application for both platforms
-.PHONY: build/api
-build/api: build/api/local build/api/linux
 
-## build/api/local: build the cmd/api application for this machine
-.PHONY: build/api/local
-build/api/local:
+## build/api: build the cmd/api application for win and linux
+.PHONY: build/api
+build/api: build/api/win build/api/linux
+
+## build/api/win: build the cmd/api app for Win
+# Windows needs "-o=./bin/api.exe", not "-o=./bin/api"
+.PHONY: build/api/win
+build/api/win:
 	@echo Building cmd/api for windows/amd64...
 	go build -ldflags='$(LDFLAGS)' -o=./bin/api.exe ./cmd/api
 
-## build/api/linux: build the cmd/api application for Ubuntu Linux
-# GOOS/GOARCH come from a target-specific export: make puts them into the child
-# environment itself. A "VAR=value cmd" prefix would not work, because make runs
-# recipes through cmd.exe on Windows and that form is POSIX shell syntax.
-# CGO_ENABLED=0 because this machine has CGO_ENABLED=1 in go env: cross-compiling would
-# otherwise call the local mingw gcc against linux headers it does not have.
+## build/api/linux: build the cmd/api app for Ubuntu Linux
 .PHONY: build/api/linux
+# A "VAR=value cmd" not working when running make on Win
 build/api/linux: export GOOS=linux
 build/api/linux: export GOARCH=amd64
 build/api/linux: export CGO_ENABLED=0
@@ -158,23 +152,45 @@ build/api/linux:
 # KUBERNETES
 # ==================================================================================== #
 
+# Bump means applying the new CRDs first: Helm installs a chart's CRDs once and doesn't upgrade them.
+CERT_MANAGER_VERSION ?= v1.21.1
+
+## k8s/addons: install cluster add-ons at pinned versions, then the issuers
+.PHONY: k8s/addons
+k8s/addons:
+	helm repo add jetstack https://charts.jetstack.io
+	helm repo update jetstack
+	helm upgrade --install cert-manager jetstack/cert-manager \
+		--version $(CERT_MANAGER_VERSION) \
+		--namespace cert-manager --create-namespace \
+		--values deploy/cert-manager-values.yaml \
+		--wait
+	kubectl apply -f deploy/clusterissuer.yaml
+
 ## k8s/secret: create the db secret in the cluster from .env
-# --dry-run ... - kubectl create fails if the object exists
+# --dry-run - kubectl create fails if the object exists
+# "$(POSTGRES_USER)" - double quotes, Win does not strip ', so 'value' lands in the Secret
 .PHONY: k8s/secret
 k8s/secret:
 	@kubectl create secret generic wavelen-db \
-		--from-literal=POSTGRES_USER='$(POSTGRES_USER)' \
-		--from-literal=POSTGRES_PASSWORD='$(POSTGRES_PASSWORD)' \
+		--from-literal=POSTGRES_USER="$(POSTGRES_USER)" \
+		--from-literal=POSTGRES_PASSWORD="$(POSTGRES_PASSWORD)" \
 		--dry-run=client -o yaml | kubectl apply -f -
 
-## k8s/apply: apply manifests from k8s/
-.PHONY: k8s/apply
-k8s/apply:
-	kubectl apply -f k8s/
+## k8s/apply/vps: install or upgrade the wavelen release on the VPS k3s cluster
+.PHONY: k8s/apply/vps
+k8s/apply/vps:
+	helm upgrade --install wavelen deploy/wavelen --values deploy/values-vps.yaml
 
-## k8s/migrate: run the migrations Job 
-.PHONY: k8s/migrate
-k8s/migrate:
-	kubectl delete job wavelen-migrate --ignore-not-found
-	kubectl apply -f k8s/jobs/migrate.yaml
-	kubectl wait --for=condition=complete job/wavelen-migrate --timeout=120s
+## k8s/apply/k3d: install or upgrade the wavelen release on the local k3d cluster
+.PHONY: k8s/apply/k3d
+k8s/apply/k3d:
+	helm upgrade --install wavelen deploy/wavelen --values deploy/values-k3d-mac.yaml
+
+
+
+.PHONY: helm/dev/compare
+helm/dev/compare:
+	helm get manifest wavelen > current.yaml
+	helm template wavelen deploy/wavelen -f deploy/values-vps.yaml > next.yaml
+
