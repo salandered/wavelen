@@ -9,11 +9,11 @@ import (
 
 const (
 	MinPasswordLen = 8
-	// bcrypt refuses anything longer, hard limit
+	// max that bcrypt supports
 	MaxPasswordLen = 72
 )
 
-// Note: Recommended not to change .
+// Note: Recommended not to change this.
 // Technically it is ok - stored hashes have the cost included.
 // But the time cost will be different for old and new passwords. Also the dummyHash should be in sync.
 const bcryptCost = 12
@@ -29,7 +29,6 @@ func HashPassword(plaintext string) ([]byte, error) {
 	}
 
 	// format is: $2a$[cost]$[22-character salt][31-character hash]
-	// ($2a$ because x/crypto pins minorVersion to 'a'; it reads $2b$ but never writes it)
 	hash, err := bcrypt.GenerateFromPassword([]byte(plaintext), bcryptCost)
 	if err != nil {
 		return nil, fmt.Errorf("auth hash password: %w", err)
@@ -40,6 +39,13 @@ func HashPassword(plaintext string) ([]byte, error) {
 // bcrypt.ErrMismatchedHashAndPassword -> returns false and nil.
 // Any other error -> false and the error.
 func PasswordMatches(hash []byte, plaintext string) (bool, error) {
+	// bcrypt compares only the first 72 bytes.
+	// A longer string would authenticate on its first 72.
+	if len(plaintext) > MaxPasswordLen {
+		EqualizeTiming()
+		return false, nil
+	}
+
 	err := bcrypt.CompareHashAndPassword(hash, []byte(plaintext))
 	switch {
 	case err == nil:
@@ -51,8 +57,7 @@ func PasswordMatches(hash []byte, plaintext string) (bool, error) {
 	}
 }
 
-// A bcrypt hash of a published string, used only to spend the same time on a login
-// that matched no user. Not a credential.
+// A bcrypt dummy hash
 const dummyHash = "$2a$12$w197MSRbyWSMKybxo4ysO.QmD.JA3Ei0iDlMJE0ol0rQuHqyCmaRa"
 
 // EqualizeTiming runs an unsuccessful bcrypt match.

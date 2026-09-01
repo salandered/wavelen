@@ -42,6 +42,30 @@ func TestUnusableHashNeverMatchesAndReportsWhy(t *testing.T) {
 	}
 }
 
+func TestPasswordOverTheBcryptLimitRejected(t *testing.T) {
+	password := strings.Repeat("a", auth.MaxPasswordLen)
+	hash := hashOf(t, password)
+
+	t.Run("exact limit still matches", func(t *testing.T) {
+		matches, err := auth.PasswordMatches(hash, password)
+
+		require.NoError(t, err)
+		require.True(t, matches)
+	})
+
+	for name, suffix := range map[string]string{
+		"one byte over": "Z",
+		"far over":      strings.Repeat("Z", 500),
+	} {
+		t.Run(name, func(t *testing.T) {
+			matches, err := auth.PasswordMatches(hash, password+suffix)
+
+			require.NoError(t, err)
+			require.False(t, matches)
+		})
+	}
+}
+
 func TestHashPasswordRejectsLengthsOutsideTheBcryptRange(t *testing.T) {
 	lengths := map[string]string{
 		"empty":     "",

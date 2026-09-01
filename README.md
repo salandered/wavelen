@@ -1,6 +1,6 @@
-## Wavelen
+# Wavelen
 
-A JSON API for saving colors. Users keep their own list of hex codes.
+A web app for saving colors. Users keep their own list of hex codes.
 A seeded palette of 100 named colors is served read-only for a UI table.
 
 Go 1.26, Postgres, pgx v5.
@@ -74,16 +74,36 @@ VERSION=0.2.0 docker compose build   # the compose default is dev
 
 See [api/api.yaml](api/api.yaml).
 
+Sign up, then log in. A user's own colors need the token from the login response;
+everything else is public. See also [dev/auth.md](dev/auth.md).
+
 ```sh
-curl -X POST localhost:8080/api/v1/users -d '{"email":"olya@example.com","name":"Olya"}'
-curl -X POST localhost:8080/api/v1/users/1/colors -d '{"hex":"FF00AA"}'
-curl localhost:8080/api/v1/users/1/colors
+curl -X POST localhost:8080/api/v1/users \
+  -d '{"email":"olya@example.com","name":"Olya","password":"correct-horse-battery"}'
+
+# 201 {"token":"...","expiry":"..."}
+curl -X POST localhost:8080/api/v1/tokens \
+  -d '{"email":"olya@example.com","password":"correct-horse-battery"}'
+```
+
+```sh
+TOKEN=<the token from above>
+
+curl -X POST localhost:8080/api/v1/users/1/colors \
+  -H "Authorization: Bearer $TOKEN" -d '{"hex":"FF00AA"}'
+curl localhost:8080/api/v1/users/1/colors -H "Authorization: Bearer $TOKEN"
+curl -X DELETE localhost:8080/api/v1/users/1/colors/ff00aa -H "Authorization: Bearer $TOKEN"
+```
+
+Public:
+
+```sh
 curl localhost:8080/api/v1/colors
 curl 'localhost:8080/api/v1/colors?sort=hex&order=desc'
 curl localhost:8080/api/v1/colors/ff00aa/complement
 curl localhost:8080/api/v1/colors/ff00aa/triad
 ```
 
-## Config
+## Configuration
 
 See [env.template](.env.template). Acts as a config doc as well.
