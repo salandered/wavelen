@@ -17,6 +17,7 @@ import (
 	"github.com/getkin/kin-openapi/routers"
 	"github.com/getkin/kin-openapi/routers/gorillamux"
 	"github.com/salandered/wavelen"
+	"github.com/salandered/wavelen/internal/auth"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/handlers"
 	"github.com/salandered/wavelen/internal/requestid"
@@ -30,7 +31,12 @@ func TestAPISuite(t *testing.T) {
 	suite.Run(t, new(APISuite))
 }
 
-const quotaForTests = 3
+const (
+	testQuota    = 3
+	testTTL      = time.Hour
+	testPassword = "correct horse battery"
+	testToken    = "X3ASTT2CDAN66BACKSCI4SU7SI"
+)
 
 type APISuite struct {
 	suite.Suite
@@ -41,7 +47,7 @@ type APISuite struct {
 }
 
 func (s *APISuite) SetupSuite() {
-	slog.SetDefault(slog.New(slog.DiscardHandler)) // the handlers log every rejection
+	slog.SetDefault(slog.New(slog.DiscardHandler)) // handlers log every rejection
 
 	loader := openapi3.NewLoader()
 	spec, err := loader.LoadFromData(wavelen.APISpec)
@@ -54,7 +60,7 @@ func (s *APISuite) SetupSuite() {
 
 func (s *APISuite) SetupTest() {
 	s.storage = newMockStorage()
-	s.server = httptest.NewServer(server.NewHandler(s.storage, quotaForTests))
+	s.server = httptest.NewServer(server.NewHandler(s.storage, testQuota, testTTL))
 	s.client = s.server.Client()
 }
 
@@ -122,8 +128,9 @@ func (s *APISuite) TestCreateUserReturnsCreatedWithLocation() {
 	s.storage.assignID = 7
 
 	resp := s.post("/api/v1/users", handlers.CreateUserReq{
-		Email: "olya@example.com",
-		Name:  "Olya Lovelace",
+		Email:    "olya@example.com",
+		Name:     "Olya Lovelace",
+		Password: testPassword,
 	})
 	s.Require().Equal(http.StatusCreated, resp.StatusCode)
 	s.Require().Equal("/api/v1/users/7", resp.Header.Get("Location"))
@@ -138,8 +145,9 @@ func (s *APISuite) TestCreateUserReturnsCreatedWithLocation() {
 
 func (s *APISuite) TestCreateUserPassesNormalizedFieldsToStorage() {
 	resp := s.post("/api/v1/users", handlers.CreateUserReq{
-		Email: "  Olya@example.com ",
-		Name:  "  Olya  ",
+		Email:    "  Olya@example.com ",
+		Name:     "  Olya  ",
+		Password: testPassword,
 	})
 	s.Require().Equal(http.StatusCreated, resp.StatusCode)
 
@@ -150,19 +158,65 @@ func (s *APISuite) TestCreateUserPassesNormalizedFieldsToStorage() {
 func (s *APISuite) TestCreateUserMapsDuplicateEmailToConflict() {
 	s.storage.createErr = storage.ErrDuplicateEmail
 
-	resp := s.post("/api/v1/users", handlers.CreateUserReq{Email: "olya@example.com", Name: "Olya"})
+	resp := s.post("/api/v1/users", handlers.CreateUserReq{
+		Email: "olya@example.com", Name: "Olya", Password: testPassword,
+	})
 	s.Require().Equal(http.StatusConflict, resp.StatusCode)
 	s.Require().Equal("email already registered", s.errorMessage(resp))
 }
 
+func (s *APISuite) TestCreateTokenReturnsTokenAndStoresItsHash() {
+	hash, err := auth.HashPassword(testPassword)
+	s.Require().NoError(err)
+	s.storage.userByMail = &user.User{ID: 7, Email: "olya@example.com", PasswordHash: hash}
+
+	// when
+	resp := s.post("/api/v1/tokens", handlers.CreateTokenReq{
+		Email: "  Olya@example.com ", Password: testPassword,
+	})
+
+	// then
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+
+	var out handlers.CreateTokenResp
+	s.decode(resp, &out)
+	s.Require().NotEmpty(out.Token)
+	// was normalized before the lookup
+	s.Require().Equal("olya@example.com", s.storage.gotEmail)
+	s.Require().Equal(auth.HashToken(out.Token), s.storage.gotToken.Hash)
+	s.Require().Equal(user.ID(7), s.storage.gotToken.UserID)
+}
+
+func (s *APISuite) TestCreateTokenAnswersTheSameForWrongPasswordAndUnknownEmail() {
+	hash, err := auth.HashPassword(testPassword)
+	s.Require().NoError(err)
+	s.storage.userByMail = &user.User{ID: 7, Email: "olya@example.com", PasswordHash: hash}
+
+	wrongPassword := s.post("/api/v1/tokens", handlers.CreateTokenReq{
+		Email: "olya@example.com", Password: "not the password",
+	})
+
+	s.storage.userByMail, s.storage.mailErr = nil, storage.ErrUserNotFound
+	unknownEmail := s.post("/api/v1/tokens", handlers.CreateTokenReq{
+		Email: "nobody@example.com", Password: testPassword,
+	})
+
+	s.Require().Equal(http.StatusUnauthorized, wrongPassword.StatusCode)
+	s.Require().Equal(http.StatusUnauthorized, unknownEmail.StatusCode)
+	s.Require().Equal(s.errorMessage(wrongPassword), s.errorMessage(unknownEmail))
+	s.Require().Nil(s.storage.gotToken)
+}
+
 func (s *APISuite) TestCreateUserRejectsBadInput() {
 	tests := map[string]string{
-		"invalid email": `{"email":"not-an-email","name":"Olya"}`,
-		"empty name":    `{"email":"olya@example.com","name":"   "}`,
-		"unknown field": `{"email":"olya@example.com","name":"Olya","admin":true}`,
-		"empty body":    ``,
-		"not an object": `["olya@example.com"]`,
-		"two objects":   `{"email":"a@b.com","name":"A"}{"email":"c@d.com","name":"C"}`,
+		"invalid email":    `{"email":"not-an-email","name":"Olya","password":"correct horse battery"}`,
+		"empty name":       `{"email":"olya@example.com","name":"   ","password":"correct horse battery"}`,
+		"short password":   `{"email":"olya@example.com","name":"Olya","password":"short"}`,
+		"missing password": `{"email":"olya@example.com","name":"Olya"}`,
+		"unknown field":    `{"email":"olya@example.com","name":"Olya","admin":true}`,
+		"empty body":       ``,
+		"not an object":    `["olya@example.com"]`,
+		"two objects":      `{"email":"a@b.com","name":"A"}{"email":"c@d.com","name":"C"}`,
 	}
 	for name, body := range tests {
 		s.Run(name, func() {
@@ -195,6 +249,8 @@ func (s *APISuite) TestAddColorReturnsOKWhenAlreadySaved() {
 }
 
 func (s *APISuite) TestAddColorPassesNormalizedHexAndPathIDToStorage() {
+	s.storage.tokenUser = 42
+
 	resp := s.post("/api/v1/users/42/colors", handlers.AddColorReq{Hex: "  FF00AA  "})
 	s.Require().Equal(http.StatusCreated, resp.StatusCode)
 
@@ -209,13 +265,15 @@ func (s *APISuite) TestAddColorPassesNormalizedHexAndPathIDToStorage() {
 func (s *APISuite) TestAddColorUnknownUserShouldReturnNotFound() {
 	s.storage.lockErr = storage.ErrUserNotFound
 
+	s.storage.tokenUser = 999
+
 	resp := s.post("/api/v1/users/999/colors", handlers.AddColorReq{Hex: "#ff0000"})
 	s.Require().Equal(http.StatusNotFound, resp.StatusCode)
 	s.Require().Equal("user not found", s.errorMessage(resp))
 }
 
 func (s *APISuite) TestAddColorAFullQuotaShouldReturnConflict() {
-	s.storage.colorCount = quotaForTests
+	s.storage.colorCount = testQuota
 
 	resp := s.post("/api/v1/users/1/colors", handlers.AddColorReq{Hex: "#ff0000"})
 	s.Require().Equal(http.StatusConflict, resp.StatusCode)
@@ -248,6 +306,8 @@ func (s *APISuite) TestMalformedUserIDReturnsBadRequest() {
 // Deleting a color
 
 func (s *APISuite) TestDeleteColorReturnsNoContent() {
+	s.storage.tokenUser = 42
+
 	resp := s.del("/api/v1/users/42/colors/FF00AA")
 	s.Require().Equal(http.StatusNoContent, resp.StatusCode)
 	s.Require().Empty(s.body(resp))
@@ -471,6 +531,73 @@ func (s *APISuite) TestHarmonyRejectsAMalformedHexInThePath() {
 	}
 }
 
+// Auth
+
+// routes that require you to be the owner reject invalid creds
+func (s *APISuite) TestOwnerOnlyRoutesRefuseAMissingOrMalformedCredential() {
+	for name, header := range map[string]string{
+		"no header":      "",
+		"wrong scheme":   "Basic " + testToken,
+		"scheme only":    "Bearer",
+		"empty token":    "Bearer ",
+		"bare token":     testToken,
+		"lowercase kind": "bearer " + testToken,
+	} {
+		s.Run(name, func() {
+			resp := s.sendAs(http.MethodGet, "/api/v1/users/1/colors", nil, header)
+
+			s.Require().Equal(http.StatusUnauthorized, resp.StatusCode)
+			s.Require().Equal("invalid credentials", s.errorMessage(resp))
+			// nothing reached the token store
+			s.Require().Nil(s.storage.gotTokenHash)
+		})
+	}
+}
+
+func (s *APISuite) TestUnknownOrExpiredTokenIsUnauthorized() {
+	s.storage.tokenErr = storage.ErrTokenNotFound
+
+	resp := s.get("/api/v1/users/1/colors")
+
+	s.Require().Equal(http.StatusUnauthorized, resp.StatusCode)
+	s.Require().Equal("invalid credentials", s.errorMessage(resp))
+	// storage is asked for the hash of the token
+	s.Require().Equal(auth.HashToken(testToken), s.storage.gotTokenHash)
+}
+
+func (s *APISuite) TestValidTokenForAnotherUserIsForbidden() {
+	s.storage.tokenUser = 42
+
+	resp := s.get("/api/v1/users/1/colors")
+
+	s.Require().Equal(http.StatusForbidden, resp.StatusCode)
+	s.Require().Equal("not your user", s.errorMessage(resp))
+	// refused before any lookup, no info whether user 1 exists
+	s.Require().Zero(s.storage.gotUserID)
+}
+
+func (s *APISuite) TestPublicRoutesDoNotUseTokenStore() {
+	for _, path := range []string{
+		"/livez",
+		"/api/v1/colors",
+		"/api/v1/colors/ff0000/complement",
+	} {
+		s.Run(path, func() {
+			resp := s.sendAs(http.MethodGet, path, nil, "")
+
+			s.Require().Equal(http.StatusOK, resp.StatusCode)
+			s.Require().Nil(s.storage.gotTokenHash)
+		})
+	}
+}
+
+func (s *APISuite) TestAuthenticatedResponseVariesByAuthorization() {
+	resp := s.get("/api/v1/users/1/colors")
+
+	s.Require().Equal(http.StatusOK, resp.StatusCode)
+	s.Require().Contains(resp.Header.Values("Vary"), "Authorization")
+}
+
 // Failure mapping
 
 func (s *APISuite) TestStorageFailureReturnsAbstractMessageNoInternalInfo() {
@@ -505,8 +632,16 @@ func (s *APISuite) del(path string) *http.Response {
 }
 
 func (s *APISuite) send(method, path string, body io.Reader) *http.Response {
+	return s.sendAs(method, path, body, "Bearer "+testToken)
+}
+
+// auth is sent verbatim or omitted if empty.
+func (s *APISuite) sendAs(method, path string, body io.Reader, auth string) *http.Response {
 	req, err := http.NewRequest(method, s.server.URL+path, body)
 	s.Require().NoError(err)
+	if auth != "" {
+		req.Header.Set("Authorization", auth)
+	}
 
 	resp, err := s.client.Do(req)
 	s.Require().NoError(err)

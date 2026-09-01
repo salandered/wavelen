@@ -5,5 +5,7 @@ CREATE TABLE users (
 	-- case insensitive comparisons
     email      citext NOT NULL UNIQUE,
     name       text NOT NULL,
+	-- bytea - binary string. Stores the bcrypt hash
+    password_hash bytea NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now()
 );

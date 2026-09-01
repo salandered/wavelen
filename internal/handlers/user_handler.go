@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/salandered/httputils/httputils"
+	"github.com/salandered/wavelen/internal/auth"
 	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/user"
 )
@@ -15,8 +16,9 @@ type UserHandler struct {
 }
 
 type CreateUserReq struct {
-	Email string `json:"email"`
-	Name  string `json:"name"`
+	Email    string `json:"email"`
+	Name     string `json:"name"`
+	Password string `json:"password"`
 }
 
 type UserResp struct {
@@ -50,7 +52,13 @@ func (h *UserHandler) HandleCreateUser(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	u := user.User{Email: email, Name: name}
+	hash, err := auth.HashPassword(data.Password)
+	if err != nil {
+		writeRequestError(ctx, w, err)
+		return
+	}
+
+	u := user.User{Email: email, Name: name, PasswordHash: hash}
 	if err := h.Users.CreateUser(ctx, &u); err != nil {
 		writeStorageError(ctx, w, err)
 		return

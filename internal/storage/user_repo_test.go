@@ -10,7 +10,7 @@ import (
 )
 
 func (s *StorageSuite) TestCreateUserFillsInIDAndCreatedAt() {
-	u := user.User{Email: "olya@example.com", Name: "Olya Lovelace"}
+	u := user.User{Email: "olya@example.com", Name: "Olya Lovelace", PasswordHash: stubPasswordHash}
 
 	// when
 	err := s.storage.CreateUser(s.ctx(), &u)
@@ -32,7 +32,7 @@ func (s *StorageSuite) TestCreateUserRejectsATakenEmail() {
 	s.createUser("olya@example.com", "Olya")
 
 	// when
-	u := user.User{Email: "olya@example.com", Name: "Olya Again"}
+	u := user.User{Email: "olya@example.com", Name: "Olya Again", PasswordHash: stubPasswordHash}
 	err := s.storage.CreateUser(s.ctx(), &u)
 
 	// then
@@ -43,7 +43,7 @@ func (s *StorageSuite) TestCreateUserEmailUniquenessIgnoresCase() {
 	s.createUser("olya@example.com", "Olya")
 
 	// when
-	u := user.User{Email: "OLYA@EXAMPLE.COM", Name: "Olya Again"}
+	u := user.User{Email: "OLYA@EXAMPLE.COM", Name: "Olya Again", PasswordHash: stubPasswordHash}
 	err := s.storage.CreateUser(s.ctx(), &u)
 
 	// then

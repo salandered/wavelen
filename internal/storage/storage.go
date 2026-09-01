@@ -13,6 +13,7 @@ import (
 var (
 	ErrNotFound       = errors.New("not found")
 	ErrUserNotFound   = fmt.Errorf("%w: user", ErrNotFound)
+	ErrTokenNotFound  = fmt.Errorf("%w: token", ErrNotFound)
 	ErrDuplicateEmail = errors.New("duplicate email")
 
 	ErrNestedTx = errors.New("nested transaction")

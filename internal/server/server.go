@@ -15,6 +15,7 @@ const (
 	DefaultShutdownTimeout = 10 * time.Second
 
 	DefaultUserColorQuota = 100
+	DefaultAuthTokenTTL   = 24 * time.Hour
 )
 
 var (

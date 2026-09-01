@@ -74,8 +74,13 @@ func run() error {
 		return err
 	}
 
-	// may be part of the app config later
+	// may be a part of the app config later
 	colorQuota, err := getColorQuota()
+	if err != nil {
+		return err
+	}
+
+	tokenTTL, err := getAuthTokenTTL()
 	if err != nil {
 		return err
 	}
@@ -88,7 +93,7 @@ func run() error {
 	defer pool.Close()
 	go logDBReachable(ctx, pool)
 
-	return server.Start(ctx, server.NewHandler(storage.New(pool), colorQuota), cfg)
+	return server.Start(ctx, server.NewHandler(storage.New(pool), colorQuota, tokenTTL), cfg)
 }
 
 func openPool(ctx context.Context) (*pgxpool.Pool, error) {
@@ -166,6 +171,17 @@ func getColorQuota() (int, error) {
 			"%w: USER_COLOR_QUOTA should be positive, got %d", ErrConfig, colorQuota)
 	}
 	return colorQuota, nil
+}
+
+func getAuthTokenTTL() (time.Duration, error) {
+	ttl, err := durationFromEnv("AUTH_TOKEN_TTL", server.DefaultAuthTokenTTL)
+	if err != nil {
+		return 0, err
+	}
+	if ttl <= 0 {
+		return 0, fmt.Errorf("%w: AUTH_TOKEN_TTL should be positive, got %s", ErrConfig, ttl)
+	}
+	return ttl, nil
 }
 
 func intFromEnv(name string, def int) (int, error) {

@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 
+	"github.com/salandered/wavelen/internal/auth"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/user"
 )
@@ -10,8 +11,13 @@ import (
 type UserRepo interface {
 	// Fills in u.ID and u.CreatedAt. A taken email yields ErrDuplicateEmail.
 	CreateUser(ctx context.Context, u *user.User) error
-
+	UserByEmail(ctx context.Context, email string) (*user.User, error)
 	LockUser(ctx context.Context, userID user.ID) error
+}
+
+type TokenRepo interface {
+	InsertToken(ctx context.Context, t *auth.Token) error
+	UserIDForTokenHash(ctx context.Context, hash []byte) (user.ID, error)
 }
 
 type ColorRepo interface {
@@ -33,6 +39,7 @@ type HealthRepo interface {
 
 type Storage interface {
 	UserRepo
+	TokenRepo
 	ColorRepo
 	CatalogRepo
 	HealthRepo

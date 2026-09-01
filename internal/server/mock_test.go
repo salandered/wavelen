@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/salandered/wavelen/internal/auth"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/user"
@@ -31,9 +32,17 @@ type mockStorage struct {
 	common     []color.Common
 	commonErr  error
 	pingErr    error
+	userByMail *user.User
+	mailErr    error
+	tokenUser  user.ID
+	tokenErr   error
+	insertErr  error
 
 	// what the handler passed down
 	gotUser          *user.User
+	gotEmail         string
+	gotToken         *auth.Token
+	gotTokenHash     []byte
 	gotUserID        user.ID
 	gotHex           color.Hex
 	gotParams        storage.ListColorsParams
@@ -45,11 +54,12 @@ type mockStorage struct {
 var stubTime = time.Date(2026, 8, 23, 14, 0, 0, 0, time.FixedZone("+04:00", 4*60*60))
 
 func newMockStorage() *mockStorage {
-	return &mockStorage{assignID: 1, added: true}
+	// tokenUser - most of the color tests call /users/1/...
+	return &mockStorage{assignID: 1, added: true, tokenUser: 1}
 }
 
 // Clears the mock storage.
-// In place, because the running server holds this pointer.
+// In place, the running server holds this pointer.
 func (s *mockStorage) reset() {
 	*s = *newMockStorage()
 }
@@ -64,6 +74,22 @@ func (s *mockStorage) CreateUser(_ context.Context, u *user.User) error {
 	u.ID = s.assignID
 	u.CreatedAt = stubTime
 	return nil
+}
+
+func (s *mockStorage) UserByEmail(_ context.Context, email string) (*user.User, error) {
+	s.gotEmail = email
+	return s.userByMail, s.mailErr
+}
+
+func (s *mockStorage) InsertToken(_ context.Context, t *auth.Token) error {
+	passed := *t
+	s.gotToken = &passed
+	return s.insertErr
+}
+
+func (s *mockStorage) UserIDForTokenHash(_ context.Context, hash []byte) (user.ID, error) {
+	s.gotTokenHash = hash
+	return s.tokenUser, s.tokenErr
 }
 
 func (s *mockStorage) InTx(_ context.Context, fn func(storage.Storage) error) error {

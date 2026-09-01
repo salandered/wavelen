@@ -112,7 +112,6 @@ func (s *QuotaSuite) TestResavingColorAtQuotaStaysIdempotent() {
 	s.Require().Equal(quota, n)
 }
 
-// The lock is the first statement, so it is what answers for a missing user now.
 func (s *QuotaSuite) TestAddColorForUnknownUser() {
 	ctx := s.ctx(10 * time.Second)
 
@@ -129,7 +128,7 @@ func (s *QuotaSuite) ctx(d time.Duration) context.Context {
 }
 
 func (s *QuotaSuite) createUser() user.ID {
-	u := user.User{Email: "olya@example.com", Name: "Olya"}
+	u := user.User{Email: "olya@example.com", Name: "Olya", PasswordHash: []byte("stub")}
 	s.Require().NoError(s.store.CreateUser(s.ctx(10*time.Second), &u))
 	return u.ID
 }

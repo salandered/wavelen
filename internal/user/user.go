@@ -24,10 +24,11 @@ var (
 )
 
 type User struct {
-	ID        ID
-	Email     string
-	Name      string
-	CreatedAt time.Time
+	ID           ID
+	Email        string
+	Name         string
+	PasswordHash []byte // bcrypt hash
+	CreatedAt    time.Time
 }
 
 func ParseID(s string) (ID, error) {
@@ -51,7 +52,7 @@ func NormalizeEmail(s string) (string, error) {
 	return email, nil
 }
 
-// Done '@', a non-empty local part, a dotted domain
+// Validates '@'; non-empty local part; a dotted domain
 func validEmail(email string) bool {
 	local, domain, found := strings.Cut(email, "@")
 	switch {

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/salandered/httputils/httputils"
+	"github.com/salandered/wavelen/internal/authsvc"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/colorsvc"
 	"github.com/salandered/wavelen/internal/storage"
@@ -78,6 +79,8 @@ func writeStorageError(ctx context.Context, w http.ResponseWriter, err error) {
 		httputils.WriteError(ctx, w, errors.New("not found"), http.StatusNotFound)
 	case errors.Is(err, storage.ErrDuplicateEmail):
 		httputils.WriteError(ctx, w, errors.New("email already registered"), http.StatusConflict)
+	case errors.Is(err, authsvc.ErrInvalidCredentials):
+		httputils.WriteError(ctx, w, errors.New("invalid credentials"), http.StatusUnauthorized)
 	case errors.Is(err, colorsvc.ErrQuotaFull):
 		httputils.WriteError(ctx, w, errors.New("color quota full"), http.StatusConflict)
 	default:

@@ -44,8 +44,11 @@ func (s *StorageSuite) ctx() context.Context {
 
 // utils to mock db data
 
+// Not a valid bcrypt hash, nothing here verifies it.
+var stubPasswordHash = []byte("stub")
+
 func (s *StorageSuite) createUser(email, name string) user.ID {
-	u := user.User{Email: email, Name: name}
+	u := user.User{Email: email, Name: name, PasswordHash: stubPasswordHash}
 	s.Require().NoError(s.storage.CreateUser(s.ctx(), &u))
 	return u.ID
 }

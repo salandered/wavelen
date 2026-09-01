@@ -103,30 +103,18 @@
 				"borderRadius": "2px"
 			}
 		],
-		"(Hint)": [
-			{
-				"color": "#d489c8",
-				"fontWeight": "bold",
-			}
-		],
-		"(hint)": [
-			{
-				"color": "#d489c8",
-				"fontWeight": "bold",
-			}
-		],
-		"(Note)": [
-			{
-				"color": "#57ac90",
-				"fontWeight": "bold",
-			}
-		],
-		"(note)": [
-			{
-				"color": "#57ac90",
-				"fontWeight": "bold",
-			}
-		],
+		// "\\b[Hh]ints?\\b": [
+		// 	{
+		// 		"color": "#d489c8",
+		// 		"fontWeight": "bold",
+		// 	}
+		// ],
+		// "\\b[Nn]otes?\\b": [
+		// 	{
+		// 		"color": "#57ac90",
+		// 		"fontWeight": "bold",
+		// 	}
+		// ],
 	},
 	//
 	// 🟥🟪🟦🟩🟨🟧
