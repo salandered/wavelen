@@ -45,5 +45,4 @@ _tmp*.json
 
 # misc
 desktop.ini
-/current.yaml
-/next.yaml
+tmp/

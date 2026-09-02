@@ -16,33 +16,35 @@ var _ storage.Storage = (*mockStorage)(nil)
 
 type mockStorage struct {
 	// what the methods answer
-	assignID   user.ID
-	createErr  error
-	lockErr    error
-	added      bool
-	addErr     error
-	colorCount int
-	countErr   error
-	hasColor   bool
-	hasErr     error
-	deleteErr  error
-	colors     []color.Color
-	hasMore    bool
-	colorsErr  error
-	common     []color.Common
-	commonErr  error
-	pingErr    error
-	userByMail *user.User
-	mailErr    error
-	tokenUser  user.ID
-	tokenErr   error
-	insertErr  error
+	assignID       user.ID
+	createErr      error
+	lockErr        error
+	added          bool
+	addErr         error
+	colorCount     int
+	countErr       error
+	hasColor       bool
+	hasErr         error
+	deleteErr      error
+	colors         []color.Color
+	hasMore        bool
+	colorsErr      error
+	common         []color.Common
+	commonErr      error
+	pingErr        error
+	userByMail     *user.User
+	mailErr        error
+	tokenUser      user.ID
+	tokenErr       error
+	insertErr      error
+	deleteTokenErr error
 
 	// what the handler passed down
 	gotUser          *user.User
 	gotEmail         string
 	gotToken         *auth.Token
 	gotTokenHash     []byte
+	deletedTokenHash []byte
 	gotUserID        user.ID
 	gotHex           color.Hex
 	gotParams        storage.ListColorsParams
@@ -90,6 +92,11 @@ func (s *mockStorage) InsertToken(_ context.Context, t *auth.Token) error {
 func (s *mockStorage) UserIDForTokenHash(_ context.Context, hash []byte) (user.ID, error) {
 	s.gotTokenHash = hash
 	return s.tokenUser, s.tokenErr
+}
+
+func (s *mockStorage) DeleteToken(_ context.Context, hash []byte) error {
+	s.deletedTokenHash = hash
+	return s.deleteTokenErr
 }
 
 func (s *mockStorage) InTx(_ context.Context, fn func(storage.Storage) error) error {

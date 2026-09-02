@@ -18,6 +18,7 @@ type UserRepo interface {
 type TokenRepo interface {
 	InsertToken(ctx context.Context, t *auth.Token) error
 	UserIDForTokenHash(ctx context.Context, hash []byte) (user.ID, error)
+	DeleteToken(ctx context.Context, hash []byte) error
 }
 
 type ColorRepo interface {

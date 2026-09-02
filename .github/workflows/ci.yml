@@ -4,12 +4,16 @@ on:
   push:
     paths-ignore:
       - "docs/**"
+      - "deploy/**" # chart changes publish no artifact
+      - "dev/**"
       - "**/*.md"
       - "**/*.png"
       - "**/*.svg"
   pull_request:
     paths-ignore:
       - "docs/**"
+      - "deploy/**" # chart changes publish no artifact
+      - "dev/**"
       - "**/*.md"
       - "**/*.png"
       - "**/*.svg"

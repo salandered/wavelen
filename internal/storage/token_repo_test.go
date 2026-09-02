@@ -72,3 +72,29 @@ func (s *StorageSuite) TestATokenForAnUnknownUserIsRejected() {
 
 	s.Require().ErrorIs(err, storage.ErrUserNotFound)
 }
+
+func (s *StorageSuite) TestDeletedTokenStopsResolving() {
+	id := s.createUser("olya@example.com", "Olya")
+	kept := auth.NewToken(id, time.Hour)
+	revoked := auth.NewToken(id, time.Hour)
+	s.Require().NoError(s.storage.InsertToken(s.ctx(), kept))
+	s.Require().NoError(s.storage.InsertToken(s.ctx(), revoked))
+
+	// when
+	s.Require().NoError(s.storage.DeleteToken(s.ctx(), revoked.Hash))
+
+	// then
+	_, err := s.storage.UserIDForTokenHash(s.ctx(), revoked.Hash)
+	s.Require().ErrorIs(err, storage.ErrTokenNotFound)
+
+	// the user's other sessions are ok
+	got, err := s.storage.UserIDForTokenHash(s.ctx(), kept.Hash)
+	s.Require().NoError(err)
+	s.Require().Equal(id, got)
+}
+
+func (s *StorageSuite) TestDeletingAnUnknownTokenIsNotAnError() {
+	err := s.storage.DeleteToken(s.ctx(), auth.HashToken("never minted"))
+
+	s.Require().NoError(err)
+}

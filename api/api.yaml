@@ -68,7 +68,7 @@ paths:
       tags: [Users]
       summary: Creates a user
       description: >-
-        The email is trimmed and lowercased before storage. Uniqueness ignores case.
+        The email is trimmed and lowercased before storage.
       requestBody:
         required: true
         content:
@@ -132,6 +132,25 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "413":
           $ref: "#/components/responses/PayloadTooLarge"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    delete:
+      tags: [Auth]
+      security:
+        - bearerAuth: []
+      summary: Logout. Revokes the token
+      description: >-
+        The token in the `Authorization` header is deleted and stops working.
+        This user's other tokens are untouched. An already invalid token
+        answers 401, not 204.
+      responses:
+        "204":
+          description: The token was revoked
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/XRequestId"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "500":
           $ref: "#/components/responses/InternalServerError"
 
@@ -468,7 +487,7 @@ components:
 
     CreateTokenResponse:
       type: object
-      required: [token, expiry]
+      required: [token, expiry, user_id]
       properties:
         token:
           type: string
@@ -478,6 +497,12 @@ components:
           type: string
           format: date-time
           example: "2026-09-02T13:37:08.688203Z"
+        user_id:
+          type: integer
+          format: int64
+          minimum: 1
+          description: The user this token belongs to
+          example: 1
 
     User:
       type: object

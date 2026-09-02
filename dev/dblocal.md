@@ -1,4 +1,9 @@
-## Resetting the db
+
+- [Volume](#volume)
+- [Reset data](#reset-data)
+- [Check current migration](#check-current-migration)
+
+## Volume
 
 Postgres data lives in a named docker volume. Compose prefixes it with the project
 directory, so the name is `wavelen_wavelen-pgdata` (not the `wavelen-pgdata`).
@@ -7,7 +12,7 @@ directory, so the name is `wavelen_wavelen-pgdata` (not the `wavelen-pgdata`).
 docker volume ls | grep wavelen
 ```
 
-### Reset
+## Reset data
 
 ```sh
 docker compose down -v # `-v` drops the volume.
@@ -22,7 +27,7 @@ make dc/down # volume cannot be removed while a container uses it
 docker volume rm wavelen_wavelen-pgdata
 ```
 
-### Check where the schema is
+## Check current migration
 
 ```sh
 make db/psql

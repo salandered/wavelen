@@ -63,12 +63,21 @@ sequenceDiagram
             S->>S: auth.NewToken -> plaintext + SHA-256
             S->>DB: INSERT INTO tokens (hash, user_id, expiry)
             S-->>H: token
-            H-->>C: 201 {token, expiry}
+            H-->>C: 201 {token, expiry, user_id}
         end
     end
 ```
 
+`user_id` is in the response because the token does not tell a client which
+`/api/v1/users/{user_id}/...` paths it may use.
+
 An unknown email, invalid email and a wrong password answer with the same status, same body, and spend the same amount of time (see `EqualizeTiming`). So client would not know what emails are registered.
+
+### Logout
+
+`DELETE /api/v1/tokens` revokes the token that the this request carries.
+
+Revoking is just deleting the row.
 
 ### An authenticated request
 
@@ -96,4 +105,4 @@ See `internal/server/auth.go`.
 
 ### Future
 
-Logout, token revocation, password change/reset, expired tokens cleanup
+Revoking all of a user's tokens, password change/reset, expired token cleanup.

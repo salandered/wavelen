@@ -1,12 +1,16 @@
+# https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: wavelen
+  labels:
+    {{- include "wavelen.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
 spec:
   replicas: {{ .Values.replicaCount }}
   selector: # how the ReplicaSet finds Pods
-    matchLabels:
-      app: wavelen
+    matchLabels: # renders app: wavelen
+      {{- include "wavelen.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels: # Pod is labeled wavelen
@@ -14,7 +18,7 @@ spec:
     spec: # Pod runs one container (api app)
       containers:
         - name: api
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           envFrom:
             - configMapRef:
                 name: wavelen-config
