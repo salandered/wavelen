@@ -165,7 +165,7 @@ func (s *APISuite) TestCreateUserMapsDuplicateEmailToConflict() {
 	s.Require().Equal("email already registered", s.errorMessage(resp))
 }
 
-func (s *APISuite) TestCreateTokenReturnsTokenAndStoresItsHash() {
+func (s *APISuite) TestCreateTokenReturnsTokenAndItsUserAndStoresTheHash() {
 	hash, err := auth.HashPassword(testPassword)
 	s.Require().NoError(err)
 	s.storage.userByMail = &user.User{ID: 7, Email: "olya@example.com", PasswordHash: hash}
@@ -181,10 +181,34 @@ func (s *APISuite) TestCreateTokenReturnsTokenAndStoresItsHash() {
 	var out handlers.CreateTokenResp
 	s.decode(resp, &out)
 	s.Require().NotEmpty(out.Token)
+	s.Require().Equal(int64(7), out.UserID)
 	// was normalized before the lookup
 	s.Require().Equal("olya@example.com", s.storage.gotEmail)
 	s.Require().Equal(auth.HashToken(out.Token), s.storage.gotToken.Hash)
 	s.Require().Equal(user.ID(7), s.storage.gotToken.UserID)
+}
+
+func (s *APISuite) TestDeleteTokenRevokesTheOneTheRequestCarried() {
+	resp := s.del("/api/v1/tokens")
+
+	s.Require().Equal(http.StatusNoContent, resp.StatusCode)
+	s.Require().Equal(auth.HashToken(testToken), s.storage.deletedTokenHash)
+}
+
+func (s *APISuite) TestDeleteTokenWithoutCredentialsRevokesNothing() {
+	resp := s.sendAs(http.MethodDelete, "/api/v1/tokens", nil, "")
+
+	s.Require().Equal(http.StatusUnauthorized, resp.StatusCode)
+	s.Require().Nil(s.storage.deletedTokenHash)
+}
+
+func (s *APISuite) TestDeleteTokenWithAnAlreadyInvalidTokenIsUnauthorized() {
+	s.storage.tokenErr = storage.ErrTokenNotFound
+
+	resp := s.del("/api/v1/tokens")
+
+	s.Require().Equal(http.StatusUnauthorized, resp.StatusCode)
+	s.Require().Nil(s.storage.deletedTokenHash)
 }
 
 func (s *APISuite) TestCreateTokenAnswersTheSameForWrongPasswordAndUnknownEmail() {

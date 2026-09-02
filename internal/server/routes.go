@@ -35,6 +35,8 @@ func newMux(s storage.Storage, colorQuota int, tokenTTL time.Duration) *http.Ser
 	mux.HandleFunc("POST /api/v1/users", users.HandleCreateUser)
 	// login
 	mux.HandleFunc("POST /api/v1/tokens", tokens.HandleCreateToken)
+	// logout: authenticate only
+	mux.Handle("DELETE /api/v1/tokens", authenticate(s)(http.HandlerFunc(tokens.HandleDeleteToken)))
 	// user's colors
 	mux.Handle("GET /api/v1/users/{user_id}/colors", allowed(colors.HandleListColors))
 	mux.Handle("POST /api/v1/users/{user_id}/colors", allowed(colors.HandleAddColor))

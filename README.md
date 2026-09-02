@@ -81,9 +81,9 @@ everything else is public. See also [dev/auth.md](dev/auth.md).
 curl -X POST localhost:8080/api/v1/users \
   -d '{"email":"olya@example.com","name":"Olya","password":"correct-horse-battery"}'
 
-# 201 {"token":"...","expiry":"..."}
 curl -X POST localhost:8080/api/v1/tokens \
   -d '{"email":"olya@example.com","password":"correct-horse-battery"}'
+# 201 {"token":"...","expiry":"...","user_id":1}
 ```
 
 ```sh
@@ -93,6 +93,9 @@ curl -X POST localhost:8080/api/v1/users/1/colors \
   -H "Authorization: Bearer $TOKEN" -d '{"hex":"FF00AA"}'
 curl localhost:8080/api/v1/users/1/colors -H "Authorization: Bearer $TOKEN"
 curl -X DELETE localhost:8080/api/v1/users/1/colors/ff00aa -H "Authorization: Bearer $TOKEN"
+
+# log out
+curl -X DELETE localhost:8080/api/v1/tokens -H "Authorization: Bearer $TOKEN"
 ```
 
 Public:

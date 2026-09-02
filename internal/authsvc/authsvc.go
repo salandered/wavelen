@@ -58,6 +58,11 @@ func (a *AuthSvc) Login(ctx context.Context, email, password string) (*auth.Toke
 	return token, nil
 }
 
+// Logout revokes the token the caller presented
+func (a *AuthSvc) Logout(ctx context.Context, hash []byte) error {
+	return a.storage.DeleteToken(ctx, hash)
+}
+
 func (a *AuthSvc) refuse() error {
 	auth.EqualizeTiming()
 	return ErrInvalidCredentials

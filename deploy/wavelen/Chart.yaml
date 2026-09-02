@@ -1,5 +1,5 @@
 apiVersion: v2
-version: 0.1.0
-appVersion: "0.1.4"
+version: 0.1.0 # templates or values changed
+appVersion: "0.1.12" # app changed (and a new image is built)
 name: wavelen
 type: application

@@ -42,7 +42,9 @@ func authenticate(tokens storage.TokenRepo) func(http.Handler) http.Handler {
 				return
 			}
 
-			id, err := tokens.UserIDForTokenHash(ctx, auth.HashToken(plaintext))
+			hash := auth.HashToken(plaintext)
+
+			id, err := tokens.UserIDForTokenHash(ctx, hash)
 			if err != nil {
 				// not writeStorageError: ErrTokenNotFound wraps ErrNotFound and would be a 404
 				if errors.Is(err, storage.ErrTokenNotFound) {
@@ -53,7 +55,10 @@ func authenticate(tokens storage.TokenRepo) func(http.Handler) http.Handler {
 				return
 			}
 
-			next.ServeHTTP(w, req.WithContext(context.WithValue(ctx, userIDContextKey, id)))
+			// adding the hash too: logout can delete the row without parsing the header again
+			// TODO: i don't like this, a cheap temporary logic
+			ctx = auth.ContextWithTokenHash(context.WithValue(ctx, userIDContextKey, id), hash)
+			next.ServeHTTP(w, req.WithContext(ctx))
 		})
 	}
 }

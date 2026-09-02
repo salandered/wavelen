@@ -2,6 +2,9 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: postgres
+  labels:
+    {{- include "wavelen.labels" . | nindent 4 }}
+    app.kubernetes.io/component: database
 spec:
   replicas: 1
   serviceName: postgres
@@ -80,6 +83,9 @@ apiVersion: v1
 kind: Service
 metadata:
   name: postgres # matches serviceName above
+  labels:
+    {{- include "wavelen.labels" . | nindent 4 }}
+    app.kubernetes.io/component: database
 spec:
   clusterIP: None # headless
   selector:

@@ -189,8 +189,15 @@ k8s/apply/k3d:
 
 
 
+TMP := tmp
+
 .PHONY: helm/dev/compare
-helm/dev/compare:
-	helm get manifest wavelen > current.yaml
-	helm template wavelen deploy/wavelen -f deploy/values-vps.yaml > next.yaml
+helm/dev/compare: | $(TMP)
+	helm get manifest wavelen > $(TMP)/helm-current.yaml
+	helm template wavelen deploy/wavelen -f deploy/values-vps.yaml > $(TMP)/helm-next.yaml
+
+# runs only when the dir is missing, so a bare mkdir is
+# enough and works under both sh and cmd. 'mkdir -p' would make a '-p' dir on cmd.
+$(TMP):
+	mkdir $@
 

@@ -42,3 +42,15 @@ func (s *Postgres) UserIDForTokenHash(ctx context.Context, hash []byte) (user.ID
 	}
 	return id, nil
 }
+
+// Revokes one token. Not found is treated the same as success.
+func (s *Postgres) DeleteToken(ctx context.Context, hash []byte) error {
+	const query = `
+		DELETE FROM tokens
+		WHERE hash = $1`
+
+	if _, err := s.db.Exec(ctx, query, hash); err != nil {
+		return fmt.Errorf("storage delete token: %w", err)
+	}
+	return nil
+}

@@ -1,6 +1,6 @@
 image:
   repository: ghcr.io/salandered/wavelen
-  tag: "0.1.4"
+  tag: "" # templates default to .Chart.AppVersion
 
 replicaCount: 1
 
