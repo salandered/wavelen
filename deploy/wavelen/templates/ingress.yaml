@@ -4,7 +4,7 @@ kind: Ingress
 metadata:
   name: wavelen
   labels:
-    {{- include "wavelen.labels" . | nindent 4 }}
+    {{- include "wavelen.appLabels" . | nindent 4 }}
     app.kubernetes.io/component: api
 {{- if or .Values.tls.enabled .Values.redirect.enabled }}
   annotations:

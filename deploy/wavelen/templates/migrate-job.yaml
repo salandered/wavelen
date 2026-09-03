@@ -3,7 +3,7 @@ kind: Job
 metadata:
   name: wavelen-migrate
   labels:
-    {{- include "wavelen.labels" . | nindent 4 }}
+    {{- include "wavelen.appLabels" . | nindent 4 }}
     app.kubernetes.io/component: migration
   annotations:
     "helm.sh/hook": post-install,pre-upgrade
@@ -15,8 +15,10 @@ spec:
   ttlSecondsAfterFinished: 600
   template:
     metadata:
-      labels:
+      labels: # for kubectl only
         app: wavelen-migrate
+        {{- include "wavelen.appLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migration
     spec:
       restartPolicy: Never
       containers:

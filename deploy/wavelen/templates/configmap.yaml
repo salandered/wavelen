@@ -3,7 +3,7 @@ kind: ConfigMap
 metadata:
   name: wavelen-config
   labels:
-    {{- include "wavelen.labels" . | nindent 4 }}
+    {{- include "wavelen.appLabels" . | nindent 4 }}
 data:
   POSTGRES_HOST: postgres # host.k3d.internal
   POSTGRES_PORT: "5432"   # "5433"

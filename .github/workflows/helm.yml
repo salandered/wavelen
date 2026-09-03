@@ -1,0 +1,56 @@
+# ci.yml ignores deploy/**. Chart validation uses its own workflow.
+# Some simple checks, positive result should not be trusted.
+# TODO: consider https://github.com/yannh/kubeconform
+name: Helm
+
+on:
+  push:
+    paths:
+      - "deploy/**"
+      - ".github/workflows/helm.yml"
+  pull_request:
+    paths:
+      - "deploy/**"
+      - ".github/workflows/helm.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  HELM_VERSION: v4.1.4
+
+jobs:
+  chart:
+    name: Lint chart
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v5
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      # values-*.yaml is one file per cluster; a new cluster is picked up by the glob
+      - name: Lint
+        shell: bash
+        run: |
+          helm lint --strict deploy/wavelen
+          for values in deploy/values-*.yaml; do
+            echo "::group::helm lint $values"
+            helm lint deploy/wavelen --values "$values"
+            echo "::endgroup::"
+          done
+
+      # Full render. Catches template errors, bad indentation, missing required values.
+      - name: Render
+        shell: bash
+        run: |
+          for values in deploy/values-*.yaml; do
+            echo "::group::helm template $values"
+            helm template wavelen deploy/wavelen --values "$values"
+            echo "::endgroup::"
+          done

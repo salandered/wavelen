@@ -13,8 +13,10 @@ spec:
       app: postgres
   template:
     metadata:
-      labels:
+      labels: # no version label - postgres runs its own image
         app: postgres
+        {{- include "wavelen.labels" . | nindent 8 }}
+        app.kubernetes.io/component: database
     spec:
       containers:
         - name: postgres
