@@ -180,8 +180,14 @@
 			cursor: pointer;
 		}
 
-		#user-id {
-			width: 5rem;
+		#login-password,
+		#new-password {
+			width: 8rem;
+		}
+
+		.who {
+			font-size: 0.85rem;
+			margin-right: auto;
 		}
 
 		/* fixed, so flipping the label does not shift the controls beside it */
@@ -460,23 +466,40 @@
 
 	<div class="split">
 		<main>
-		<details data-collapse-key="user" open>
-			<summary>User</summary>
-			<div class="row">
-				<label for="user-id">user id</label>
-				<input id="user-id" type="number" min="1" value="1">
-				<button type="button" id="load">load colors</button>
+		<details data-collapse-key="account" open>
+			<summary>Account</summary>
+
+			<!-- Both states live in the markup and app.js hides one. The panel is the first thing
+			     rendered, so building either one from script would flash the wrong state. -->
+			<div id="logged-out">
+				<form class="row" id="login-form">
+					<label for="login-email">log in</label>
+					<input id="login-email" type="email" placeholder="email" autocomplete="email">
+					<input id="login-password" type="password" placeholder="password"
+						autocomplete="current-password">
+					<button>log in</button>
+				</form>
+				<form class="row" id="signup-form">
+					<label for="new-email">sign up</label>
+					<input id="new-email" type="email" placeholder="email" autocomplete="email">
+					<input id="new-name" placeholder="name">
+					<input id="new-password" type="password" placeholder="password"
+						autocomplete="new-password">
+					<button>create user</button>
+					<button type="button" id="random-user">random</button>
+				</form>
 			</div>
-			<div class="row">
-				<label for="new-email">add new</label>
-				<input id="new-email" type="email" placeholder="email">
-				<input id="new-name" placeholder="name">
-				<button type="button" id="create-user">create user</button>
-				<button type="button" id="random-user">random</button>
+
+			<div class="row" id="logged-in" hidden>
+				<!-- the login response answers with an id and nothing else, so the id is what this
+				     names. Showing the typed address instead would show it unnormalized. -->
+				<span class="who" id="who"></span>
+				<button type="button" id="logout">log out</button>
+				<button type="button" id="load">reload colors</button>
 			</div>
 		</details>
 
-		<details data-collapse-key="saved" open>
+		<details data-collapse-key="saved" id="saved-section" open>
 			<summary>Saved colors</summary>
 			<form class="row" id="add-form">
 				<input id="hex" placeholder="#ff00aa" aria-label="hex color">

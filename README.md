@@ -75,7 +75,7 @@ VERSION=0.2.0 docker compose build   # the compose default is dev
 See [api/api.yaml](api/api.yaml).
 
 Sign up, then log in. A user's own colors need the token from the login response;
-everything else is public. See also [dev/auth.md](dev/auth.md).
+everything else is public. See also [docs/auth.md](docs/auth.md).
 
 ```sh
 curl -X POST localhost:8080/api/v1/users \
@@ -83,16 +83,18 @@ curl -X POST localhost:8080/api/v1/users \
 
 curl -X POST localhost:8080/api/v1/tokens \
   -d '{"email":"olya@example.com","password":"correct-horse-battery"}'
-# 201 {"token":"...","expiry":"...","user_id":1}
+# 201 {"token":"...","expiry":"..."}
 ```
 
 ```sh
 TOKEN=<the token from above>
 
-curl -X POST localhost:8080/api/v1/users/1/colors \
+curl localhost:8080/api/v1/me -H "Authorization: Bearer $TOKEN"
+
+curl -X POST localhost:8080/api/v1/me/colors \
   -H "Authorization: Bearer $TOKEN" -d '{"hex":"FF00AA"}'
-curl localhost:8080/api/v1/users/1/colors -H "Authorization: Bearer $TOKEN"
-curl -X DELETE localhost:8080/api/v1/users/1/colors/ff00aa -H "Authorization: Bearer $TOKEN"
+curl localhost:8080/api/v1/me/colors -H "Authorization: Bearer $TOKEN"
+curl -X DELETE localhost:8080/api/v1/me/colors/ff00aa -H "Authorization: Bearer $TOKEN"
 
 # log out
 curl -X DELETE localhost:8080/api/v1/tokens -H "Authorization: Bearer $TOKEN"

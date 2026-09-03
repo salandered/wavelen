@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -21,14 +20,18 @@ type CreateUserReq struct {
 	Password string `json:"password"`
 }
 
+// No id: nothing uses it client-side
 type UserResp struct {
-	ID        int64     `json:"id"`
 	Email     string    `json:"email"`
 	Name      string    `json:"name"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
 type CreateUserResp struct {
+	User UserResp `json:"user"`
+}
+
+type MeResp struct {
 	User UserResp `json:"user"`
 }
 
@@ -64,13 +67,23 @@ func (h *UserHandler) HandleCreateUser(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	w.Header().Set("Location", fmt.Sprintf("/api/v1/users/%d", u.ID))
 	httputils.WriteJSON(ctx, w, http.StatusCreated, CreateUserResp{User: userToResp(&u)})
+}
+
+// Returns the account which belongs to the token
+func (h *UserHandler) HandleGetMe(w http.ResponseWriter, req *http.Request, userID user.ID) {
+	ctx := req.Context()
+
+	u, err := h.Users.UserByID(ctx, userID)
+	if err != nil {
+		writeStorageError(ctx, w, err)
+		return
+	}
+	httputils.WriteJSON(ctx, w, http.StatusOK, MeResp{User: userToResp(u)})
 }
 
 func userToResp(u *user.User) UserResp {
 	return UserResp{
-		ID:        int64(u.ID),
 		Email:     u.Email,
 		Name:      u.Name,
 		CreatedAt: u.CreatedAt.UTC(),

@@ -22,28 +22,34 @@ func newMux(s storage.Storage, colorQuota int, tokenTTL time.Duration) *http.Ser
 	catalog := &handlers.CatalogHandler{Catalog: s}
 	tokens := &handlers.TokenHandler{TokenSvc: authsvc.New(s, tokenTTL)}
 
-	allowed := func(h http.HandlerFunc) http.Handler {
-		return authenticate(s)(requireOwner(h))
-	}
+	authed := authenticate(s) // func(authedHandlerFunc) http.Handler
 
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /{$}", handlers.HandleRoot)
 	mux.HandleFunc("GET /livez", health.HandleLive)
 	mux.HandleFunc("GET /readyz", health.HandleReady)
-	// users
+	//// users
+	// sign up
 	mux.HandleFunc("POST /api/v1/users", users.HandleCreateUser)
+
+	//// tokens
 	// login
 	mux.HandleFunc("POST /api/v1/tokens", tokens.HandleCreateToken)
-	// logout: authenticate only
-	mux.Handle("DELETE /api/v1/tokens", authenticate(s)(http.HandlerFunc(tokens.HandleDeleteToken)))
-	// user's colors
-	mux.Handle("GET /api/v1/users/{user_id}/colors", allowed(colors.HandleListColors))
-	mux.Handle("POST /api/v1/users/{user_id}/colors", allowed(colors.HandleAddColor))
-	mux.Handle("DELETE /api/v1/users/{user_id}/colors/{hex}", allowed(colors.HandleDeleteColor))
-	// common colors palette
+	// logout
+	mux.Handle("DELETE /api/v1/tokens", authed(tokens.HandleDeleteToken))
+
+	//// the account behind the token
+	mux.Handle("GET /api/v1/me", authed(users.HandleGetMe))
+
+	//// user's colors
+	mux.Handle("GET /api/v1/me/colors", authed(colors.HandleListColors))
+	mux.Handle("POST /api/v1/me/colors", authed(colors.HandleAddColor))
+	mux.Handle("DELETE /api/v1/me/colors/{hex}", authed(colors.HandleDeleteColor))
+
+	//// common colors palette
 	mux.HandleFunc("GET /api/v1/colors", catalog.HandleListCommonColors)
-	// harmonies
+	//// harmonies
 	mux.HandleFunc("GET /api/v1/colors/{hex}/complement", handlers.HandleComplement)
 	mux.HandleFunc("GET /api/v1/colors/{hex}/triad", handlers.HandleTriad)
 

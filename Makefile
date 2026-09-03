@@ -189,15 +189,15 @@ k8s/apply/k3d:
 
 
 
-TMP := tmp
+HELM_TMP := tmp
 
 .PHONY: helm/dev/compare
-helm/dev/compare: | $(TMP)
-	helm get manifest wavelen > $(TMP)/helm-current.yaml
-	helm template wavelen deploy/wavelen -f deploy/values-vps.yaml > $(TMP)/helm-next.yaml
+helm/dev/compare: | $(HELM_TMP)
+	helm get manifest wavelen > $(HELM_TMP)/helm-current.yaml
+	helm template wavelen deploy/wavelen -f deploy/values-vps.yaml > $(HELM_TMP)/helm-next.yaml
 
 # runs only when the dir is missing, so a bare mkdir is
 # enough and works under both sh and cmd. 'mkdir -p' would make a '-p' dir on cmd.
-$(TMP):
+$(HELM_TMP):
 	mkdir $@
 

@@ -4,12 +4,13 @@
 
 Using stateful bearer tokens.
 
-Two wrappers:
+One wrapper:
 
-| Q                  | Wrapper        | Reads                      | Refuses with |
-| ------------------ | -------------- | -------------------------- | ------------ |
-| Who is calling     | `authenticate` | the `Authorization` header | 401          |
-| May they have this | `requireOwner` | `{user_id}` in the path    | 403          |
+| Q              | Wrapper        | Reads                      | Refuses with |
+| -------------- | -------------- | -------------------------- | ------------ |
+| Who is calling | `authenticate` | the `Authorization` header | 401          |
+
+Every per-user route is `/api/v1/me/...`.
 
 ### How db looks
 
@@ -63,15 +64,15 @@ sequenceDiagram
             S->>S: auth.NewToken -> plaintext + SHA-256
             S->>DB: INSERT INTO tokens (hash, user_id, expiry)
             S-->>H: token
-            H-->>C: 201 {token, expiry, user_id}
+            H-->>C: 201 {token, expiry}
         end
     end
 ```
 
-`user_id` is in the response because the token does not tell a client which
-`/api/v1/users/{user_id}/...` paths it may use.
+The response is only the token. Info about who is logged in - `GET /api/v1/me`.
 
-An unknown email, invalid email and a wrong password answer with the same status, same body, and spend the same amount of time (see `EqualizeTiming`). So client would not know what emails are registered.
+An unknown email, invalid email and a wrong password answer with the same status, same body, and spend the same amount of time (see `EqualizeTiming`).
+So a client would not know what emails are registered.
 
 ### Logout
 
@@ -81,25 +82,21 @@ Revoking is just deleting the row.
 
 ### An authenticated request
 
-The two wrappers are applied at the route line (`internal/server/routes.go`), not inside the middleware chain:
-
-- we don't know the `req.PathValue` until `ServeMux` has matched
-- endpoints like `/livez` are not wrapped and don't use storage
+The wrapper is applied at the route line (`internal/server/routes.go`), not inside the middleware
+chain: endpoints like `/livez` are not wrapped and don't use storage.
 
 ```mermaid
 flowchart TD
-    A["GET /api/v1/users/{user_id}/colors"] --> B{"Authorization: Bearer ...?"}
+    A["GET /api/v1/me/colors"] --> B{"Authorization: Bearer ...?"}
     B -- absent or malformed --> E1["401, no query made"]
     B -- present --> C["SHA-256 the token"]
     C --> D{"SELECT user_id FROM tokens<br/>WHERE hash = $1 AND expiry > now()"}
     D -- no row --> E2["401, unknown or expired"]
-    D -- row --> F["user id into request context"]
-    F --> G{"context id == {user_id}?"}
-    G -- no --> E3["403, no lookup made"]
-    G -- yes --> H["handler runs"]
+    D -- row --> F["the user id"]
+    F --> H["handler runs, the id is one of its arguments"]
 ```
 
-First wrapper validates token, second checks that the permission is allowed. Second one does not use repo, just checks token user_id vs the route path. 403 cannot leak whether the user in the path exists.
+The wrapper takes an `authedHandlerFunc` (`func(w, r, user.ID)`) and returns a `http.Handler`.
 
 See `internal/server/auth.go`.
 

@@ -34,6 +34,8 @@ type mockStorage struct {
 	pingErr        error
 	userByMail     *user.User
 	mailErr        error
+	userByID       *user.User
+	idErr          error
 	tokenUser      user.ID
 	tokenErr       error
 	insertErr      error
@@ -56,7 +58,7 @@ type mockStorage struct {
 var stubTime = time.Date(2026, 8, 23, 14, 0, 0, 0, time.FixedZone("+04:00", 4*60*60))
 
 func newMockStorage() *mockStorage {
-	// tokenUser - most of the color tests call /users/1/...
+	// tokenUser - the color tests get their user id from the token
 	return &mockStorage{assignID: 1, added: true, tokenUser: 1}
 }
 
@@ -81,6 +83,11 @@ func (s *mockStorage) CreateUser(_ context.Context, u *user.User) error {
 func (s *mockStorage) UserByEmail(_ context.Context, email string) (*user.User, error) {
 	s.gotEmail = email
 	return s.userByMail, s.mailErr
+}
+
+func (s *mockStorage) UserByID(_ context.Context, id user.ID) (*user.User, error) {
+	s.gotUserID = id
+	return s.userByID, s.idErr
 }
 
 func (s *mockStorage) InsertToken(_ context.Context, t *auth.Token) error {

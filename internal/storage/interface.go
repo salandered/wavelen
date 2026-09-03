@@ -12,6 +12,7 @@ type UserRepo interface {
 	// Fills in u.ID and u.CreatedAt. A taken email yields ErrDuplicateEmail.
 	CreateUser(ctx context.Context, u *user.User) error
 	UserByEmail(ctx context.Context, email string) (*user.User, error)
+	UserByID(ctx context.Context, id user.ID) (*user.User, error)
 	LockUser(ctx context.Context, userID user.ID) error
 }
 

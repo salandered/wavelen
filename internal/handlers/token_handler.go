@@ -9,6 +9,7 @@ import (
 
 	"github.com/salandered/httputils/httputils"
 	"github.com/salandered/wavelen/internal/auth"
+	"github.com/salandered/wavelen/internal/user"
 )
 
 // the handler is served by a service, not by repo (like color svc)
@@ -26,11 +27,9 @@ type CreateTokenReq struct {
 	Password string `json:"password"`
 }
 
-// UserID is what the caller would need to put in the path
 type CreateTokenResp struct {
 	Token  string    `json:"token"`
 	Expiry time.Time `json:"expiry"`
-	UserID int64     `json:"user_id"`
 }
 
 func (h *TokenHandler) HandleCreateToken(w http.ResponseWriter, req *http.Request) {
@@ -51,11 +50,10 @@ func (h *TokenHandler) HandleCreateToken(w http.ResponseWriter, req *http.Reques
 	httputils.WriteJSON(ctx, w, http.StatusCreated, CreateTokenResp{
 		Token:  token.Plaintext,
 		Expiry: token.Expiry.UTC(),
-		UserID: int64(token.UserID),
 	})
 }
 
-func (h *TokenHandler) HandleDeleteToken(w http.ResponseWriter, req *http.Request) {
+func (h *TokenHandler) HandleDeleteToken(w http.ResponseWriter, req *http.Request, _ user.ID) {
 	ctx := req.Context()
 
 	hash, ok := auth.TokenHashFromContext(ctx)

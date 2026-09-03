@@ -50,3 +50,25 @@ func (s *StorageSuite) TestCreateUserEmailUniquenessIgnoresCase() {
 	// (the email column is citext)
 	s.Require().ErrorIs(err, storage.ErrDuplicateEmail)
 }
+
+func (s *StorageSuite) TestUserByIDReturnsAccountWithoutPasswordHash() {
+	id := s.createUser("olya@example.com", "Olya Lovelace")
+
+	// when
+	u, err := s.storage.UserByID(s.ctx(), id)
+
+	// then
+	s.Require().NoError(err)
+	s.Require().Equal(id, u.ID)
+	s.Require().Equal("olya@example.com", u.Email)
+	s.Require().Equal("Olya Lovelace", u.Name)
+	s.Require().WithinDuration(time.Now(), u.CreatedAt, time.Minute)
+	// the query does not select the column
+	s.Require().Empty(u.PasswordHash)
+}
+
+func (s *StorageSuite) TestUserByIDUnknownIDReturnsNotFound() {
+	_, err := s.storage.UserByID(s.ctx(), 999999)
+
+	s.Require().ErrorIs(err, storage.ErrUserNotFound)
+}

@@ -42,14 +42,8 @@ type ListColorsResp struct {
 	Metadata cursorMeta       `json:"metadata"`
 }
 
-func (h *ColorHandler) HandleAddColor(w http.ResponseWriter, req *http.Request) {
+func (h *ColorHandler) HandleAddColor(w http.ResponseWriter, req *http.Request, userID user.ID) {
 	ctx := req.Context()
-
-	userID, err := userIDFromPath(req)
-	if err != nil {
-		writeRequestError(ctx, w, err)
-		return
-	}
 
 	var data AddColorReq
 	if err := httputils.ReadJSON(w, req, &data, maxRequestBodyBytes); err != nil {
@@ -76,14 +70,8 @@ func (h *ColorHandler) HandleAddColor(w http.ResponseWriter, req *http.Request) 
 	httputils.WriteJSON(ctx, w, status, AddColorResp{Hex: string(hex)})
 }
 
-func (h *ColorHandler) HandleListColors(w http.ResponseWriter, req *http.Request) {
+func (h *ColorHandler) HandleListColors(w http.ResponseWriter, req *http.Request, userID user.ID) {
 	ctx := req.Context()
-
-	userID, err := userIDFromPath(req)
-	if err != nil {
-		writeRequestError(ctx, w, err)
-		return
-	}
 
 	params, err := listColorsParams(req)
 	if err != nil {
@@ -116,14 +104,8 @@ func (h *ColorHandler) HandleListColors(w http.ResponseWriter, req *http.Request
 	httputils.WriteJSON(ctx, w, http.StatusOK, resp)
 }
 
-func (h *ColorHandler) HandleDeleteColor(w http.ResponseWriter, req *http.Request) {
+func (h *ColorHandler) HandleDeleteColor(w http.ResponseWriter, req *http.Request, userID user.ID) {
 	ctx := req.Context()
-
-	userID, err := userIDFromPath(req)
-	if err != nil {
-		writeRequestError(ctx, w, err)
-		return
-	}
 
 	hex, err := hexFromPath(req)
 	if err != nil {
@@ -138,7 +120,7 @@ func (h *ColorHandler) HandleDeleteColor(w http.ResponseWriter, req *http.Reques
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// Every param is optional,  defaults come from storage
+// Every param is optional, defaults come from storage
 func listColorsParams(req *http.Request) (storage.ListColorsParams, error) {
 	params := storage.ListColorsParams{
 		Sort:  storage.DefaultColorSort,

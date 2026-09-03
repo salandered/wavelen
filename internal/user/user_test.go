@@ -8,21 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestParseIDAcceptsPositiveIntegers(t *testing.T) {
-	got, err := user.ParseID("42")
-	require.NoError(t, err)
-	require.Equal(t, user.ID(42), got)
-}
-
-func TestParseIDRejectsNonPositiveAndNonNumeric(t *testing.T) {
-	for _, in := range []string{"", "0", "-1", "abc", "1.5", "1e3", " 1", "99999999999999999999"} {
-		t.Run(in, func(t *testing.T) {
-			_, err := user.ParseID(in)
-			require.ErrorIs(t, err, user.ErrInvalidID)
-		})
-	}
-}
-
 func TestNormalizeEmailTrimsAndLowercases(t *testing.T) {
 	tests := []struct {
 		in   string

@@ -6,7 +6,7 @@ const API = "/api/v1";
 // through readStored below is JSON, so the two never share a key.
 const DETAILS_KEY = "details_open";
 const SWATCH_INFO_KEY = "swatch_info";
-const USER_ID_KEY = "user_id";
+const SESSION_KEY = "session";
 const CONTROLS_KEY = "controls";
 
 const $ = (id) => document.getElementById(id);
@@ -40,14 +40,71 @@ function writeStored(key, value) {
 	}
 }
 
+// ---- session ----
+// What POST /api/v1/tokens answered - the bearer token and when it stops working - plus the name
+// GET /me answered with, which is the label on the account panel. The name is stored rather than
+// re-fetched so a reload renders the panel without a request. It is a caption: a stale one is
+// wrong on the screen and nowhere else.
+//
+// This sits in localStorage, which any script on the origin can read. The page loads no
+// third-party script and builds every node with textContent, so there is nothing here to read it.
+// A cookie would need the server to set it and would need CSRF handling in exchange for hiding
+// the token from a script that does not exist. Revisit if that stops being true.
+
+let session = null;
+
+// A stored session that has expired is dropped rather than sent. The server would refuse it, this
+// only saves the doomed request. Nothing here is a security check, the 401 below is.
+function loadSession() {
+	const stored = readStored(SESSION_KEY, null);
+	const usable = stored !== null
+		&& typeof stored === "object"
+		&& typeof stored.token === "string"
+		&& typeof stored.expiry === "string"
+		&& typeof stored.name === "string"
+		&& Date.parse(stored.expiry) > Date.now();
+
+	session = usable ? stored : null;
+	if (!usable) {
+		writeStored(SESSION_KEY, null);
+	}
+}
+
+function startSession(token, expiry, name) {
+	session = { token, expiry, name };
+	writeStored(SESSION_KEY, session);
+	renderSession();
+}
+
+// The name arrives one request after the token, see login().
+function setSessionName(name) {
+	session = { ...session, name };
+	writeStored(SESSION_KEY, session);
+	renderSession();
+}
+
+// Local only. Whether the token is dead server-side is the caller's business: logout revokes it
+// first, an expiry or a 401 means it already is.
+function endSession() {
+	session = null;
+	writeStored(SESSION_KEY, null);
+	renderSession();
+}
+
 // ---- requests ----
 
 // Errors come back as {"error": "..."}, but a proxy or a panic can still produce a non-JSON
 // body with an error status, so the body is read as text and parsed opportunistically.
+//
+// The token goes on every request once there is one, public paths included. Those ignore it, and
+// one rule beats a flag at each call site that only has to be forgotten once to send nothing.
 async function call(method, path, body) {
-	const options = { method };
+	const options = { method, headers: {} };
+	if (session !== null) {
+		options.headers.Authorization = `Bearer ${session.token}`;
+	}
 	if (body !== undefined) {
-		options.headers = { "Content-Type": "application/json" };
+		options.headers["Content-Type"] = "application/json";
 		options.body = JSON.stringify(body);
 	}
 	const res = await fetch(API + path, options);
@@ -58,6 +115,13 @@ async function call(method, path, body) {
 		data = text === "" ? null : JSON.parse(text);
 	} catch {
 		// leaves data null, the raw text is what the error below reports
+	}
+
+	// There is no refresh, so a 401 with a token in hand means that token is finished: expired,
+	// revoked, or revoked from another tab. The page goes back to logged out rather than leaving
+	// controls that answer 401 on every click.
+	if (res.status === 401 && session !== null) {
+		endSession();
 	}
 	if (!res.ok) {
 		throw new Error(`${res.status} - ${data?.error ?? text}`);
@@ -108,16 +172,14 @@ function setProgress(message) {
 	pushLog(message, { transient: true });
 }
 
-// min="1" on a number input only drives its arrows: the value is whatever was typed, and "5.5"
-// and "1e2" are both valid there. valueAsNumber is that value parsed, or NaN when the field holds
-// nothing usable, which is the check the interpolated path needs.
-function userID() {
-	const id = $("user-id").valueAsNumber;
-	if (!Number.isInteger(id) || id < 1) {
-		setStatus("enter a user id", true);
-		return null;
+// The saved-colors calls need a token, not an id: /api/v1/me/colors resolves the user server-side.
+// This only stops a logged out click from sending a request that could only answer 401.
+function requireSession() {
+	if (session === null) {
+		setStatus("log in first", true);
+		return false;
 	}
-	return id;
+	return true;
 }
 
 // A saved swatch is captioned with its timestamp, and the label is one line that must fit a
@@ -243,13 +305,12 @@ function savedSwatch(hex, label) {
 // page and send the user back to the first one. The cursor survives a delete on its own: it is a
 // value compared against, not a reference to the row it was minted from.
 async function deleteColor(hex, cell, button) {
-	const id = userID();
-	if (id === null) {
+	if (!requireSession()) {
 		return;
 	}
 	button.disabled = true; // a second click while the first is out would answer 404
 	try {
-		await call("DELETE", `/users/${id}/colors/${hex.slice(1)}`);
+		await call("DELETE", `/me/colors/${hex.slice(1)}`);
 		cell.remove();
 		if ($("saved").childElementCount === 0) {
 			renderEmpty($("saved"), "nothing saved");
@@ -479,11 +540,10 @@ function savedQuery(cursor) {
 	return params;
 }
 
-// An unknown user answers 200 with an empty array, same as one who saved nothing and same as a
-// cursor that ran off the end, so an empty grid here does not mean the user exists.
+// An empty grid means the token's user saved nothing, or that the cursor ran off the end. Both
+// answer 200 with an empty array and there is no third case: the token proves the user exists.
 async function loadSaved({ append = false } = {}) {
-	const id = userID();
-	if (id === null) {
+	if (!requireSession()) {
 		return;
 	}
 	const cursor = append ? nextCursor : null;
@@ -493,7 +553,7 @@ async function loadSaved({ append = false } = {}) {
 	// one is out would send it again and append the same page twice
 	$("load-more").disabled = true;
 	try {
-		const { data } = await call("GET", `/users/${id}/colors?${savedQuery(cursor)}`);
+		const { data } = await call("GET", `/me/colors?${savedQuery(cursor)}`);
 		if (generation !== savedGeneration) {
 			return; // a later load owns the grid now
 		}
@@ -544,8 +604,7 @@ const BULK_COUNT = 20;
 const BULK_IN_FLIGHT = 8;
 
 async function addRandomColors() {
-	const id = userID();
-	if (id === null) {
+	if (!requireSession()) {
 		return;
 	}
 
@@ -566,7 +625,7 @@ async function addRandomColors() {
 		while (hexes.length > 0) {
 			const hex = hexes.pop();
 			try {
-				const { status } = await call("POST", `/users/${id}/colors`, { hex });
+				const { status } = await call("POST", "/me/colors", { hex });
 				if (status === 201) {
 					created++;
 				}
@@ -589,6 +648,41 @@ async function addRandomColors() {
 	// created counts 201s only, so the rest were colors this user already had
 	const summary = `added ${created} of ${BULK_COUNT}`;
 	setStatus(failed === 0 ? summary : `${summary}, ${failed} failed - ${firstError}`, failed > 0);
+	await loadSaved();
+}
+
+// ---- account ----
+
+// The saved list is the only part of the page that needs a token. The palette and the two
+// harmonies are public, so a logged out visitor keeps a working page rather than an empty one.
+function renderSession() {
+	$("logged-out").hidden = session !== null;
+	$("logged-in").hidden = session === null;
+	$("saved-section").hidden = session === null;
+
+	if (session === null) {
+		// The cursor was minted for the session that just ended and carries no user of its own,
+		// so a later load-more would append the previous account's next page.
+		setNextCursor(null);
+		// And the grid still holds that account's swatches. The next login unhides this section
+		// before its own request lands, which would show one user their predecessor's colors.
+		renderEmpty($("saved"), "nothing saved");
+		return;
+	}
+	// empty while GET /me is in flight, and after it failed
+	$("who").textContent = session.name || "logged in";
+}
+
+// Two requests: the token, then the account it belongs to. GET /me is authenticated, so the
+// session has to exist before the name can be asked for, and the panel renders nameless until it
+// lands. Logging in is the token; the name is a label on it.
+async function login(email, password) {
+	const { data } = await call("POST", "/tokens", { email, password });
+	startSession(data.token, data.expiry, "");
+
+	const { data: me } = await call("GET", "/me");
+	setSessionName(me.user.name);
+	setStatus(`logged in as ${me.user.name}`);
 	await loadSaved();
 }
 
@@ -631,26 +725,6 @@ function initOrderToggle(id, onChange) {
 		onChange();
 	});
 	render();
-}
-
-// The id is what every saved-colors call is about, so losing it on reload means retyping it
-// before the page is useful again. Stored as the raw field string; anything else in the key is
-// ignored and the markup's own value stands.
-function rememberUserID() {
-	writeStored(USER_ID_KEY, $("user-id").value);
-}
-
-function initUserID() {
-	const stored = readStored(USER_ID_KEY, null);
-	if (typeof stored === "string" && /^[1-9][0-9]*$/.test(stored)) {
-		$("user-id").value = stored;
-	}
-	$("user-id").addEventListener("change", () => {
-		rememberUserID();
-		// the cursor was minted for the previous user and carries no user of its own, so load-more
-		// would answer with this one's page and append it under the other one's colors
-		setNextCursor(null);
-	});
 }
 
 // Every listing control and the values it accepts, mirroring the options in the markup. A stale
@@ -753,6 +827,7 @@ $("random-user").addEventListener("click", () => {
 	const tag = randomDigits();
 	$("new-email").value = `user-${tag}@example.com`;
 	$("new-name").value = `user ${tag}`;
+	$("new-password").value = `password-${tag}`; // dev only, and long enough for the API
 });
 
 $("load").addEventListener("click", () => {
@@ -777,32 +852,63 @@ $("palette-sort").addEventListener("change", () => {
 	loadPalette();
 });
 
-$("create-user").addEventListener("click", async () => {
+$("login-form").addEventListener("submit", async (event) => {
+	event.preventDefault();
 	try {
-		const { data } = await call("POST", "/users", {
-			email: $("new-email").value,
-			name: $("new-name").value,
-		});
-		$("user-id").value = data.user.id;
-		rememberUserID(); // a scripted value fires no change event
-		$("new-email").value = "";
-		$("new-name").value = "";
-		setStatus(`user ${data.user.id} created`);
-		await loadSaved();
+		await login($("login-email").value, $("login-password").value);
+		$("login-password").value = ""; // the address is worth keeping in the field, this is not
 	} catch (err) {
 		setStatus(err.message, true);
+	}
+});
+
+// Signing up answers with the user and no token, so the password is spent twice: once to create
+// the account and once to log into it. Minting a token stays the one endpoint that does it.
+$("signup-form").addEventListener("submit", async (event) => {
+	event.preventDefault();
+	const email = $("new-email").value;
+	const password = $("new-password").value;
+	try {
+		const { data } = await call("POST", "/users", {
+			email,
+			name: $("new-name").value,
+			password,
+		});
+		setStatus(`${data.user.name} created`);
+		await login(email, password);
+		$("new-email").value = "";
+		$("new-name").value = "";
+		$("new-password").value = "";
+	} catch (err) {
+		setStatus(err.message, true);
+	}
+});
+
+// The endpoint revokes this token and leaves the account's other tokens alone. Dropping the local
+// copy is not enough on its own: the token would keep working until it expired, which on a shared
+// machine is the case logging out exists for.
+//
+// The session ends either way. A failure here means the token may still be live, which is worth
+// reporting, but keeping the page logged in with a token the user asked to be rid of is worse.
+$("logout").addEventListener("click", async () => {
+	try {
+		await call("DELETE", "/tokens");
+		setStatus("logged out");
+	} catch (err) {
+		setStatus(`logged out locally, the token may still be live - ${err.message}`, true);
+	} finally {
+		endSession();
 	}
 });
 
 // Adding is idempotent: 201 means it was new, 200 means the user already had it.
 $("add-form").addEventListener("submit", async (event) => {
 	event.preventDefault();
-	const id = userID();
-	if (id === null) {
+	if (!requireSession()) {
 		return;
 	}
 	try {
-		const { status, data } = await call("POST", `/users/${id}/colors`, { hex: $("hex").value });
+		const { status, data } = await call("POST", "/me/colors", { hex: $("hex").value });
 		setStatus(status === 201 ? `added ${data.hex}` : `${data.hex} was already saved`);
 		await loadSaved();
 	} catch (err) {
@@ -816,7 +922,7 @@ $("add-form").addEventListener("submit", async (event) => {
 $("theme").textContent = currentTheme() === "dark" ? "light" : "dark";
 applySwatchInfo(readStored(SWATCH_INFO_KEY, false) === true);
 initCollapsibleSections();
-initUserID(); // before loadSaved below, which reads the field
+loadSession(); // before renderSession and the first loadSaved, both of which read it
 initControls(); // before the toggles below, which label themselves from data-order
 initOrderToggle("order", () => {
 	rememberControls();
@@ -830,5 +936,8 @@ initOrderToggle("palette-order", () => {
 renderDetail(); // the placeholder, until a swatch is clicked
 renderHarmonyPlaceholder(); // same, and the buttons stay disabled until then
 renderLog(); // same, until something happens
-loadPalette();
-loadSaved();
+renderSession(); // shows one of the two account panels and hides the saved list without a token
+loadPalette(); // public, so it runs logged out too
+if (session !== null) {
+	loadSaved();
+}

@@ -47,6 +47,24 @@ func (s *Postgres) UserByEmail(ctx context.Context, email string) (*user.User, e
 	return &u, nil
 }
 
+func (s *Postgres) UserByID(ctx context.Context, id user.ID) (*user.User, error) {
+	const query = `
+		SELECT id, email, name, created_at
+		FROM users
+		WHERE id = $1`
+
+	var u user.User
+
+	err := s.db.QueryRow(ctx, query, id).Scan(&u.ID, &u.Email, &u.Name, &u.CreatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrUserNotFound
+		}
+		return nil, fmt.Errorf("storage user by id: %w", err)
+	}
+	return &u, nil
+}
+
 // Row lock on the user.
 // Makes sense inside a transaction with some logic.
 // An unknown user yields ErrUserNotFound.

@@ -6,7 +6,7 @@
 # chart structure, yaml parsing of every rendered doc
 helm lint deploy/wavelen -f deploy/values-vps.yaml
 helm lint deploy/wavelen -f deploy/values-k3d-mac.yaml   
-helm lint deploy/wavelen --strict                        # INFO/WARNING become failures
+helm lint deploy/wavelen --strict                     
 # full render to stdout. Catches template errors, bad indentation, missing required values
 helm template wavelen deploy/wavelen -f deploy/values-vps.yaml
 # hooks are excluded from a release manifest but included in a render

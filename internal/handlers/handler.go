@@ -13,14 +13,10 @@ import (
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/colorsvc"
 	"github.com/salandered/wavelen/internal/storage"
-	"github.com/salandered/wavelen/internal/user"
 	"github.com/salandered/wavelen/internal/version"
 )
 
-const (
-	userIDPathValue = "user_id"
-	hexPathValue    = "hex"
-)
+const hexPathValue = "hex"
 
 const (
 	limitQuery  = "limit"
@@ -36,10 +32,6 @@ func HandleRoot(w http.ResponseWriter, req *http.Request) {
 	if _, err := fmt.Fprintf(w, "wavelen version %v\n", version.Get()); err != nil {
 		slog.ErrorContext(req.Context(), "failed writing root response", "error", err)
 	}
-}
-
-func userIDFromPath(req *http.Request) (user.ID, error) {
-	return user.ParseID(req.PathValue(userIDPathValue))
 }
 
 func hexFromPath(req *http.Request) (color.Hex, error) {

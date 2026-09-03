@@ -66,7 +66,7 @@ paths:
   /api/v1/users:
     post:
       tags: [Users]
-      summary: Creates a user
+      summary: Creates a user (sign up)
       description: >-
         The email is trimmed and lowercased before storage.
       requestBody:
@@ -79,17 +79,12 @@ paths:
         "201":
           description: User created
           headers:
-            Location:
-              description: Path of the new user
-              schema:
-                type: string
-                example: /api/v1/users/1
             X-Request-Id:
               $ref: "#/components/headers/XRequestId"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CreateUserResponse"
+                $ref: "#/components/schemas/UserResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
         "409":
@@ -154,14 +149,41 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /api/v1/users/{user_id}/colors:
-    parameters:
-      - $ref: "#/components/parameters/UserId"
+  /api/v1/me:
+    get:
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      summary: The account the token belongs to
+      responses:
+        "200":
+          description: The account
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: No such user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: user not found
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/me/colors:
     get:
       tags: [Colors]
       security:
         - bearerAuth: []
-      summary: Lists a user's saved colors
+      summary: Lists your saved colors
       description: >-
         Ordered by the `sort`. No `next_cursor` means the end of the list.
       parameters:
@@ -198,7 +220,7 @@ paths:
           example: "Y3JlYXRlZF9hdHxkZXNjfDIwMjYtMDgtMjNUMTQ6MDA6MDAuODI1MDIzWnwjZmYwMGFh"
       responses:
         "200":
-          description: The user's colors
+          description: Your saved colors
           headers:
             X-Request-Id:
               $ref: "#/components/headers/XRequestId"
@@ -210,17 +232,15 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
         "500":
           $ref: "#/components/responses/InternalServerError"
     post:
       tags: [Colors]
       security:
         - bearerAuth: []
-      summary: Saves a color for a user
+      summary: Saves a color
       description: >-
-        Idempotent. Saving a color the user already has returns the same body with 200.
+        Idempotent. Saving an already existing color returns the same body with 200.
       requestBody:
         required: true
         content:
@@ -238,7 +258,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/AddColorResponse"
         "200":
-          description: The user had already saved this color
+          description: You had already saved this color
           headers:
             X-Request-Id:
               $ref: "#/components/headers/XRequestId"
@@ -250,8 +270,6 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
         "404":
           description: No such user
           content:
@@ -261,7 +279,7 @@ paths:
               example:
                 error: user not found
         "409":
-          description: The user exceeded the color quota.
+          description: You exceeded the color quota
           content:
             application/json:
               schema:
@@ -271,15 +289,14 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /api/v1/users/{user_id}/colors/{hex}:
+  /api/v1/me/colors/{hex}:
     parameters:
-      - $ref: "#/components/parameters/UserId"
       - $ref: "#/components/parameters/ColorHex"
     delete:
       tags: [Colors]
       security:
         - bearerAuth: []
-      summary: Removes one of a user's saved colors
+      summary: Removes one of your saved colors
       responses:
         "204":
           description: The color was removed
@@ -290,10 +307,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
         "404":
-          description: The user doesn't have this color
+          description: You don't have this color
           content:
             application/json:
               schema:
@@ -409,16 +424,6 @@ components:
       example: "public, max-age=31536000, immutable"
 
   parameters:
-    UserId:
-      name: user_id
-      in: path
-      required: true
-      schema:
-        type: integer
-        format: int64
-        minimum: 1
-      example: 1
-
     ColorHex:
       name: hex
       in: path
@@ -487,7 +492,7 @@ components:
 
     CreateTokenResponse:
       type: object
-      required: [token, expiry, user_id]
+      required: [token, expiry]
       properties:
         token:
           type: string
@@ -497,21 +502,11 @@ components:
           type: string
           format: date-time
           example: "2026-09-02T13:37:08.688203Z"
-        user_id:
-          type: integer
-          format: int64
-          minimum: 1
-          description: The user this token belongs to
-          example: 1
 
     User:
       type: object
-      required: [id, email, name, created_at]
+      required: [email, name, created_at]
       properties:
-        id:
-          type: integer
-          format: int64
-          example: 1
         email:
           type: string
           format: email
@@ -524,7 +519,7 @@ components:
           format: date-time
           example: "2026-08-22T13:37:08.688203Z"
 
-    CreateUserResponse:
+    UserResponse:
       type: object
       required: [user]
       properties:
@@ -675,15 +670,6 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
           example:
             error: invalid credentials
-
-    Forbidden:
-      description: The token verifies, but the access is forbidden.
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
-          example:
-            error: not your user
 
     PayloadTooLarge:
       description: The body exceeded 64 kb

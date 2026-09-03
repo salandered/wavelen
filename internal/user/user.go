@@ -3,7 +3,6 @@ package user
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -18,7 +17,6 @@ const (
 )
 
 var (
-	ErrInvalidID    = errors.New("invalid user id")
 	ErrInvalidEmail = errors.New("invalid email")
 	ErrInvalidName  = errors.New("invalid name")
 )
@@ -29,14 +27,6 @@ type User struct {
 	Name         string
 	PasswordHash []byte // bcrypt hash
 	CreatedAt    time.Time
-}
-
-func ParseID(s string) (ID, error) {
-	n, err := strconv.ParseInt(s, 10, 64)
-	if err != nil || n < 1 {
-		return 0, fmt.Errorf("%w: want a positive integer, got %q", ErrInvalidID, s)
-	}
-	return ID(n), nil
 }
 
 // NormalizeEmail trims and lowercases s.
