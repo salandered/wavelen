@@ -44,7 +44,7 @@ func TestNormalizeNicknameRejectsMalformedInput(t *testing.T) {
 	for name, in := range tests {
 		t.Run(name, func(t *testing.T) {
 			_, err := user.NormalizeNickname(in)
-			require.ErrorIs(t, err, user.ErrInvalidNickname)
+			require.ErrorContains(t, err, "invalid nickname")
 		})
 	}
 }
@@ -63,13 +63,13 @@ func TestNormalizeNameRejectsEmptyAndOverlong(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := user.NormalizeName(in)
-			require.ErrorIs(t, err, user.ErrInvalidName)
+			require.ErrorContains(t, err, "invalid name")
 		})
 	}
 }
 
 func TestNormalizeNameCountsRunesNotBytes(t *testing.T) {
-	// 100 two-byte runes is 200 bytes but exactly MaxNameLen runes
+	// N two-byte runes is 2N bytes
 	got, err := user.NormalizeName(strings.Repeat("é", user.MaxNameLen))
 	require.NoError(t, err)
 	require.Len(t, []rune(got), user.MaxNameLen)

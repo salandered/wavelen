@@ -130,6 +130,8 @@ github.com/salandered/httputils v0.0.1 h1:EGVFIVc9tpHv/1YE4uhihIZlT09rxlmjfkTNVt
 github.com/salandered/httputils v0.0.1/go.mod h1:cv1MTHTDWtAdohO5ZSIhzxZsQlUNeQvqw3v+9dsr8XQ=
 github.com/salandered/slogenv v0.1.0 h1:kSHuGGdT/uYFc63cdA84rrZNQoDla/PS4sCI1CryV7w=
 github.com/salandered/slogenv v0.1.0/go.mod h1:RCfv6tD8HvWpEpSg9lvCABivx8QfegTyEwb2Q7aDIq4=
+github.com/salandered/strvalid v0.2.0 h1:/tLckEPi2wYoG3OBMKsg3Agnt7UZYkFd7mWLQmMHUrE=
+github.com/salandered/strvalid v0.2.0/go.mod h1:KSIc00sHGVVWxcghtxisjQnbnVGF+bxR9joCE+k8fd8=
 github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 h1:KRzFb2m7YtdldCEkzs6KqmJw4nqEVZGK7IN2kJkjTuQ=
 github.com/santhosh-tekuri/jsonschema/v6 v6.0.2/go.mod h1:JXeL+ps8p7/KNMjDQk3TCwPpBy0wYklyWTfbkIzdIFU=
 github.com/shirou/gopsutil/v4 v4.26.5 h1:RPcBXkpz7kOj9PqGFQOlBPZHsyaPvPVQc098y9RmCNM=

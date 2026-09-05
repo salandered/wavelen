@@ -461,7 +461,7 @@ components:
         name:
           type: string
           minLength: 1
-          maxLength: 100
+          maxLength: 60
           description: Length is counted in runes, after trimming.
           example: Olya Lovelace
         password:
