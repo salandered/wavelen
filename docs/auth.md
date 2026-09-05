@@ -19,7 +19,7 @@ erDiagram
     users ||--o{ tokens : "ON DELETE CASCADE"
     users {
         bigserial id PK
-        citext email UK
+        citext nickname UK "login identifier"
         bytea password_hash "bcrypt, cost 12"
     }
     tokens {
@@ -45,10 +45,10 @@ sequenceDiagram
     participant S as authsvc.AuthSvc
     participant DB as database
 
-    C->>H: POST /api/v1/tokens {email, password}
-    H->>S: Login(ctx, email, password)
-    S->>S: user.NormalizeEmail
-    S->>DB: SELECT ... FROM users WHERE email = $1
+    C->>H: POST /api/v1/tokens {nickname, password}
+    H->>S: Login(ctx, nickname, password)
+    S->>S: user.NormalizeNickname
+    S->>DB: SELECT ... FROM users WHERE nickname = $1
     alt no such user
         DB-->>S: ErrUserNotFound
         S->>S: auth.EqualizeTiming (a compare that cannot succeed)
@@ -71,8 +71,7 @@ sequenceDiagram
 
 The response is only the token. Info about who is logged in - `GET /api/v1/me`.
 
-An unknown email, invalid email and a wrong password answer with the same status, same body, and spend the same amount of time (see `EqualizeTiming`).
-So a client would not know what emails are registered.
+An unknown nickname, an invalid nickname and a wrong password answer with the same status, same body, and spend the same amount of time (see `EqualizeTiming`).
 
 ### Logout
 
@@ -100,6 +99,16 @@ The wrapper takes an `authedHandlerFunc` (`func(w, r, user.ID)`) and returns a `
 
 See `internal/server/auth.go`.
 
+### An account is a nickname and a password
+
+There is no email, signup currently does not ask for it.
+
+Two consequences currently:
+
+- **No account recovery.** A forgotten password ends the account. Workaround: exporting use data, or writing the admin.
+- **Signup shows which nicknames exist** A taken one answers 409. Unlike the email, it is ok for a nickname.
+-
+
 ### Future
 
-Revoking all of a user's tokens, password change/reset, expired token cleanup.
+Revoking all of a user's tokens, password change, expired token cleanup, possiblly email registration.

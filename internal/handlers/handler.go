@@ -69,8 +69,8 @@ func writeStorageError(ctx context.Context, w http.ResponseWriter, err error) {
 		httputils.WriteError(ctx, w, errors.New("user not found"), http.StatusNotFound)
 	case errors.Is(err, storage.ErrNotFound):
 		httputils.WriteError(ctx, w, errors.New("not found"), http.StatusNotFound)
-	case errors.Is(err, storage.ErrDuplicateEmail):
-		httputils.WriteError(ctx, w, errors.New("email already registered"), http.StatusConflict)
+	case errors.Is(err, storage.ErrDuplicateNickname):
+		httputils.WriteError(ctx, w, errors.New("nickname already taken"), http.StatusConflict)
 	case errors.Is(err, authsvc.ErrInvalidCredentials):
 		httputils.WriteError(ctx, w, errors.New("invalid credentials"), http.StatusUnauthorized)
 	case errors.Is(err, colorsvc.ErrQuotaFull):

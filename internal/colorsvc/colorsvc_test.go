@@ -128,7 +128,7 @@ func (s *QuotaSuite) ctx(d time.Duration) context.Context {
 }
 
 func (s *QuotaSuite) createUser() user.ID {
-	u := user.User{Email: "olya@example.com", Name: "Olya", PasswordHash: []byte("stub")}
+	u := user.User{Nickname: "olya", Name: "Olya", PasswordHash: []byte("stub")}
 	s.Require().NoError(s.store.CreateUser(s.ctx(10*time.Second), &u))
 	return u.ID
 }

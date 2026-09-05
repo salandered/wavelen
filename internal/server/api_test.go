@@ -126,7 +126,7 @@ func (s *APISuite) TestRequestIDIsGeneratedAndClientHeaderIgnored() {
 
 func (s *APISuite) TestCreateUserReturnsCreated() {
 	resp := s.post("/api/v1/users", handlers.CreateUserReq{
-		Email:    "olya@example.com",
+		Nickname: "olya",
 		Name:     "Olya Lovelace",
 		Password: testPassword,
 	})
@@ -134,37 +134,37 @@ func (s *APISuite) TestCreateUserReturnsCreated() {
 
 	var out handlers.CreateUserResp
 	s.decode(resp, &out)
-	s.Require().Equal("olya@example.com", out.User.Email)
+	s.Require().Equal("olya", out.User.Nickname)
 	s.Require().Equal("Olya Lovelace", out.User.Name)
 	s.Require().Equal(stubTime.UTC(), out.User.CreatedAt)
 }
 
 func (s *APISuite) TestCreateUserPassesNormalizedFieldsToStorage() {
 	resp := s.post("/api/v1/users", handlers.CreateUserReq{
-		Email:    "  Olya@example.com ",
+		Nickname: "  Olya  ",
 		Name:     "  Olya  ",
 		Password: testPassword,
 	})
 	s.Require().Equal(http.StatusCreated, resp.StatusCode)
 
-	s.Require().Equal("olya@example.com", s.storage.gotUser.Email)
+	s.Require().Equal("olya", s.storage.gotUser.Nickname)
 	s.Require().Equal("Olya", s.storage.gotUser.Name)
 }
 
-func (s *APISuite) TestCreateUserMapsDuplicateEmailToConflict() {
-	s.storage.createErr = storage.ErrDuplicateEmail
+func (s *APISuite) TestCreateUserMapsDuplicateNicknameToConflict() {
+	s.storage.createErr = storage.ErrDuplicateNickname
 
 	resp := s.post("/api/v1/users", handlers.CreateUserReq{
-		Email: "olya@example.com", Name: "Olya", Password: testPassword,
+		Nickname: "olya", Name: "Olya", Password: testPassword,
 	})
 	s.Require().Equal(http.StatusConflict, resp.StatusCode)
-	s.Require().Equal("email already registered", s.errorMessage(resp))
+	s.Require().Equal("nickname already taken", s.errorMessage(resp))
 }
 
 func (s *APISuite) TestGetMeReturnsTheAccountTheTokenBelongsTo() {
 	s.storage.tokenUser = 7
 	s.storage.userByID = &user.User{
-		ID: 7, Email: "olya@example.com", Name: "Olya Lovelace", CreatedAt: stubTime,
+		ID: 7, Nickname: "olya", Name: "Olya Lovelace", CreatedAt: stubTime,
 	}
 
 	resp := s.get("/api/v1/me")
@@ -173,7 +173,7 @@ func (s *APISuite) TestGetMeReturnsTheAccountTheTokenBelongsTo() {
 
 	var out handlers.MeResp
 	s.decode(resp, &out)
-	s.Require().Equal("olya@example.com", out.User.Email)
+	s.Require().Equal("olya", out.User.Nickname)
 	s.Require().Equal("Olya Lovelace", out.User.Name)
 	s.Require().Equal(stubTime.UTC(), out.User.CreatedAt)
 	// the id came from the token, the request carried none
@@ -201,11 +201,11 @@ func (s *APISuite) TestGetMeUnknownUserReturnsNotFound() {
 func (s *APISuite) TestCreateTokenReturnsTokenAndStoresTheHash() {
 	hash, err := auth.HashPassword(testPassword)
 	s.Require().NoError(err)
-	s.storage.userByMail = &user.User{ID: 7, Email: "olya@example.com", PasswordHash: hash}
+	s.storage.userByNick = &user.User{ID: 7, Nickname: "olya", PasswordHash: hash}
 
 	// when
 	resp := s.post("/api/v1/tokens", handlers.CreateTokenReq{
-		Email: "  Olya@example.com ", Password: testPassword,
+		Nickname: "  Olya  ", Password: testPassword,
 	})
 
 	// then
@@ -215,7 +215,7 @@ func (s *APISuite) TestCreateTokenReturnsTokenAndStoresTheHash() {
 	s.decode(resp, &out)
 	s.Require().NotEmpty(out.Token)
 	// was normalized before the lookup
-	s.Require().Equal("olya@example.com", s.storage.gotEmail)
+	s.Require().Equal("olya", s.storage.gotNickname)
 	s.Require().Equal(auth.HashToken(out.Token), s.storage.gotToken.Hash)
 	s.Require().Equal(user.ID(7), s.storage.gotToken.UserID)
 }
@@ -243,36 +243,37 @@ func (s *APISuite) TestDeleteTokenWithAnAlreadyInvalidTokenIsUnauthorized() {
 	s.Require().Nil(s.storage.deletedTokenHash)
 }
 
-func (s *APISuite) TestCreateTokenAnswersTheSameForWrongPasswordAndUnknownEmail() {
+func (s *APISuite) TestCreateTokenAnswersTheSameForWrongPasswordAndUnknownNickname() {
 	hash, err := auth.HashPassword(testPassword)
 	s.Require().NoError(err)
-	s.storage.userByMail = &user.User{ID: 7, Email: "olya@example.com", PasswordHash: hash}
+	s.storage.userByNick = &user.User{ID: 7, Nickname: "olya", PasswordHash: hash}
 
 	wrongPassword := s.post("/api/v1/tokens", handlers.CreateTokenReq{
-		Email: "olya@example.com", Password: "not the password",
+		Nickname: "olya", Password: "not the password",
 	})
 
-	s.storage.userByMail, s.storage.mailErr = nil, storage.ErrUserNotFound
-	unknownEmail := s.post("/api/v1/tokens", handlers.CreateTokenReq{
-		Email: "nobody@example.com", Password: testPassword,
+	s.storage.userByNick, s.storage.nickErr = nil, storage.ErrUserNotFound
+	unknownNickname := s.post("/api/v1/tokens", handlers.CreateTokenReq{
+		Nickname: "nobody", Password: testPassword,
 	})
 
 	s.Require().Equal(http.StatusUnauthorized, wrongPassword.StatusCode)
-	s.Require().Equal(http.StatusUnauthorized, unknownEmail.StatusCode)
-	s.Require().Equal(s.errorMessage(wrongPassword), s.errorMessage(unknownEmail))
+	s.Require().Equal(http.StatusUnauthorized, unknownNickname.StatusCode)
+	s.Require().Equal(s.errorMessage(wrongPassword), s.errorMessage(unknownNickname))
 	s.Require().Nil(s.storage.gotToken)
 }
 
 func (s *APISuite) TestCreateUserRejectsBadInput() {
 	tests := map[string]string{
-		"invalid email":    `{"email":"not-an-email","name":"Olya","password":"correct horse battery"}`,
-		"empty name":       `{"email":"olya@example.com","name":"   ","password":"correct horse battery"}`,
-		"short password":   `{"email":"olya@example.com","name":"Olya","password":"short"}`,
-		"missing password": `{"email":"olya@example.com","name":"Olya"}`,
-		"unknown field":    `{"email":"olya@example.com","name":"Olya","admin":true}`,
+		"invalid nickname": `{"nickname":"olya lovelace","name":"Olya","password":"correct horse battery"}`,
+		"short nickname":   `{"nickname":"ol","name":"Olya","password":"correct horse battery"}`,
+		"empty name":       `{"nickname":"olya","name":"   ","password":"correct horse battery"}`,
+		"short password":   `{"nickname":"olya","name":"Olya","password":"short"}`,
+		"missing password": `{"nickname":"olya","name":"Olya"}`,
+		"unknown field":    `{"nickname":"olya","name":"Olya","admin":true}`,
 		"empty body":       ``,
-		"not an object":    `["olya@example.com"]`,
-		"two objects":      `{"email":"a@b.com","name":"A"}{"email":"c@d.com","name":"C"}`,
+		"not an object":    `["olya"]`,
+		"two objects":      `{"nickname":"a","name":"A"}{"nickname":"c","name":"C"}`,
 	}
 	for name, body := range tests {
 		s.Run(name, func() {

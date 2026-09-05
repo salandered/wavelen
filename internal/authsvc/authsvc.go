@@ -11,7 +11,7 @@ import (
 	"github.com/salandered/wavelen/internal/user"
 )
 
-// Answers the same for an unknown address or a wrong password
+// Answers the same for an unknown nickname or a wrong password
 var ErrInvalidCredentials = errors.New("invalid credentials")
 
 type AuthSvc struct {
@@ -24,15 +24,15 @@ func New(store storage.Storage, ttl time.Duration) *AuthSvc {
 }
 
 // Login creates and stores a hashed token.
-func (a *AuthSvc) Login(ctx context.Context, email, password string) (*auth.Token, error) {
-	// login takes the address as is (unlike signup): an invalid one means a failed login, not 400.
+func (a *AuthSvc) Login(ctx context.Context, nickname, password string) (*auth.Token, error) {
+	// login takes the nickname as is (unlike signup): an invalid one means a failed login, not 400.
 	// => the endpoint has only one failure answer
-	normalized, err := user.NormalizeEmail(email)
+	normalized, err := user.NormalizeNickname(nickname)
 	if err != nil {
 		return nil, a.refuse()
 	}
 
-	u, err := a.storage.UserByEmail(ctx, normalized)
+	u, err := a.storage.UserByNickname(ctx, normalized)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserNotFound) {
 			return nil, a.refuse()

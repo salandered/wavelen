@@ -15,14 +15,14 @@ type UserHandler struct {
 }
 
 type CreateUserReq struct {
-	Email    string `json:"email"`
+	Nickname string `json:"nickname"`
 	Name     string `json:"name"`
 	Password string `json:"password"`
 }
 
 // No id: nothing uses it client-side
 type UserResp struct {
-	Email     string    `json:"email"`
+	Nickname  string    `json:"nickname"`
 	Name      string    `json:"name"`
 	CreatedAt time.Time `json:"created_at"`
 }
@@ -44,7 +44,7 @@ func (h *UserHandler) HandleCreateUser(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	email, err := user.NormalizeEmail(data.Email)
+	nickname, err := user.NormalizeNickname(data.Nickname)
 	if err != nil {
 		writeRequestError(ctx, w, err)
 		return
@@ -61,7 +61,7 @@ func (h *UserHandler) HandleCreateUser(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	u := user.User{Email: email, Name: name, PasswordHash: hash}
+	u := user.User{Nickname: nickname, Name: name, PasswordHash: hash}
 	if err := h.Users.CreateUser(ctx, &u); err != nil {
 		writeStorageError(ctx, w, err)
 		return
@@ -84,7 +84,7 @@ func (h *UserHandler) HandleGetMe(w http.ResponseWriter, req *http.Request, user
 
 func userToResp(u *user.User) UserResp {
 	return UserResp{
-		Email:     u.Email,
+		Nickname:  u.Nickname,
 		Name:      u.Name,
 		CreatedAt: u.CreatedAt.UTC(),
 	}

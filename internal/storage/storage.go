@@ -11,10 +11,10 @@ import (
 )
 
 var (
-	ErrNotFound       = errors.New("not found")
-	ErrUserNotFound   = fmt.Errorf("%w: user", ErrNotFound)
-	ErrTokenNotFound  = fmt.Errorf("%w: token", ErrNotFound)
-	ErrDuplicateEmail = errors.New("duplicate email")
+	ErrNotFound          = errors.New("not found")
+	ErrUserNotFound      = fmt.Errorf("%w: user", ErrNotFound)
+	ErrTokenNotFound     = fmt.Errorf("%w: token", ErrNotFound)
+	ErrDuplicateNickname = errors.New("duplicate nickname")
 
 	ErrNestedTx = errors.New("nested transaction")
 )

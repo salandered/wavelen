@@ -10,7 +10,7 @@ import (
 )
 
 func (s *StorageSuite) TestCreateUserFillsInIDAndCreatedAt() {
-	u := user.User{Email: "olya@example.com", Name: "Olya Lovelace", PasswordHash: stubPasswordHash}
+	u := user.User{Nickname: "olya", Name: "Olya Lovelace", PasswordHash: stubPasswordHash}
 
 	// when
 	err := s.storage.CreateUser(s.ctx(), &u)
@@ -22,37 +22,37 @@ func (s *StorageSuite) TestCreateUserFillsInIDAndCreatedAt() {
 }
 
 func (s *StorageSuite) TestCreateUserAssignsDistinctIDs() {
-	olya := s.createUser("olya@example.com", "Olya")
-	grace := s.createUser("grace@example.com", "Grace")
+	olya := s.createUser("olya", "Olya")
+	grace := s.createUser("grace", "Grace")
 
 	s.Require().NotEqual(olya, grace)
 }
 
-func (s *StorageSuite) TestCreateUserRejectsATakenEmail() {
-	s.createUser("olya@example.com", "Olya")
+func (s *StorageSuite) TestCreateUserRejectsTakenNickname() {
+	s.createUser("olya", "Olya")
 
 	// when
-	u := user.User{Email: "olya@example.com", Name: "Olya Again", PasswordHash: stubPasswordHash}
+	u := user.User{Nickname: "olya", Name: "Olya Again", PasswordHash: stubPasswordHash}
 	err := s.storage.CreateUser(s.ctx(), &u)
 
 	// then
-	s.Require().ErrorIs(err, storage.ErrDuplicateEmail)
+	s.Require().ErrorIs(err, storage.ErrDuplicateNickname)
 }
 
-func (s *StorageSuite) TestCreateUserEmailUniquenessIgnoresCase() {
-	s.createUser("olya@example.com", "Olya")
+func (s *StorageSuite) TestCreateUserNicknameUniquenessIgnoresCase() {
+	s.createUser("olya", "Olya")
 
 	// when
-	u := user.User{Email: "OLYA@EXAMPLE.COM", Name: "Olya Again", PasswordHash: stubPasswordHash}
+	u := user.User{Nickname: "OLYA", Name: "Olya Again", PasswordHash: stubPasswordHash}
 	err := s.storage.CreateUser(s.ctx(), &u)
 
 	// then
-	// (the email column is citext)
-	s.Require().ErrorIs(err, storage.ErrDuplicateEmail)
+	// (the nickname column is citext)
+	s.Require().ErrorIs(err, storage.ErrDuplicateNickname)
 }
 
 func (s *StorageSuite) TestUserByIDReturnsAccountWithoutPasswordHash() {
-	id := s.createUser("olya@example.com", "Olya Lovelace")
+	id := s.createUser("olya", "Olya Lovelace")
 
 	// when
 	u, err := s.storage.UserByID(s.ctx(), id)
@@ -60,7 +60,7 @@ func (s *StorageSuite) TestUserByIDReturnsAccountWithoutPasswordHash() {
 	// then
 	s.Require().NoError(err)
 	s.Require().Equal(id, u.ID)
-	s.Require().Equal("olya@example.com", u.Email)
+	s.Require().Equal("olya", u.Nickname)
 	s.Require().Equal("Olya Lovelace", u.Name)
 	s.Require().WithinDuration(time.Now(), u.CreatedAt, time.Minute)
 	// the query does not select the column

@@ -11,51 +11,52 @@ import (
 
 func (s *Postgres) CreateUser(ctx context.Context, u *user.User) error {
 	const query = `
-		INSERT INTO users (email, name, password_hash)
+		INSERT INTO users (nickname, name, password_hash)
 		VALUES ($1, $2, $3)
 		RETURNING id, created_at`
 
 	err := s.db.QueryRow(
-		ctx, query, u.Email, u.Name, u.PasswordHash,
+		ctx, query, u.Nickname, u.Name, u.PasswordHash,
 	).Scan(&u.ID, &u.CreatedAt)
 
 	if err != nil {
 		if pgErrCode(err) == uniqueViolation {
-			return ErrDuplicateEmail
+			return ErrDuplicateNickname
 		}
 		return fmt.Errorf("storage create user: %w", err)
 	}
 	return nil
 }
 
-func (s *Postgres) UserByEmail(ctx context.Context, email string) (*user.User, error) {
+// Fills in u.ID and u.CreatedAt. A taken nickname -> ErrDuplicateNickname.
+func (s *Postgres) UserByNickname(ctx context.Context, nickname string) (*user.User, error) {
 	const query = `
-		SELECT id, email, name, password_hash, created_at
+		SELECT id, nickname, name, password_hash, created_at
 		FROM users
-		WHERE email = $1`
+		WHERE nickname = $1`
 
 	var u user.User
 
-	err := s.db.QueryRow(ctx, query, email).
-		Scan(&u.ID, &u.Email, &u.Name, &u.PasswordHash, &u.CreatedAt)
+	err := s.db.QueryRow(ctx, query, nickname).
+		Scan(&u.ID, &u.Nickname, &u.Name, &u.PasswordHash, &u.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrUserNotFound
 		}
-		return nil, fmt.Errorf("storage user by email: %w", err)
+		return nil, fmt.Errorf("storage user by nickname: %w", err)
 	}
 	return &u, nil
 }
 
 func (s *Postgres) UserByID(ctx context.Context, id user.ID) (*user.User, error) {
 	const query = `
-		SELECT id, email, name, created_at
+		SELECT id, nickname, name, created_at
 		FROM users
 		WHERE id = $1`
 
 	var u user.User
 
-	err := s.db.QueryRow(ctx, query, id).Scan(&u.ID, &u.Email, &u.Name, &u.CreatedAt)
+	err := s.db.QueryRow(ctx, query, id).Scan(&u.ID, &u.Nickname, &u.Name, &u.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrUserNotFound

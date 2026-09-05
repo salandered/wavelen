@@ -68,7 +68,7 @@ paths:
       tags: [Users]
       summary: Creates a user (sign up)
       description: >-
-        The email is trimmed and lowercased before storage.
+        The nickname is trimmed and lowercased before storage.
       requestBody:
         required: true
         content:
@@ -88,13 +88,13 @@ paths:
         "400":
           $ref: "#/components/responses/BadRequest"
         "409":
-          description: The email is already registered
+          description: The nickname is already taken
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               example:
-                error: email already registered
+                error: nickname already taken
         "413":
           $ref: "#/components/responses/PayloadTooLarge"
         "500":
@@ -103,8 +103,8 @@ paths:
   /api/v1/tokens:
     post:
       tags: [Auth]
-      summary: Exchanges an email and password for an authentication token
-      description: An unknown email and a wrong password answer the same
+      summary: Exchanges a nickname and password for an authentication token
+      description: An unknown nickname and a wrong password answer the same
       requestBody:
         required: true
         content:
@@ -453,14 +453,11 @@ components:
 
     CreateUserRequest:
       type: object
-      required: [email, name, password]
+      required: [nickname, name, password]
       additionalProperties: false
       properties:
-        email:
-          type: string
-          format: email
-          maxLength: 254
-          example: olya@example.com
+        nickname:
+          $ref: "#/components/schemas/Nickname"
         name:
           type: string
           minLength: 1
@@ -469,6 +466,15 @@ components:
           example: Olya Lovelace
         password:
           $ref: "#/components/schemas/Password"
+
+    Nickname:
+      type: string
+      description: >-
+        The login identifier, 3 to 30 characters. Letters, digits, '_', '-'. Starts and
+        ends with a letter or a digit. All is lowercased and surrounding whitespace trimmed 
+        before storing.
+      pattern: "^\\s*[A-Za-z0-9][A-Za-z0-9_-]{1,28}[A-Za-z0-9]\\s*$"
+      example: salandered-123
 
     Password:
       type: string
@@ -479,14 +485,11 @@ components:
 
     CreateTokenRequest:
       type: object
-      required: [email, password]
+      required: [nickname, password]
       additionalProperties: false
       properties:
-        email:
-          type: string
-          format: email
-          maxLength: 254
-          example: olya@example.com
+        nickname:
+          $ref: "#/components/schemas/Nickname"
         password:
           $ref: "#/components/schemas/Password"
 
@@ -505,12 +508,13 @@ components:
 
     User:
       type: object
-      required: [email, name, created_at]
+      required: [nickname, name, created_at]
       properties:
-        email:
+        nickname:
           type: string
-          format: email
-          example: olya@example.com
+          description: The stored form.
+          pattern: "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$"
+          example: salandered-123
         name:
           type: string
           example: Olya Lovelace

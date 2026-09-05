@@ -587,10 +587,10 @@ async function loadSaved({ append = false } = {}) {
 
 // ---- random values ----
 // For poking at the API by hand. Math.random is enough: nothing here is a secret, and the only
-// collision that matters is a taken email, which answers 409 and asks again.
+// collision that matters is a taken nickname, which answers 409 and asks again.
 
 // Six hex digits. A color is these with a "#" in front; a user takes them as a tag shared by
-// the email and the name, so the two read as one user.
+// the nickname and the name, so the two read as one user.
 function randomDigits() {
 	return Math.floor(Math.random() * 0x1000000).toString(16).padStart(6, "0");
 }
@@ -676,8 +676,8 @@ function renderSession() {
 // Two requests: the token, then the account it belongs to. GET /me is authenticated, so the
 // session has to exist before the name can be asked for, and the panel renders nameless until it
 // lands. Logging in is the token; the name is a label on it.
-async function login(email, password) {
-	const { data } = await call("POST", "/tokens", { email, password });
+async function login(nickname, password) {
+	const { data } = await call("POST", "/tokens", { nickname, password });
 	startSession(data.token, data.expiry, "");
 
 	const { data: me } = await call("GET", "/me");
@@ -825,7 +825,7 @@ $("random-hex").addEventListener("click", () => {
 // user can be edited or discarded before it reaches the API.
 $("random-user").addEventListener("click", () => {
 	const tag = randomDigits();
-	$("new-email").value = `user-${tag}@example.com`;
+	$("new-nick").value = `user-${tag}`;
 	$("new-name").value = `user ${tag}`;
 	$("new-password").value = `password-${tag}`; // dev only, and long enough for the API
 });
@@ -855,8 +855,8 @@ $("palette-sort").addEventListener("change", () => {
 $("login-form").addEventListener("submit", async (event) => {
 	event.preventDefault();
 	try {
-		await login($("login-email").value, $("login-password").value);
-		$("login-password").value = ""; // the address is worth keeping in the field, this is not
+		await login($("login-nick").value, $("login-password").value);
+		$("login-password").value = ""; // the nickname is worth keeping in the field, this is not
 	} catch (err) {
 		setStatus(err.message, true);
 	}
@@ -866,17 +866,17 @@ $("login-form").addEventListener("submit", async (event) => {
 // the account and once to log into it. Minting a token stays the one endpoint that does it.
 $("signup-form").addEventListener("submit", async (event) => {
 	event.preventDefault();
-	const email = $("new-email").value;
+	const nickname = $("new-nick").value;
 	const password = $("new-password").value;
 	try {
 		const { data } = await call("POST", "/users", {
-			email,
+			nickname,
 			name: $("new-name").value,
 			password,
 		});
 		setStatus(`${data.user.name} created`);
-		await login(email, password);
-		$("new-email").value = "";
+		await login(nickname, password);
+		$("new-nick").value = "";
 		$("new-name").value = "";
 		$("new-password").value = "";
 	} catch (err) {

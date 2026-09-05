@@ -1,4 +1,4 @@
-# Wavelen
+<img src="web/logo.png" alt="alt text" width="358">
 
 A web app for saving colors. Users keep their own list of hex codes.
 A seeded palette of 100 named colors is served read-only for a UI table.
@@ -40,7 +40,7 @@ make web/up   # the stack plus a caddy container
 make web/down
 ```
 
-Open <http://localhost:8089>.
+Open <http://localhost:8099>.
 
 ## Logging
 
@@ -79,10 +79,10 @@ everything else is public. See also [docs/auth.md](docs/auth.md).
 
 ```sh
 curl -X POST localhost:8080/api/v1/users \
-  -d '{"email":"olya@example.com","name":"Olya","password":"correct-horse-battery"}'
+  -d '{"nickname":"olya","name":"Olya","password":"correct-horse-battery"}'
 
 curl -X POST localhost:8080/api/v1/tokens \
-  -d '{"email":"olya@example.com","password":"correct-horse-battery"}'
+  -d '{"nickname":"olya","password":"correct-horse-battery"}'
 # 201 {"token":"...","expiry":"..."}
 ```
 

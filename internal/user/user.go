@@ -11,49 +11,52 @@ import (
 type ID int64
 
 const (
-	MinNameLen  = 1
-	MaxNameLen  = 100
-	MaxEmailLen = 254 // 254 comes from SMTP
+	MinNameLen     = 1
+	MaxNameLen     = 100
+	MinNicknameLen = 3  // no single-character land grab
+	MaxNicknameLen = 30 // ASCII only, so bytes and characters are the same count
 )
 
 var (
-	ErrInvalidEmail = errors.New("invalid email")
-	ErrInvalidName  = errors.New("invalid name")
+	ErrInvalidNickname = errors.New("invalid nickname")
+	ErrInvalidName     = errors.New("invalid name")
 )
 
 type User struct {
 	ID           ID
-	Email        string
-	Name         string
+	Nickname     string // the login identifier, unique
+	Name         string // free-form, for display
 	PasswordHash []byte // bcrypt hash
 	CreatedAt    time.Time
 }
 
-// NormalizeEmail trims and lowercases s.
+// NormalizeNickname trims and lowercases s.
 // TODO: consider not lowercasing here, we store email as citext anyway.
-func NormalizeEmail(s string) (string, error) {
-	email := strings.ToLower(strings.TrimSpace(s))
-	if len(email) > MaxEmailLen {
-		return "", fmt.Errorf("%w: must be at most %d bytes", ErrInvalidEmail, MaxEmailLen)
+func NormalizeNickname(s string) (string, error) {
+	nick := strings.ToLower(strings.TrimSpace(s))
+	if n := len(nick); n < MinNicknameLen || n > MaxNicknameLen {
+		return "", fmt.Errorf(
+			"%w: length must be in [%d, %d], got %d",
+			ErrInvalidNickname, MinNicknameLen, MaxNicknameLen, n)
 	}
-	if !validEmail(email) {
-		return "", fmt.Errorf("%w: got %q", ErrInvalidEmail, s)
+	if !validNickname(nick) {
+		return "", fmt.Errorf("%w: got %q", ErrInvalidNickname, s)
 	}
-	return email, nil
+	return nick, nil
 }
 
-// Validates '@'; non-empty local part; a dotted domain
-func validEmail(email string) bool {
-	local, domain, found := strings.Cut(email, "@")
-	switch {
-	case !found, local == "", domain == "":
-		return false
-	case strings.Contains(domain, "@"):
-		return false
-	case strings.HasPrefix(domain, "."), strings.HasSuffix(domain, "."):
-		return false
+// Lowercase ASCII letters, digits, '_' and '-'; the first and last character is alphanumeric.
+func validNickname(nick string) bool {
+	for i := 0; i < len(nick); i++ {
+		c := nick[i]
+		switch {
+		case c >= 'a' && c <= 'z', c >= '0' && c <= '9':
+		case (c == '_' || c == '-') && i > 0 && i < len(nick)-1:
+		default:
+			return false
+		}
 	}
-	return strings.Contains(domain, ".")
+	return true
 }
 
 // NormalizeName trims s.

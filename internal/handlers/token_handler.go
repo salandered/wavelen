@@ -14,7 +14,7 @@ import (
 
 // the handler is served by a service, not by repo (like color svc)
 type TokenService interface {
-	Login(ctx context.Context, email, password string) (*auth.Token, error)
+	Login(ctx context.Context, nickname, password string) (*auth.Token, error)
 	Logout(ctx context.Context, hash []byte) error
 }
 
@@ -23,7 +23,7 @@ type TokenHandler struct {
 }
 
 type CreateTokenReq struct {
-	Email    string `json:"email"`
+	Nickname string `json:"nickname"`
 	Password string `json:"password"`
 }
 
@@ -41,7 +41,7 @@ func (h *TokenHandler) HandleCreateToken(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	token, err := h.TokenSvc.Login(ctx, data.Email, data.Password)
+	token, err := h.TokenSvc.Login(ctx, data.Nickname, data.Password)
 	if err != nil {
 		writeStorageError(ctx, w, err)
 		return

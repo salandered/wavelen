@@ -5,6 +5,7 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>wavelen</title>
+	<link rel="icon" type="image/png" href="logo-mini.png">
 
 	<!--
 		Deliberately NOT deferred, and deliberately not in app.js: this has to stamp the
@@ -473,15 +474,15 @@
 			     rendered, so building either one from script would flash the wrong state. -->
 			<div id="logged-out">
 				<form class="row" id="login-form">
-					<label for="login-email">log in</label>
-					<input id="login-email" type="email" placeholder="email" autocomplete="email">
+					<label for="login-nick">log in</label>
+					<input id="login-nick" placeholder="nickname" autocomplete="username">
 					<input id="login-password" type="password" placeholder="password"
 						autocomplete="current-password">
 					<button>log in</button>
 				</form>
 				<form class="row" id="signup-form">
-					<label for="new-email">sign up</label>
-					<input id="new-email" type="email" placeholder="email" autocomplete="email">
+					<label for="new-nick">sign up</label>
+					<input id="new-nick" placeholder="nickname" autocomplete="username">
 					<input id="new-name" placeholder="name">
 					<input id="new-password" type="password" placeholder="password"
 						autocomplete="new-password">
@@ -492,7 +493,7 @@
 
 			<div class="row" id="logged-in" hidden>
 				<!-- the login response answers with an id and nothing else, so the id is what this
-				     names. Showing the typed address instead would show it unnormalized. -->
+				     names. Showing the typed nickname instead would show it unnormalized. -->
 				<span class="who" id="who"></span>
 				<button type="button" id="logout">log out</button>
 				<button type="button" id="load">reload colors</button>

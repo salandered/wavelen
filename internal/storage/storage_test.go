@@ -47,8 +47,8 @@ func (s *StorageSuite) ctx() context.Context {
 // Not a valid bcrypt hash, nothing here verifies it.
 var stubPasswordHash = []byte("stub")
 
-func (s *StorageSuite) createUser(email, name string) user.ID {
-	u := user.User{Email: email, Name: name, PasswordHash: stubPasswordHash}
+func (s *StorageSuite) createUser(nickname, name string) user.ID {
+	u := user.User{Nickname: nickname, Name: name, PasswordHash: stubPasswordHash}
 	s.Require().NoError(s.storage.CreateUser(s.ctx(), &u))
 	return u.ID
 }
@@ -56,7 +56,7 @@ func (s *StorageSuite) createUser(email, name string) user.ID {
 // Tx tests
 
 func (s *StorageSuite) TestInTxCommitsWhenCallbackReturnsNil() {
-	userID := s.createUser("olya@example.com", "Olya")
+	userID := s.createUser("olya", "Olya")
 
 	// when
 	err := s.storage.InTx(s.ctx(), func(tx storage.Storage) error {
@@ -72,7 +72,7 @@ func (s *StorageSuite) TestInTxCommitsWhenCallbackReturnsNil() {
 }
 
 func (s *StorageSuite) TestInTxRollsbackAllWritesWhenCallbackFails() {
-	userID := s.createUser("olya@example.com", "Olya")
+	userID := s.createUser("olya", "Olya")
 	sentinel := errors.New("callback gave up")
 
 	// when

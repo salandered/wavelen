@@ -32,8 +32,8 @@ type mockStorage struct {
 	common         []color.Common
 	commonErr      error
 	pingErr        error
-	userByMail     *user.User
-	mailErr        error
+	userByNick     *user.User
+	nickErr        error
 	userByID       *user.User
 	idErr          error
 	tokenUser      user.ID
@@ -43,7 +43,7 @@ type mockStorage struct {
 
 	// what the handler passed down
 	gotUser          *user.User
-	gotEmail         string
+	gotNickname      string
 	gotToken         *auth.Token
 	gotTokenHash     []byte
 	deletedTokenHash []byte
@@ -80,9 +80,9 @@ func (s *mockStorage) CreateUser(_ context.Context, u *user.User) error {
 	return nil
 }
 
-func (s *mockStorage) UserByEmail(_ context.Context, email string) (*user.User, error) {
-	s.gotEmail = email
-	return s.userByMail, s.mailErr
+func (s *mockStorage) UserByNickname(_ context.Context, nickname string) (*user.User, error) {
+	s.gotNickname = nickname
+	return s.userByNick, s.nickErr
 }
 
 func (s *mockStorage) UserByID(_ context.Context, id user.ID) (*user.User, error) {
