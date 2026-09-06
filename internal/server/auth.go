@@ -20,42 +20,44 @@ const (
 // See docs/auth.md
 
 // A handler on an authenticated route.
-// The user id is an argument - the wrapper [authenticate] resolves it and calls [authedHandlerFunc]
+// The user id is a new arg - the wrapper [authenticate] resolves it and calls [authedHandlerFunc]
 type authedHandlerFunc func(w http.ResponseWriter, req *http.Request, userID user.ID)
 
 // Resolves the bearer token to a user id and hands it to next.
 func authenticate(tokenRepo storage.TokenRepo) func(authedHandlerFunc) http.Handler {
 	return func(next authedHandlerFunc) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			// indicates to any caches that the response may vary based on the value
-			// of the Authorization header in the request.
-			w.Header().Add("Vary", "Authorization")
+		return http.HandlerFunc(
+			func(w http.ResponseWriter, req *http.Request) {
+				// indicates to any caches that the response may vary based on the value
+				// of the Authorization header in the request.
+				w.Header().Add("Vary", "Authorization")
 
-			ctx := req.Context()
+				ctx := req.Context()
 
-			plaintext, ok := strings.CutPrefix(req.Header.Get("Authorization"), bearerPrefix)
-			if !ok || plaintext == "" {
-				unauthorized(ctx, w)
-				return
-			}
-
-			hash := auth.HashToken(plaintext)
-
-			user_id, err := tokenRepo.UserIDForTokenHash(ctx, hash)
-			if err != nil {
-				// not writeStorageError: ErrTokenNotFound wraps ErrNotFound and would be a 404
-				if errors.Is(err, storage.ErrTokenNotFound) {
+				plaintext, ok := strings.CutPrefix(req.Header.Get("Authorization"), bearerPrefix)
+				if !ok || plaintext == "" {
 					unauthorized(ctx, w)
 					return
 				}
-				httputils.WriteError(ctx, w, err, http.StatusInternalServerError)
-				return
-			}
 
-			// the hash is in the context, logout reads it
-			ctx = auth.ContextWithTokenHash(ctx, hash)
-			next(w, req.WithContext(ctx), user_id)
-		})
+				hash := auth.HashToken(plaintext)
+
+				user_id, err := tokenRepo.UserIDForTokenHash(ctx, hash)
+				if err != nil {
+					// not writeStorageError: ErrTokenNotFound wraps ErrNotFound and would be a 404
+					if errors.Is(err, storage.ErrTokenNotFound) {
+						unauthorized(ctx, w)
+						return
+					}
+					httputils.WriteError(ctx, w, err, http.StatusInternalServerError)
+					return
+				}
+
+				// the hash is in the context, logout reads it
+				ctx = auth.ContextWithTokenHash(ctx, hash)
+				next(w, req.WithContext(ctx), user_id)
+			},
+		)
 	}
 }
 

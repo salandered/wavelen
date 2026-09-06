@@ -69,18 +69,12 @@ func run() error {
 		stop()
 	}()
 
-	cfg, err := serverConfig()
+	serverCfg, err := serverConfig()
 	if err != nil {
 		return err
 	}
 
-	// may be a part of the app config later
-	colorQuota, err := getColorQuota()
-	if err != nil {
-		return err
-	}
-
-	tokenTTL, err := getAuthTokenTTL()
+	handlerCfg, err := handlerConfig()
 	if err != nil {
 		return err
 	}
@@ -93,7 +87,11 @@ func run() error {
 	defer pool.Close()
 	go logDBReachable(ctx, pool)
 
-	return server.Start(ctx, server.NewHandler(storage.New(pool), colorQuota, tokenTTL), cfg)
+	return server.Start(
+		ctx,
+		server.NewHandler(storage.New(pool), handlerCfg),
+		serverCfg,
+	)
 }
 
 func openPool(ctx context.Context) (*pgxpool.Pool, error) {
@@ -143,11 +141,11 @@ func logDBReachable(ctx context.Context, pool *pgxpool.Pool) {
 }
 
 func serverConfig() (server.Config, error) {
-	port, err := intFromEnv("PORT", server.DefaultPort)
+	port, err := intFromEnv("PORT", server.DefPort)
 	if err != nil {
 		return server.Config{}, err
 	}
-	shutdownTimeout, err := durationFromEnv("SHUTDOWN_TIMEOUT", server.DefaultShutdownTimeout)
+	shutdownTimeout, err := durationFromEnv("SHUTDOWN_TIMEOUT", server.DefShutdownTimeout)
 	if err != nil {
 		return server.Config{}, err
 	}
@@ -161,27 +159,52 @@ func serverConfig() (server.Config, error) {
 	return server.Config{Port: port, ShutdownTimeout: shutdownTimeout}, nil
 }
 
-func getColorQuota() (int, error) {
-	colorQuota, err := intFromEnv("USER_COLOR_QUOTA", server.DefaultUserColorQuota)
+func handlerConfig() (server.HandlerConfig, error) {
+	colorQuota, err := intFromEnv("USER_COLOR_QUOTA", server.DefUserColorQuota)
 	if err != nil {
-		return 0, err
+		return server.HandlerConfig{}, err
 	}
 	if colorQuota <= 0 {
-		return 0, fmt.Errorf(
+		return server.HandlerConfig{}, fmt.Errorf(
 			"%w: USER_COLOR_QUOTA should be positive, got %d", ErrConfig, colorQuota)
 	}
-	return colorQuota, nil
-}
 
-func getAuthTokenTTL() (time.Duration, error) {
-	ttl, err := durationFromEnv("AUTH_TOKEN_TTL", server.DefaultAuthTokenTTL)
+	ttl, err := durationFromEnv("AUTH_TOKEN_TTL", server.DefAuthTokenTTL)
 	if err != nil {
-		return 0, err
+		return server.HandlerConfig{}, err
 	}
 	if ttl <= 0 {
-		return 0, fmt.Errorf("%w: AUTH_TOKEN_TTL should be positive, got %s", ErrConfig, ttl)
+		return server.HandlerConfig{}, fmt.Errorf(
+			"%w: AUTH_TOKEN_TTL should be positive, got %s", ErrConfig, ttl)
 	}
-	return ttl, nil
+
+	authLimit, err := intFromEnv("AUTH_CONCUR_LIMIT", server.DefAuthConcurLimit)
+	if err != nil {
+		return server.HandlerConfig{}, err
+	}
+	// 0 means no cap
+	if authLimit < 0 {
+		return server.HandlerConfig{}, fmt.Errorf(
+			"%w: AUTH_CONCUR_LIMIT should be >= 0, got %d", ErrConfig, authLimit)
+	}
+
+	authWait, err := durationFromEnv("AUTH_CONCUR_WAIT", server.DefAuthConcurWait)
+	if err != nil {
+		return server.HandlerConfig{}, err
+	}
+	// close to write timeout might produce a rejection nobody receives
+	if authWait < 0 || authWait >= server.WriteTimeout/2 {
+		return server.HandlerConfig{}, fmt.Errorf(
+			"%w: AUTH_CONCUR_WAIT should be in [0, %s), got %s",
+			ErrConfig, server.WriteTimeout/2, authWait)
+	}
+
+	return server.HandlerConfig{
+		UserColorQuota:  colorQuota,
+		AuthTokenTTL:    ttl,
+		AuthConcurLimit: authLimit,
+		AuthConcurWait:  authWait,
+	}, nil
 }
 
 func intFromEnv(name string, def int) (int, error) {

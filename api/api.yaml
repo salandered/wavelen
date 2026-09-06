@@ -97,6 +97,8 @@ paths:
                 error: nickname already taken
         "413":
           $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
         "500":
           $ref: "#/components/responses/InternalServerError"
 
@@ -127,6 +129,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "413":
           $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
         "500":
           $ref: "#/components/responses/InternalServerError"
     delete:
@@ -416,9 +420,16 @@ components:
       schema:
         type: string
 
+    RetryAfter:
+      description: Amount of seconds to wait before retrying.
+      schema:
+        type: integer
+        minimum: 0
+      example: 1
+
     HarmonyCacheControl:
       description: >-
-        A harmony depends on the URL and the formula, and the formula only changes with a deploy.
+        A harmony depends on the URL and the formula, the formula only changes with a deploy.
       schema:
         type: string
       example: "public, max-age=31536000, immutable"
@@ -676,13 +687,25 @@ components:
             error: invalid credentials
 
     PayloadTooLarge:
-      description: The body exceeded 64 kb
+      description: The body exceeded a server limit
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
           example:
             error: request body too large
+
+    TooManyRequests:
+      description: Too many requests
+      headers:
+        Retry-After:
+          $ref: "#/components/headers/RetryAfter"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: server is busy, retry later
 
     InternalServerError:
       description: Unexpected failure

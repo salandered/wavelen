@@ -48,10 +48,13 @@ func (r *statusRecorder) Unwrap() http.ResponseWriter {
 	return r.ResponseWriter
 }
 
-// The correlation id is always server-generated. An inbound header is ignored, never trusted.
-// The id goes into the request context, from where the slog context handler picks it up:
-// every log call taking a ctx below this middleware carries the id, so no log site adds it
-// by hand. It is echoed in the response header too.
+/*
+Creates server-generated correlation id.
+Adds it into the request context, from where the logging handler picks it up:
+every log call taking a ctx below this middleware carries the id, and no log site should add it by hand.
+Adds this id to the X-Request-ID response header.
+The request X-Request-ID header is ignored.
+*/
 func requestIDMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		id := requestid.New()

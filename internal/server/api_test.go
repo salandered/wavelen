@@ -36,6 +36,9 @@ const (
 	testTTL      = time.Hour
 	testPassword = "correct horse battery"
 	testToken    = "X3ASTT2CDAN66BACKSCI4SU7SI"
+
+	testAuthConcurLimit = 2
+	testAuthConcurWait  = 50 * time.Millisecond
 )
 
 type APISuite struct {
@@ -60,7 +63,12 @@ func (s *APISuite) SetupSuite() {
 
 func (s *APISuite) SetupTest() {
 	s.storage = newMockStorage()
-	s.server = httptest.NewServer(server.NewHandler(s.storage, testQuota, testTTL))
+	s.server = httptest.NewServer(server.NewHandler(s.storage, server.HandlerConfig{
+		UserColorQuota:  testQuota,
+		AuthTokenTTL:    testTTL,
+		AuthConcurLimit: testAuthConcurLimit,
+		AuthConcurWait:  testAuthConcurWait,
+	}))
 	s.client = s.server.Client()
 }
 

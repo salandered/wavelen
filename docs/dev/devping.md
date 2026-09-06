@@ -1,4 +1,4 @@
-// DEV DEAD CODE
+```go
 // pingWithRetry used to gate startup: run() blocked
 // until the db is ok. Don't want it to race with a live probe.
 // The pool connects lazily and /readyz reports the real state.
@@ -12,8 +12,7 @@
 // # Wait between connection attempts, doubled after every failure
 // # default: 1s
 // DB_PING_BACKOFF=
-//
-//nolint:unused
+
 package main
 
 import (
@@ -82,3 +81,4 @@ func pingConfigFromEnv() (pingConfig, error) {
 	}
 	return pingConfig{connectTimeout: connectTimeout, backoff: backoff}, nil
 }
+```

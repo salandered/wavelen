@@ -19,6 +19,11 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set it in .env}
       POSTGRES_DB: ${POSTGRES_DB:-wavelen}
       SHUTDOWN_TIMEOUT: "${SHUTDOWN_TIMEOUT:-10s}"
+      # empty means the app default, see .env.template
+      USER_COLOR_QUOTA: "${USER_COLOR_QUOTA:-}"
+      AUTH_TOKEN_TTL: "${AUTH_TOKEN_TTL:-}"
+      AUTH_CONCUR_LIMIT: "${AUTH_CONCUR_LIMIT:-}"
+      AUTH_CONCUR_WAIT: "${AUTH_CONCUR_WAIT:-}"
       LOG_LEVEL: "${LOG_LEVEL:-info}"
       LOG_FORMAT: "${LOG_FORMAT:-text}"
       LOG_FILE: "${LOG_FILE:-}"

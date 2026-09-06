@@ -11,11 +11,19 @@ import (
 )
 
 const (
-	DefaultPort            = 8080
-	DefaultShutdownTimeout = 10 * time.Second
+	DefPort            = 8080
+	DefShutdownTimeout = 10 * time.Second
 
-	DefaultUserColorQuota = 100
-	DefaultAuthTokenTTL   = 24 * time.Hour
+	// WriteTimeout is the maximum duration before timing out writes of the response
+	WriteTimeout = 10 * time.Second
+
+	DefUserColorQuota = 100
+	DefAuthTokenTTL   = 24 * time.Hour
+
+	// 3 against the 4 vCPU box
+	DefAuthConcurLimit = 3
+	// DefAuthConcurWait + bcrypt should be < WriteTimeout.
+	DefAuthConcurWait = time.Second
 )
 
 var (
@@ -37,7 +45,7 @@ func Start(ctx context.Context, handler http.Handler, cfg Config) error {
 		Handler:        handler,
 		IdleTimeout:    time.Minute,
 		ReadTimeout:    10 * time.Second,
-		WriteTimeout:   10 * time.Second,
+		WriteTimeout:   WriteTimeout,
 		MaxHeaderBytes: 1 << 20, // 1 mb
 		// net/http writes its own diagnostics here (superfluous WriteHeader, bad
 		// Content-Length, TLS handshake errors). Route them through slog.
