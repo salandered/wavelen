@@ -1,7 +1,6 @@
 <img src="web/logo.png" alt="alt text" width="358">
 
 A web app for saving colors. Users keep their own list of hex codes.
-A seeded palette of 100 named colors is served read-only for a UI table.
 
 Go 1.26, Postgres, pgx v5.
 

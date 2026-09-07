@@ -29,11 +29,6 @@ type ColorRepo interface {
 	DeleteColor(ctx context.Context, userID user.ID, hex color.Hex) error
 }
 
-type CatalogRepo interface {
-	// The whole shared palette, ordered by p.
-	ListCommonColors(ctx context.Context, p ListCommonColorsParams) ([]color.Common, error)
-}
-
 type HealthRepo interface {
 	Ping(ctx context.Context) error
 }
@@ -42,7 +37,6 @@ type Storage interface {
 	UserRepo
 	TokenRepo
 	ColorRepo
-	CatalogRepo
 	HealthRepo
 
 	// Runs fn against a Storage bound to one transaction.

@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -481,47 +482,47 @@ const encodedCreatedAtCursor = "Y3JlYXRlZF9hdHxkZXNjfDIwMjYtMDgtMjNUMTQ6MDA6MDBa
 
 // The shared palette
 
-func (s *APISuite) TestListCommonColorsRendersTheCatalog() {
-	s.storage.common = []color.Common{
-		{Hex: "#000000", Name: "black"},
-		{Hex: "#ff0000", Name: "red"},
-	}
-
+func (s *APISuite) TestListCommonColorsRendersTheWholePalette() {
 	var out handlers.ListCommonColorsResp
 	s.decode(s.get("/api/v1/colors"), &out)
 
-	s.Require().Len(out.Colors, 2)
-	s.Require().Equal(handlers.CommonColorResp{Hex: "#000000", Name: "black"}, out.Colors[0])
+	s.Require().Len(out.Colors, 100)
+	for _, c := range out.Colors {
+		s.Require().Len(c.Hex, color.HexLen)
+		s.Require().NotEmpty(c.Name)
+	}
 }
 
 func (s *APISuite) TestListCommonColorsAppliesDefaultsWhenNoParamsAreGiven() {
-	s.get("/api/v1/colors")
+	var out handlers.ListCommonColorsResp
+	s.decode(s.get("/api/v1/colors"), &out)
 
-	s.Require().Equal(storage.ListCommonColorsParams{
-		Sort:  storage.CatalogSortByName,
-		Order: storage.OrderAsc,
-	}, s.storage.gotCatalogParams)
+	names := make([]string, 0, len(out.Colors))
+	for _, c := range out.Colors {
+		names = append(names, c.Name)
+	}
+	s.Require().True(slices.IsSorted(names))
 }
 
-func (s *APISuite) TestListCommonColorsPassesTheSortDown() {
-	s.get("/api/v1/colors?sort=hex&order=desc")
+func (s *APISuite) TestListCommonColorsPassesTheSortAndOrderDown() {
+	var out handlers.ListCommonColorsResp
+	s.decode(s.get("/api/v1/colors?sort=hex&order=desc"), &out)
 
-	s.Require().Equal(storage.ListCommonColorsParams{
-		Sort:  storage.CatalogSortByHex,
-		Order: storage.OrderDesc,
-	}, s.storage.gotCatalogParams)
+	hexes := make([]string, 0, len(out.Colors))
+	for _, c := range out.Colors {
+		hexes = append(hexes, c.Hex)
+	}
+	s.Require().True(slices.IsSortedFunc(hexes, func(a, b string) int { return strings.Compare(b, a) }))
 }
 
 func (s *APISuite) TestListCommonColorsPassesTheColorSortDown() {
-	s.get("/api/v1/colors?sort=color")
+	var out handlers.ListCommonColorsResp
+	s.decode(s.get("/api/v1/colors?sort=color"), &out)
 
-	s.Require().Equal(storage.ListCommonColorsParams{
-		Sort:  storage.CatalogSortByColor,
-		Order: storage.OrderAsc,
-	}, s.storage.gotCatalogParams)
+	s.Require().Equal("black", out.Colors[0].Name) // the perceptual order opens on the neutrals
 }
 
-// created_at is a column of user_colors only, the palette has no such column
+// created_at is a column of user_colors only, the palette has no such field
 func (s *APISuite) TestListCommonColorsRejectsInvalidQueryParams() {
 	for _, query := range []string{"sort=created_at", "sort=names", "order=sideways"} {
 		s.Run(query, func() {
@@ -641,9 +642,9 @@ func (s *APISuite) TestAuthenticatedResponseVariesByAuthorization() {
 // Failure mapping
 
 func (s *APISuite) TestStorageFailureReturnsAbstractMessageNoInternalInfo() {
-	s.storage.commonErr = errors.New("connection refused to 10.0.0.5:5432")
+	s.storage.colorsErr = errors.New("connection refused to 10.0.0.5:5432")
 
-	resp := s.get("/api/v1/colors")
+	resp := s.get("/api/v1/me/colors")
 	s.Require().Equal(http.StatusInternalServerError, resp.StatusCode)
 
 	body := s.body(resp)

@@ -7,10 +7,9 @@ import (
 	"time"
 )
 
-// Hex is a color code as it is stored, lowercased. Example: "#rrggbb"
+// Hex is a normalized color code like "#rrggbb"
 type Hex string
 
-// HexLen is the length of the storable form.
 const HexLen = 7
 
 var ErrInvalidHex = errors.New("invalid hex color")
@@ -29,6 +28,7 @@ type Common struct {
 
 // ParseHex creates a Hex out of s. Validates and normalizes data from s.
 // Normalization: trimmed, lowercased, added '#' if wasn't provided.
+// TODO: consider moving to strvalid
 func ParseHex(s string) (Hex, error) {
 	digits := strings.TrimPrefix(strings.TrimSpace(s), "#")
 	if len(digits) != HexLen-1 {

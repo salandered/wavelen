@@ -27,7 +27,6 @@ func newMux(s storage.Storage, cfg HandlerConfig) *http.ServeMux {
 	health := &handlers.HealthHandler{Health: s}
 	users := &handlers.UserHandler{Users: s}
 	colors := &handlers.ColorHandler{ColorSrv: colorsvc.New(s, cfg.UserColorQuota)}
-	catalog := &handlers.CatalogHandler{Catalog: s}
 	tokens := &handlers.TokenHandler{TokenSvc: authsvc.New(s, cfg.AuthTokenTTL)}
 
 	authed := authenticate(s) // func(authedHandlerFunc) http.Handler
@@ -56,7 +55,7 @@ func newMux(s storage.Storage, cfg HandlerConfig) *http.ServeMux {
 	mux.Handle("DELETE /api/v1/me/colors/{hex}", authed(colors.HandleDeleteColor))
 
 	//// common data and operations
-	mux.HandleFunc("GET /api/v1/colors", catalog.HandleListCommonColors)
+	mux.HandleFunc("GET /api/v1/colors", handlers.HandleListCommonColors)
 	mux.HandleFunc("GET /api/v1/colors/{hex}/complement", handlers.HandleComplement)
 	mux.HandleFunc("GET /api/v1/colors/{hex}/triad", handlers.HandleTriad)
 

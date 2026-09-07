@@ -1,0 +1,191 @@
+package palette
+
+import (
+	"errors"
+	"fmt"
+	"slices"
+	"strings"
+
+	"github.com/salandered/wavelen/internal/color"
+)
+
+type entry struct {
+	Hex  color.Hex
+	Name string
+	Feel int32 // pre-calculated with color.Feel(Hex)
+}
+
+// The 100 CSS named colors
+// Names and hex codes are unique, covered by tests.
+var entries = [...]entry{
+	{"#000000", "black", 0},
+	{"#ffffff", "white", 1000000},
+	{"#ff0000", "red", 10628258},
+	{"#00ff00", "lime", 50866295},
+	{"#0000ff", "blue", 90452313},
+	{"#ffff00", "yellow", 30968211},
+	{"#00ffff", "cyan", 60905155},
+	{"#ff00ff", "magenta", 110702322},
+	{"#c0c0c0", "silver", 808000},
+	{"#808080", "gray", 600000},
+	{"#800000", "maroon", 10377155},
+	{"#808000", "olive", 30581127},
+	{"#008000", "green", 50520177},
+	{"#800080", "purple", 110421193},
+	{"#008080", "teal", 60543093},
+	{"#000080", "navy", 90271188},
+	{"#696969", "dimgray", 521000},
+	{"#d3d3d3", "lightgray", 867000},
+	{"#a9a9a9", "darkgray", 735000},
+	{"#dcdcdc", "gainsboro", 894000},
+	{"#dc143c", "crimson", 10571222},
+	{"#b22222", "firebrick", 10497180},
+	{"#8b0000", "darkred", 10400164},
+	{"#cd5c5c", "indianred", 10615144},
+	{"#f08080", "lightcoral", 10725138},
+	{"#fa8072", "salmon", 10735152},
+	{"#e9967a", "darksalmon", 10751108},
+	{"#ffa07a", "lightsalmon", 10794125},
+	{"#ffc0cb", "pink", 120868074},
+	{"#ffb6c1", "lightpink", 120847086},
+	{"#ff69b4", "hotpink", 120728197},
+	{"#ff1493", "deeppink", 120655261},
+	{"#db7093", "palevioletred", 120678138},
+	{"#c71585", "mediumvioletred", 110553222},
+	{"#ff7f50", "coral", 10735168},
+	{"#ff6347", "tomato", 10696196},
+	{"#ff4500", "orangered", 10660229},
+	{"#ff8c00", "darkorange", 20751179},
+	{"#ffa500", "orange", 20793171},
+	{"#ffd700", "gold", 30887182},
+	{"#f0e68c", "khaki", 30913112},
+	{"#bdb76b", "darkkhaki", 30767098},
+	{"#daa520", "goldenrod", 30752147},
+	{"#b8860b", "darkgoldenrod", 30652132},
+	{"#eee8aa", "palegoldenrod", 30921080},
+	{"#ffffe0", "lightyellow", 30992040},
+	{"#fffacd", "lemonchiffon", 30978058},
+	{"#fff8dc", "cornsilk", 30977037},
+	{"#f5deb3", "wheat", 30909061},
+	{"#d2b48c", "tan", 20786064},
+	{"#deb887", "burlywood", 20805078},
+	{"#f4a460", "sandybrown", 20784127},
+	{"#cd853f", "peru", 20678123},
+	{"#d2691e", "chocolate", 20634155},
+	{"#8b4513", "saddlebrown", 20471112},
+	{"#a0522d", "sienna", 10526115},
+	{"#a52a2a", "brown", 10481160},
+	{"#bc8f8f", "rosybrown", 120693055},
+	{"#f5f5dc", "beige", 30964033},
+	{"#ffe4c4", "bisque", 20933051},
+	{"#adff2f", "greenyellow", 40913233},
+	{"#7fff00", "chartreuse", 40890265},
+	{"#7cfc00", "lawngreen", 40882263},
+	{"#32cd32", "limegreen", 50742229},
+	{"#228b22", "forestgreen", 50558169},
+	{"#006400", "darkgreen", 50436148},
+	{"#9acd32", "yellowgreen", 40785184},
+	{"#6b8e23", "olivedrab", 40599137},
+	{"#556b2f", "darkolivegreen", 40496090},
+	{"#98fb98", "palegreen", 50904162},
+	{"#90ee90", "lightgreen", 50868156},
+	{"#00ff7f", "springgreen", 50875235},
+	{"#00fa9a", "mediumspringgreen", 50867207},
+	{"#2e8b57", "seagreen", 50569119},
+	{"#3cb371", "mediumseagreen", 50684144},
+	{"#8fbc8f", "darkseagreen", 50751080},
+	{"#7fffd4", "aquamarine", 50915130},
+	{"#66cdaa", "mediumaquamarine", 50777110},
+	{"#40e0d0", "turquoise", 60822131},
+	{"#48d1cc", "mediumturquoise", 60787116},
+	{"#00ced1", "darkturquoise", 60772131},
+	{"#e0ffff", "lightcyan", 60978032},
+	{"#afeeee", "paleturquoise", 60907063},
+	{"#008b8b", "darkcyan", 60577098},
+	{"#5f9ea0", "cadetblue", 60658065},
+	{"#4682b4", "steelblue", 80588099},
+	{"#b0c4de", "lightsteelblue", 80814043},
+	{"#b0e0e6", "powderblue", 70875050},
+	{"#add8e6", "lightblue", 70856049},
+	{"#87ceeb", "skyblue", 70815082},
+	{"#00bfff", "deepskyblue", 80755153},
+	{"#1e90ff", "dodgerblue", 80652190},
+	{"#6495ed", "cornflowerblue", 90675141},
+	{"#4169e1", "royalblue", 90560188},
+	{"#0000cd", "mediumblue", 90383266},
+	{"#00008b", "darkblue", 90288199},
+	{"#191970", "midnightblue", 90288144},
+	{"#6a5acd", "slateblue", 90544171},
+	{"#8a2be2", "blueviolet", 100534250},
+	{"#4b0082", "indigo", 100339179},
+}
+
+// Pre-built sorted slices.
+// Orderings are total (name and hex are unique, byFeel tied by hex)
+var (
+	byName = sorted(func(a, b entry) int { return strings.Compare(a.Name, b.Name) })
+	byHex  = sorted(func(a, b entry) int { return strings.Compare(string(a.Hex), string(b.Hex)) })
+	byFeel = sorted(func(a, b entry) int {
+		if c := int(a.Feel) - int(b.Feel); c != 0 {
+			return c
+		}
+		return strings.Compare(string(a.Hex), string(b.Hex))
+	})
+)
+
+func sorted(cmp func(a, b entry) int) []color.Common {
+	rows := entries // a copy of the entries array
+	slices.SortFunc(rows[:], cmp)
+
+	out := make([]color.Common, 0, len(rows))
+	for _, e := range rows {
+		out = append(out, color.Common{Hex: e.Hex, Name: e.Name})
+	}
+	return out
+}
+
+type Sort string
+
+const (
+	SortByName Sort = "name"
+	SortByHex  Sort = "hex"
+	SortByFeel Sort = "color"
+)
+
+var ErrInvalidSort = errors.New("invalid sort")
+
+func ParseSort(s string) (Sort, error) {
+	sort := Sort(s)
+	switch sort {
+	case SortByName, SortByHex, SortByFeel:
+		return sort, nil
+	}
+	return "", fmt.Errorf("%w: want %q, %q or %q, got %q",
+		ErrInvalidSort, SortByName, SortByHex, SortByFeel, s)
+}
+
+type SortParams struct {
+	Sort Sort // def SortByName
+	Desc bool // def false
+}
+
+// List returns the palette in the requested order.
+func List(p SortParams) ([]color.Common, error) {
+	var src []color.Common
+	switch p.Sort {
+	case "", SortByName:
+		src = byName
+	case SortByHex:
+		src = byHex
+	case SortByFeel:
+		src = byFeel
+	default:
+		return nil, fmt.Errorf("%w: %q", ErrInvalidSort, p.Sort)
+	}
+
+	out := slices.Clone(src)
+	if p.Desc {
+		slices.Reverse(out)
+	}
+	return out, nil
+}

@@ -54,7 +54,7 @@ func Start(t *testing.T) *pgxpool.Pool {
 	return pool
 }
 
-// Truncate deletes what the test suites write (except for the seeded palette).
+// Truncate deletes what the test suites write.
 // RESTART IDENTITY resets things like users.id bigserial.
 func Truncate(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()

@@ -29,8 +29,6 @@ type mockStorage struct {
 	colors         []color.Color
 	hasMore        bool
 	colorsErr      error
-	common         []color.Common
-	commonErr      error
 	pingErr        error
 	userByNick     *user.User
 	nickErr        error
@@ -50,7 +48,6 @@ type mockStorage struct {
 	gotUserID        user.ID
 	gotHex           color.Hex
 	gotParams        storage.ListColorsParams
-	gotCatalogParams storage.ListCommonColorsParams
 	pingCalls        int
 }
 
@@ -140,13 +137,6 @@ func (s *mockStorage) ListColors(
 ) (storage.ColorPage, error) {
 	s.gotUserID, s.gotParams = userID, p
 	return storage.ColorPage{Colors: s.colors, HasMore: s.hasMore}, s.colorsErr
-}
-
-func (s *mockStorage) ListCommonColors(
-	_ context.Context, p storage.ListCommonColorsParams,
-) ([]color.Common, error) {
-	s.gotCatalogParams = p
-	return s.common, s.commonErr
 }
 
 func (s *mockStorage) Ping(_ context.Context) error {

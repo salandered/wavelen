@@ -4,12 +4,9 @@ import (
 	"net/http"
 
 	"github.com/salandered/httputils/httputils"
+	"github.com/salandered/wavelen/internal/palette"
 	"github.com/salandered/wavelen/internal/storage"
 )
-
-type CatalogHandler struct {
-	Catalog storage.CatalogRepo
-}
 
 type CommonColorResp struct {
 	Hex  string `json:"hex"`
@@ -20,7 +17,7 @@ type ListCommonColorsResp struct {
 	Colors []CommonColorResp `json:"colors"`
 }
 
-func (h *CatalogHandler) HandleListCommonColors(w http.ResponseWriter, req *http.Request) {
+func HandleListCommonColors(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
 
 	params, err := listCommonColorsParams(req)
@@ -29,9 +26,10 @@ func (h *CatalogHandler) HandleListCommonColors(w http.ResponseWriter, req *http
 		return
 	}
 
-	common, err := h.Catalog.ListCommonColors(ctx, params)
+	common, err := palette.List(params)
 	if err != nil {
-		writeStorageError(ctx, w, err)
+		// the sort is parsed above, so an error here is a bug rather than bad input
+		httputils.WriteError(ctx, w, err, http.StatusInternalServerError)
 		return
 	}
 
@@ -42,24 +40,25 @@ func (h *CatalogHandler) HandleListCommonColors(w http.ResponseWriter, req *http
 	httputils.WriteJSON(ctx, w, http.StatusOK, resp)
 }
 
-// Both params are optional; the defaults come from storage.
-func listCommonColorsParams(req *http.Request) (storage.ListCommonColorsParams, error) {
-	params := storage.ListCommonColorsParams{
-		Sort:  storage.DefaultCatalogSort,
-		Order: storage.DefaultCatalogOrder,
-	}
+// Both params are optional; a zero Params is the default ordering.
+func listCommonColorsParams(req *http.Request) (palette.SortParams, error) {
+	var params palette.SortParams
 
-	var err error
 	query := req.URL.Query()
 	if raw := query.Get(sortQuery); raw != "" {
-		if params.Sort, err = storage.ParseCatalogSort(raw); err != nil {
+		sort, err := palette.ParseSort(raw)
+		if err != nil {
 			return params, err
 		}
+		params.Sort = sort
 	}
 	if raw := query.Get(orderQuery); raw != "" {
-		if params.Order, err = storage.ParseSortOrder(raw); err != nil {
+		// storage owns the asc/desc parsing for the whole API, so both listings answer alike
+		order, err := storage.ParseSortOrder(raw)
+		if err != nil {
 			return params, err
 		}
+		params.Desc = order == storage.OrderDesc
 	}
 	return params, nil
 }

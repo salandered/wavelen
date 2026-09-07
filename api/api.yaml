@@ -327,7 +327,7 @@ paths:
       tags: [Palette]
       summary: Lists the shared palette
       description: >-
-        The 100 seeded named colors, ordered by the `sort`.
+        The 100 preset named colors.
       parameters:
         - name: sort
           in: query
