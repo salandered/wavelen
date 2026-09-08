@@ -2,8 +2,10 @@ package server
 
 import (
 	"log/slog"
+	"net"
 	"net/http"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/salandered/wavelen/internal/requestid"
@@ -19,7 +21,7 @@ type statusRecorder struct {
 }
 
 /*
-Known limitation: no 1xx checks, they would be recorded as if they were final.
+limitation: no 1xx checks, they would be recorded as if they were final.
 net/http does not commit the response on 1xx (except 101), so the real status
 that follows is lost, and recoveryMiddleware sees a header that was not written.
 See 'response.WriteHeader' in GOROOT/src/net/http/server.go
@@ -80,9 +82,14 @@ func loggingMiddleware(next http.Handler) http.Handler {
 		attrs := []slog.Attr{
 			slog.String("method", req.Method),
 			slog.String("path", req.URL.Path),
+			slog.String("remote_addr", remoteHost(req)),
 			slog.Int("status", rec.status),
 			slog.Duration("duration", time.Since(start)),
 			slog.Int("bytes", rec.bytes),
+		}
+		// empty in case of no proxy
+		if fwd := forwardedFor(req); fwd != "" {
+			attrs = append(attrs, slog.String("forwarded_for", fwd))
 		}
 		// If the client hung up, or the request deadline passed.
 		// Without this we will log the default 200
@@ -91,6 +98,46 @@ func loggingMiddleware(next http.Handler) http.Handler {
 		}
 		slog.LogAttrs(req.Context(), level, "request", attrs...)
 	})
+}
+
+// remoteHost is the peer of this connection.
+// Behind the proxy that would be it, not a client
+func remoteHost(req *http.Request) string {
+	host, _, err := net.SplitHostPort(req.RemoteAddr)
+	if err != nil {
+		return req.RemoteAddr // log what arrived
+	}
+	return host
+}
+
+/*
+forwardedFor is the rightmost X-Forwarded-For entry - what the nearest proxy observed on
+its own connection. The last entry of the last line.
+
+From the https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Forwarded-For
+
+	"When a client connects directly to a server, the client's IP address is sent
+	to the server and is often written to server access logs.
+	If a client connection passes through any forward or reverse proxies,
+	the server only sees the final proxy's IP address, which is often of little use"
+
+	"Trusted proxy count
+	The count of reverse proxies between the internet and the server is configured.
+	The X-Forwarded-For IP list is searched from the rightmost by that count minus one.
+	For example, if there is only one reverse proxy, that proxy will add the client's IP address,
+	so the rightmost address should be used.
+	If there are three reverse proxies, the last two IP addresses will be internal."
+*/
+func forwardedFor(req *http.Request) string {
+	lines := req.Header.Values("X-Forwarded-For")
+	if len(lines) == 0 {
+		return ""
+	}
+	last := lines[len(lines)-1]
+	if i := strings.LastIndex(last, ","); i >= 0 {
+		last = last[i+1:]
+	}
+	return strings.TrimSpace(last)
 }
 
 // Catches a panic from the downstream handler and turns it into a logged 500.
