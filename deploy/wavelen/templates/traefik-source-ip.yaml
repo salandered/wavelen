@@ -1,0 +1,38 @@
+{{- /*
+Makes Traefik see the client address.
+
+k3s servicelb (klipper-lb) and kube-proxy masquerade the source under the default
+externalTrafficPolicy: Cluster => Traefik reads the node's cni0 address for every client. 
+
+We use one node, so externalTrafficPolicy: Local is ok.
+
+This reconfigures a k3s bundled add-on. The k3s manifests live at the 
+/var/lib/rancher/k3s/server/manifests/, outside of this repo. 
+
+We can override the value with a HelmChartConfig.
+See https://docs.k3s.io/add-ons/helm#customizing-packaged-components-with-helmchartconfig.
+
+NOTE: helm uninstall now affects this, and the cluster goes back to masquerading.
+
+See also: 
+https://github.com/traefik/traefik-helm-chart/blob/master/EXAMPLES.md#set-externaltrafficpolicy-local-for-traefik-service
+https://github.com/traefik/traefik-helm-chart/blob/76cc1a80eefe0a00d17c2c5c71340cead1bad22e/traefik/values.yaml#L68
+https://kubernetes.io/docs/tasks/access-application-cluster/create-external-load-balancer/#preserving-the-client-source-ip
+*/}}
+{{- if .Values.traefikSourceIP.enabled }}
+# https://docs.k3s.io/helm#customizing-packaged-components-with-helmchartconfig
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  # Should be the same as a bundled HelmChart's name. A mismatch is silent
+  name: traefik
+  namespace: kube-system # explicit
+  labels:
+    {{- include "wavelen.labels" . | nindent 4 }}
+spec:
+  # Merged with the bundled chart's valuesContent, which sets service.spec.ipFamilyPolicy. 
+  valuesContent: |-
+    service:
+      spec:
+        externalTrafficPolicy: Local
+{{- end }}

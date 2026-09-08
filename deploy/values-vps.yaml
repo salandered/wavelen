@@ -7,3 +7,6 @@ tls:
 
 redirect:
   enabled: true
+
+traefikSourceIP:
+  enabled: true

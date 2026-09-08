@@ -26,3 +26,8 @@ tls:
 
 redirect:
   enabled: false
+
+# Reconfigures the k3s Traefik Service to externalTrafficPolicy: Local
+# Makes sense when Traefik fronts real clients.
+traefikSourceIP:
+  enabled: false
