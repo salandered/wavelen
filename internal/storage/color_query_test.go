@@ -17,12 +17,13 @@ var testCursor = &ColorCursor{
 	Hex:       "#ff00aa",
 }
 
-// The cursor hex through color.Feel: hue group 11, lightness 660, chroma 276. Spelled out so
-// the case pins a value rather than repeating the call it is checking.
+// The cursor hex through color.Feel: hue group 11, lightness 660, chroma 276.
+// Could be written as color.Feel(testCursor.Hex) but it's better for test to fail if the formula changes
 const testCursorKey = int32(110660276)
 
-func TestListQueryBuildsOneStatementPerSortAndOrder(t *testing.T) {
-	const selectFrom = "SELECT hex, created_at FROM user_colors WHERE user_id = $1"
+func TestListQueryActualSQLString(t *testing.T) {
+	const selectFrom = "SELECT hex, created_at FROM collection_colors WHERE collection_id =" +
+		" (SELECT id FROM collections WHERE user_id = $1 AND is_default)"
 
 	cases := []struct {
 		name     string
@@ -31,7 +32,7 @@ func TestListQueryBuildsOneStatementPerSortAndOrder(t *testing.T) {
 		wantArgs []any
 	}{
 		{
-			name:     "a zero value is the default first page",
+			name:     "zero value is the default first page",
 			params:   ListColorsParams{},
 			wantSQL:  selectFrom + " ORDER BY created_at DESC, hex DESC LIMIT $2",
 			wantArgs: []any{testUserID, 51},
@@ -43,27 +44,27 @@ func TestListQueryBuildsOneStatementPerSortAndOrder(t *testing.T) {
 			wantArgs: []any{testUserID, 11},
 		},
 		{
-			name:   "created_at desc, after a cursor",
+			name:   "created_at desc, after cursor",
 			params: ListColorsParams{Order: OrderDesc, Limit: 2, After: testCursor},
 			wantSQL: selectFrom + " AND (created_at, hex) < ($3, $4)" +
 				" ORDER BY created_at DESC, hex DESC LIMIT $2",
 			wantArgs: []any{testUserID, 3, testCursor.CreatedAt, testCursor.Hex},
 		},
 		{
-			name:   "created_at asc, after a cursor, flips the comparison",
+			name:   "created_at asc, after cursor",
 			params: ListColorsParams{Order: OrderAsc, Limit: 2, After: testCursor},
 			wantSQL: selectFrom + " AND (created_at, hex) > ($3, $4)" +
 				" ORDER BY created_at ASC, hex ASC LIMIT $2",
 			wantArgs: []any{testUserID, 3, testCursor.CreatedAt, testCursor.Hex},
 		},
 		{
-			name:     "hex asc, after a cursor, binds the hex alone",
+			name:     "hex asc, after cursor, binds only hex",
 			params:   ListColorsParams{Sort: SortByHex, Order: OrderAsc, Limit: 2, After: testCursor},
 			wantSQL:  selectFrom + " AND hex > $3 ORDER BY hex ASC LIMIT $2",
 			wantArgs: []any{testUserID, 3, testCursor.Hex},
 		},
 		{
-			name:     "hex desc, after a cursor",
+			name:     "hex desc, after cursor",
 			params:   ListColorsParams{Sort: SortByHex, Order: OrderDesc, Limit: 2, After: testCursor},
 			wantSQL:  selectFrom + " AND hex < $3 ORDER BY hex DESC LIMIT $2",
 			wantArgs: []any{testUserID, 3, testCursor.Hex},
@@ -75,14 +76,14 @@ func TestListQueryBuildsOneStatementPerSortAndOrder(t *testing.T) {
 			wantArgs: []any{testUserID, 11},
 		},
 		{
-			name:   "color asc, after a cursor, binds the key computed from the hex",
+			name:   "color asc, after cursor, binds the key computed from hex",
 			params: ListColorsParams{Sort: SortByColor, Order: OrderAsc, Limit: 2, After: testCursor},
 			wantSQL: selectFrom + " AND (color_key, hex) > ($3, $4)" +
 				" ORDER BY color_key ASC, hex ASC LIMIT $2",
 			wantArgs: []any{testUserID, 3, testCursorKey, testCursor.Hex},
 		},
 		{
-			name:   "color desc, after a cursor, flips both columns together",
+			name:   "color desc, after cursor",
 			params: ListColorsParams{Sort: SortByColor, Order: OrderDesc, Limit: 2, After: testCursor},
 			wantSQL: selectFrom + " AND (color_key, hex) < ($3, $4)" +
 				" ORDER BY color_key DESC, hex DESC LIMIT $2",
@@ -102,7 +103,7 @@ func TestListQueryBuildsOneStatementPerSortAndOrder(t *testing.T) {
 	}
 }
 
-func TestListQueryRejectsParamsThatWereNeverParsed(t *testing.T) {
+func TestListQueryRejectsUnknownListColorsParams(t *testing.T) {
 	cases := map[string]ListColorsParams{
 		"unknown sort":  {Sort: "name", Order: OrderDesc, Limit: 1},
 		"unknown order": {Sort: SortByHex, Order: "sideways", Limit: 1},

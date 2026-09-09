@@ -73,10 +73,10 @@ func (c *Colors) AddColor(ctx context.Context, userID user.ID, hex color.Hex) {
 	err := c.storage.InTx(ctx, 
 		func(s storage.Storage) error {
 			// inside them calls s.db.Exec; s.db.QueryRow; s.db.Query etc
-			s.LockUser(ctx, userID)
-			s.CountColors(ctx, userID)
-			if ... { s.HasColor(ctx, userID, hex) }
-			else { s.AddColor(ctx, userID, hex) }
+			collectionID, _ := s.LockDefaultCollection(ctx, userID)
+			s.CountColors(ctx, collectionID)
+			if ... { s.HasColor(ctx, collectionID, hex) }
+			else { s.AddColor(ctx, collectionID, hex) }
 		},	) }
 ```
 
@@ -166,8 +166,8 @@ func (c *Colors) AddColor(ctx context.Context, userID user.ID, hex color.Hex) {
 	c.storage.InTx(ctx, 
 		func(s storage.Storage) error { // s would be &Postgres{db: tx}
 			// inside them calls s.db.Exec; s.db.Query etc. Would be like tx.Exec
-			s.LockUser(ctx, userID)
-			s.CountColors(ctx, userID)
+			collectionID, _ := s.LockDefaultCollection(ctx, userID)
+			s.CountColors(ctx, collectionID)
 		},	) }
 
 func (s *Postgres) InTx(ctx context.Context, fn func(Storage) error) error {

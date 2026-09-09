@@ -23,8 +23,6 @@ func TestQuotaSuite(t *testing.T) {
 	suite.Run(t, new(QuotaSuite))
 }
 
-// The only place the row lock is exercised. The API tier runs InTx inline, so it covers
-// the wiring and nothing about atomicity.
 type QuotaSuite struct {
 	suite.Suite
 	pool  *pgxpool.Pool
@@ -40,13 +38,13 @@ func (s *QuotaSuite) SetupTest() {
 	storagetest.Truncate(s.T(), s.pool)
 }
 
-func (s *QuotaSuite) TestConcurrentAddColorsRespectQuota() {
+func (s *QuotaSuite) TestConcurrentAddColorsRespectsQuota() {
 	const (
 		quota    = 20
 		attempts = 80
 	)
 	ctx := s.ctx(30 * time.Second)
-	userID := s.createUser()
+	userID, collectionID := s.createUser()
 	colorsvc_ := colorsvc.New(s.store, quota)
 
 	type outcome struct {
@@ -80,7 +78,7 @@ func (s *QuotaSuite) TestConcurrentAddColorsRespectQuota() {
 	s.Require().Equal(quota, created)
 	s.Require().Equal(attempts-quota, full)
 
-	n, err := s.store.CountColors(ctx, userID)
+	n, err := s.store.CountColors(ctx, collectionID)
 	s.Require().NoError(err)
 	s.Require().Equal(quota, n)
 }
@@ -88,7 +86,7 @@ func (s *QuotaSuite) TestConcurrentAddColorsRespectQuota() {
 func (s *QuotaSuite) TestResavingColorAtQuotaStaysIdempotent() {
 	const quota = 3
 	ctx := s.ctx(10 * time.Second)
-	userID := s.createUser()
+	userID, collectionID := s.createUser()
 	colorsvc_ := colorsvc.New(s.store, quota)
 
 	// add three colors
@@ -107,7 +105,7 @@ func (s *QuotaSuite) TestResavingColorAtQuotaStaysIdempotent() {
 	s.Require().NoError(err)
 	s.Require().False(created)
 
-	n, err := s.store.CountColors(ctx, userID)
+	n, err := s.store.CountColors(ctx, collectionID)
 	s.Require().NoError(err)
 	s.Require().Equal(quota, n)
 }
@@ -127,8 +125,14 @@ func (s *QuotaSuite) ctx(d time.Duration) context.Context {
 	return ctx
 }
 
-func (s *QuotaSuite) createUser() user.ID {
+// same what usersvc.CreateUser writes
+func (s *QuotaSuite) createUser() (user.ID, storage.CollectionID) {
+	ctx := s.ctx(10 * time.Second)
+
 	u := user.User{Nickname: "olya", Name: "Olya", PasswordHash: []byte("stub")}
-	s.Require().NoError(s.store.CreateUser(s.ctx(10*time.Second), &u))
-	return u.ID
+	s.Require().NoError(s.store.CreateUser(ctx, &u))
+
+	collectionID, err := s.store.CreateCollection(ctx, u.ID, "My colors", true)
+	s.Require().NoError(err)
+	return u.ID, collectionID
 }

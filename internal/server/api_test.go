@@ -25,6 +25,7 @@ import (
 	"github.com/salandered/wavelen/internal/server"
 	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/user"
+	"github.com/salandered/wavelen/internal/usersvc"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -158,6 +159,17 @@ func (s *APISuite) TestCreateUserPassesNormalizedFieldsToStorage() {
 
 	s.Require().Equal("olya", s.storage.gotUser.Nickname)
 	s.Require().Equal("Olya", s.storage.gotUser.Name)
+}
+
+func (s *APISuite) TestCreateUserAlsoCreatesTheDefaultCollection() {
+	resp := s.post("/api/v1/users", handlers.CreateUserReq{
+		Nickname: "olya",
+		Name:     "Olya",
+		Password: testPassword,
+	})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+
+	s.Require().Equal(usersvc.DefCollectionName, s.storage.gotCollName)
 }
 
 func (s *APISuite) TestCreateUserMapsDuplicateNicknameToConflict() {
@@ -522,7 +534,6 @@ func (s *APISuite) TestListCommonColorsPassesTheColorSortDown() {
 	s.Require().Equal("black", out.Colors[0].Name) // the perceptual order opens on the neutrals
 }
 
-// created_at is a column of user_colors only, the palette has no such field
 func (s *APISuite) TestListCommonColorsRejectsInvalidQueryParams() {
 	for _, query := range []string{"sort=created_at", "sort=names", "order=sideways"} {
 		s.Run(query, func() {

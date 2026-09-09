@@ -3,16 +3,20 @@ package storage
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/salandered/wavelen/internal/auth"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/user"
 )
 
+type CollectionID uuid.UUID
+
+func (id CollectionID) String() string { return uuid.UUID(id).String() }
+
 type UserRepo interface {
 	CreateUser(ctx context.Context, u *user.User) error
 	UserByNickname(ctx context.Context, nickname string) (*user.User, error)
 	UserByID(ctx context.Context, id user.ID) (*user.User, error)
-	LockUser(ctx context.Context, userID user.ID) error
 }
 
 type TokenRepo interface {
@@ -21,11 +25,18 @@ type TokenRepo interface {
 	DeleteToken(ctx context.Context, hash []byte) error
 }
 
+type CollectionRepo interface {
+	CreateCollection(
+		ctx context.Context, userID user.ID, name string, isDefault bool,
+	) (CollectionID, error)
+	LockDefaultCollection(ctx context.Context, userID user.ID) (CollectionID, error)
+}
+
 type ColorRepo interface {
-	AddColor(ctx context.Context, userID user.ID, hex color.Hex) (bool, error)
+	AddColor(ctx context.Context, collectionID CollectionID, hex color.Hex) (bool, error)
 	ListColors(ctx context.Context, userID user.ID, p ListColorsParams) (ColorPage, error)
-	CountColors(ctx context.Context, userID user.ID) (int, error)
-	HasColor(ctx context.Context, userID user.ID, hex color.Hex) (bool, error)
+	CountColors(ctx context.Context, collectionID CollectionID) (int, error)
+	HasColor(ctx context.Context, collectionID CollectionID, hex color.Hex) (bool, error)
 	DeleteColor(ctx context.Context, userID user.ID, hex color.Hex) error
 }
 
@@ -36,6 +47,7 @@ type HealthRepo interface {
 type Storage interface {
 	UserRepo
 	TokenRepo
+	CollectionRepo
 	ColorRepo
 	HealthRepo
 

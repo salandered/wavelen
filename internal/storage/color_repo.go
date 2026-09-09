@@ -9,46 +9,59 @@ import (
 	"github.com/salandered/wavelen/internal/user"
 )
 
-// Returns false if such color already exists for this user.
-// An unknown user yields ErrUserNotFound.
-func (s *Postgres) AddColor(ctx context.Context, userID user.ID, hex color.Hex) (bool, error) {
-	const query = `
-		INSERT INTO user_colors (user_id, hex, color_key)
-		VALUES ($1, $2, $3)
-		ON CONFLICT (user_id, hex) DO NOTHING`
+// temporary
+const defaultCollection = `(SELECT id FROM collections WHERE user_id = $1 AND is_default)`
 
-	tag, err := s.db.Exec(ctx, query, userID, hex, color.Feel(hex))
+// Returns whether the color already was in the collection.
+// An unknown collection yields ErrNotFound
+func (s *Postgres) AddColor(
+	ctx context.Context, collectionID CollectionID, hex color.Hex,
+) (bool, error) {
+	const query = `
+		INSERT INTO collection_colors (collection_id, hex, color_key)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (collection_id, hex) DO NOTHING`
+
+	tag, err := s.db.Exec(ctx, query, collectionID, hex, color.Feel(hex))
 	if err != nil {
 		if pgErrCode(err) == foreignKeyViolation {
-			return false, ErrUserNotFound
+			return false, ErrNotFound
 		}
 		return false, fmt.Errorf("storage add color: %w", err)
 	}
 	return tag.RowsAffected() == 1, nil
 }
 
-func (s *Postgres) CountColors(ctx context.Context, userID user.ID) (int, error) {
-	const query = `SELECT count(*) FROM user_colors WHERE user_id = $1`
+func (s *Postgres) CountColors(ctx context.Context, collectionID CollectionID) (int, error) {
+	const query = `SELECT count(*) FROM collection_colors WHERE collection_id = $1`
 
 	var n int
-	if err := s.db.QueryRow(ctx, query, userID).Scan(&n); err != nil {
+	if err := s.db.QueryRow(ctx, query, collectionID).Scan(&n); err != nil {
 		return 0, fmt.Errorf("storage count colors: %w", err)
 	}
 	return n, nil
 }
 
-func (s *Postgres) HasColor(ctx context.Context, userID user.ID, hex color.Hex) (bool, error) {
-	const query = `SELECT EXISTS (SELECT 1 FROM user_colors WHERE user_id = $1 AND hex = $2)`
+func (s *Postgres) HasColor(
+	ctx context.Context, collectionID CollectionID, hex color.Hex,
+) (bool, error) {
+	const query = `
+		SELECT EXISTS (
+			SELECT 1 FROM collection_colors WHERE collection_id = $1 AND hex = $2
+		)`
 
 	var has bool
-	if err := s.db.QueryRow(ctx, query, userID, hex).Scan(&has); err != nil {
+	if err := s.db.QueryRow(ctx, query, collectionID, hex).Scan(&has); err != nil {
 		return false, fmt.Errorf("storage has color: %w", err)
 	}
 	return has, nil
 }
 
+// ErrNotFound if no such row
 func (s *Postgres) DeleteColor(ctx context.Context, userID user.ID, hex color.Hex) error {
-	const query = `DELETE FROM user_colors WHERE user_id = $1 AND hex = $2`
+	const query = `
+		DELETE FROM collection_colors
+		WHERE collection_id = ` + defaultCollection + ` AND hex = $2`
 
 	tag, err := s.db.Exec(ctx, query, userID, hex)
 	if err != nil {
@@ -93,8 +106,8 @@ func (s *Postgres) ListColors(
 func (p ListColorsParams) listQuery(userID user.ID) (string, []any, error) {
 	const template = `
 		SELECT hex, created_at
-		FROM user_colors
-		WHERE user_id = $1 %s
+		FROM collection_colors
+		WHERE collection_id = ` + defaultCollection + ` %s
 		ORDER BY %s
 		LIMIT $2`
 

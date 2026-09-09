@@ -8,6 +8,7 @@ import (
 	"github.com/salandered/wavelen/internal/colorsvc"
 	"github.com/salandered/wavelen/internal/handlers"
 	"github.com/salandered/wavelen/internal/storage"
+	"github.com/salandered/wavelen/internal/usersvc"
 )
 
 // HandlerConfig carries what the routes need
@@ -25,7 +26,7 @@ func NewHandler(s storage.Storage, cfg HandlerConfig) http.Handler {
 
 func newMux(s storage.Storage, cfg HandlerConfig) *http.ServeMux {
 	health := &handlers.HealthHandler{Health: s}
-	users := &handlers.UserHandler{Users: s}
+	users := &handlers.UserHandler{UserSvc: usersvc.New(s)}
 	colors := &handlers.ColorHandler{ColorSrv: colorsvc.New(s, cfg.UserColorQuota)}
 	tokens := &handlers.TokenHandler{TokenSvc: authsvc.New(s, cfg.AuthTokenTTL)}
 

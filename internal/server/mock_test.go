@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/salandered/wavelen/internal/auth"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/storage"
@@ -17,6 +18,7 @@ var _ storage.Storage = (*mockStorage)(nil)
 type mockStorage struct {
 	// what the methods answer
 	assignID       user.ID
+	assignCollID   storage.CollectionID
 	createErr      error
 	lockErr        error
 	added          bool
@@ -46,6 +48,8 @@ type mockStorage struct {
 	gotTokenHash     []byte
 	deletedTokenHash []byte
 	gotUserID        user.ID
+	gotCollectionID  storage.CollectionID
+	gotCollName      string
 	gotHex           color.Hex
 	gotParams        storage.ListColorsParams
 	pingCalls        int
@@ -54,9 +58,18 @@ type mockStorage struct {
 // not UTC, a response carrying Z proves the handler normalized it.
 var stubTime = time.Date(2026, 8, 23, 14, 0, 0, 0, time.FixedZone("+04:00", 4*60*60))
 
+// whatever LockDefaultCollection reports
+var stubCollectionID = storage.CollectionID(
+	uuid.MustParse("01999999-7777-7777-8888-999999999999"))
+
 func newMockStorage() *mockStorage {
 	// tokenUser - the color tests get their user id from the token
-	return &mockStorage{assignID: 1, added: true, tokenUser: 1}
+	return &mockStorage{
+		assignID:     1,
+		assignCollID: stubCollectionID,
+		added:        true,
+		tokenUser:    1,
+	}
 }
 
 // Clears the mock storage.
@@ -107,23 +120,41 @@ func (s *mockStorage) InTx(_ context.Context, fn func(storage.Storage) error) er
 	return fn(s)
 }
 
-func (s *mockStorage) LockUser(_ context.Context, userID user.ID) error {
-	s.gotUserID = userID
-	return s.lockErr
+func (s *mockStorage) CreateCollection(
+	_ context.Context, userID user.ID, name string, _ bool,
+) (storage.CollectionID, error) {
+	s.gotUserID, s.gotCollName = userID, name
+	return s.assignCollID, nil
 }
 
-func (s *mockStorage) CountColors(_ context.Context, userID user.ID) (int, error) {
+func (s *mockStorage) LockDefaultCollection(
+	_ context.Context, userID user.ID,
+) (storage.CollectionID, error) {
 	s.gotUserID = userID
+	if s.lockErr != nil {
+		return storage.CollectionID{}, s.lockErr
+	}
+	return s.assignCollID, nil
+}
+
+func (s *mockStorage) CountColors(
+	_ context.Context, collectionID storage.CollectionID,
+) (int, error) {
+	s.gotCollectionID = collectionID
 	return s.colorCount, s.countErr
 }
 
-func (s *mockStorage) HasColor(_ context.Context, userID user.ID, hex color.Hex) (bool, error) {
-	s.gotUserID, s.gotHex = userID, hex
+func (s *mockStorage) HasColor(
+	_ context.Context, collectionID storage.CollectionID, hex color.Hex,
+) (bool, error) {
+	s.gotCollectionID, s.gotHex = collectionID, hex
 	return s.hasColor, s.hasErr
 }
 
-func (s *mockStorage) AddColor(_ context.Context, userID user.ID, hex color.Hex) (bool, error) {
-	s.gotUserID, s.gotHex = userID, hex
+func (s *mockStorage) AddColor(
+	_ context.Context, collectionID storage.CollectionID, hex color.Hex,
+) (bool, error) {
+	s.gotCollectionID, s.gotHex = collectionID, hex
 	return s.added, s.addErr
 }
 
