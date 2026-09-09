@@ -38,14 +38,9 @@ make dc/down # stop the stack
 
 ## Web UI
 
-Optional, nothing needs it.
+The api binary embeds `web/` and serves it at `/`.
 
-```sh
-make web/up   # the stack plus a caddy container
-make web/down
-```
-
-Open <http://localhost:8099>.
+Open http://localhost:8080.
 
 ## Logging
 
@@ -121,6 +116,7 @@ curl -X DELETE localhost:8080/api/v1/tokens -H "Authorization: Bearer $TOKEN"
 Public:
 
 ```sh
+curl localhost:8080/api/v1/version
 curl localhost:8080/api/v1/colors
 curl 'localhost:8080/api/v1/colors?sort=hex&order=desc'
 curl localhost:8080/api/v1/colors/ff00aa/complement

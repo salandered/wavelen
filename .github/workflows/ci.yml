@@ -2,21 +2,16 @@ name: CI
 
 on:
   push:
+    # No image patterns: web/ images ship inside the binary
     paths-ignore:
       - "docs/**"
       - "deploy/**" # chart changes publish no artifact
-      - "dev/**"
       - "**/*.md"
-      - "**/*.png"
-      - "**/*.svg"
   pull_request:
     paths-ignore:
       - "docs/**"
       - "deploy/**" # chart changes publish no artifact
-      - "dev/**"
       - "**/*.md"
-      - "**/*.png"
-      - "**/*.svg"
   workflow_dispatch:
 
 permissions:

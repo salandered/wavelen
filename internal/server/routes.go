@@ -1,6 +1,7 @@
 package server
 
 import (
+	"io/fs"
 	"net/http"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 )
 
 type HandlerConfig struct {
+	WebFS               fs.FS // static UI, rooted at index.html
 	UserColorQuota      int
 	UserCollectionQuota int
 	AuthTokenTTL        time.Duration
@@ -40,9 +42,13 @@ func newMux(s storage.Storage, cfg HandlerConfig) *http.ServeMux {
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /{$}", handlers.HandleRoot)
 	mux.HandleFunc("GET /livez", health.HandleLive)
 	mux.HandleFunc("GET /readyz", health.HandleReady)
+	mux.HandleFunc("GET /api/v1/version", handlers.HandleVersion)
+
+	// index.html at "/", and 404 for every unmatched request.
+	// Note: registered without a method. "GET /" would make any non GET turn into 405.
+	mux.Handle("/", handlers.NewStaticHandler(cfg.WebFS))
 
 	//// auth
 	// sign up

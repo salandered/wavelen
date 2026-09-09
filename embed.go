@@ -3,7 +3,7 @@ package wavelen
 import "embed"
 
 // MigrationsFS is the SQL schema.
-// Embedding so an image carries the schema its code expects (atomic deploy)
+// Embedding so an image carries both the app code and the schema it expects
 //
 //go:embed migrations/*.sql
 var MigrationsFS embed.FS
@@ -12,3 +12,9 @@ var MigrationsFS embed.FS
 //
 //go:embed api/api.yaml
 var APISpec []byte
+
+// WebFS is the static UI.
+// Embedding so an image also carries the UI its API serves.
+//
+//go:embed web/index.html web/app.js web/logo.png web/logo-mini.png
+var WebFS embed.FS

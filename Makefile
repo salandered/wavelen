@@ -35,16 +35,6 @@ dc/up:
 dc/down:
 	docker compose down
 
-## web/up: run the stack + web web
-.PHONY: web/up
-web/up:
-	docker compose -f docker-compose.yml -f docker-compose.web.yml up -d --build
-
-## web/down: stop the stack + web
-.PHONY: web/down
-web/down:
-	docker compose -f docker-compose.yml -f docker-compose.web.yml down
-
 ## db/up: start only the postgres container
 .PHONY: db/up
 db/up:

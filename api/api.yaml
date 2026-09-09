@@ -25,15 +25,28 @@ paths:
   /:
     get:
       tags: [System]
-      summary: Returns the service name and build-time version
+      summary: Serves the web UI
+      description: >-
+        The single page app embedded in the binary. 
+        Every path the API does not cover falls here.
+      responses:
+        "200":
+          description: The page
+          content:
+            # no schema: the body is a document
+            text/html: {}
+
+  /api/v1/version:
+    get:
+      tags: [System]
+      summary: Returns the build-time version
       responses:
         "200":
           description: Successful response
           content:
-            text/plain:
+            application/json:
               schema:
-                type: string
-                example: "wavelen version 0.1.0"
+                $ref: "#/components/schemas/VersionResponse"
 
   /livez:
     get:
@@ -804,6 +817,15 @@ components:
           maxItems: 2
           items:
             $ref: "#/components/schemas/HexStored"
+
+    VersionResponse:
+      type: object
+      required: [version]
+      additionalProperties: false
+      properties:
+        version:
+          type: string
+          example: "0.1.0"
 
     HealthResponse:
       type: object

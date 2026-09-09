@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"strings"
 
@@ -33,10 +32,13 @@ const (
 // Nothing large in bodies.
 const maxRequestBodyBytes = 1 << 16 // 64 kb
 
-func HandleRoot(w http.ResponseWriter, req *http.Request) {
-	if _, err := fmt.Fprintf(w, "wavelen version %v\n", version.Get()); err != nil {
-		slog.ErrorContext(req.Context(), "failed writing root response", "error", err)
-	}
+type VersionResp struct {
+	Version string `json:"version"`
+}
+
+// HandleVersion reports the build-time version.
+func HandleVersion(w http.ResponseWriter, req *http.Request) {
+	httputils.WriteJSON(req.Context(), w, http.StatusOK, VersionResp{Version: version.Get()})
 }
 
 func collectionIDFromPath(req *http.Request) (collection.ID, error) {

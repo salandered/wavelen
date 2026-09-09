@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"github.com/getkin/kin-openapi/openapi3"
@@ -74,6 +75,7 @@ func (s *APISuite) SetupSuite() {
 func (s *APISuite) SetupTest() {
 	s.storage = newMockStorage()
 	s.server = httptest.NewServer(server.NewHandler(s.storage, server.HandlerConfig{
+		WebFS:               stubWebFS,
 		UserColorQuota:      testQuota,
 		UserCollectionQuota: testCollectionQuota,
 		AuthTokenTTL:        testTTL,
@@ -93,11 +95,43 @@ func (s *APISuite) SetupSubTest() {
 
 // Routing and middleware
 
-func (s *APISuite) TestRootReturnsServiceNameAndVersion() {
+var stubWebFS = fstest.MapFS{
+	"index.html": &fstest.MapFile{Data: []byte("<!doctype html><title>wavelen</title>")},
+	"app.js":     &fstest.MapFile{Data: []byte("export const stub = true")},
+}
+
+func (s *APISuite) TestRootServesTheUI() {
 	resp := s.get("/")
 	s.Require().Equal(http.StatusOK, resp.StatusCode)
-	// the version itself is build-time injected
-	s.Require().Contains(s.body(resp), "wavelen version")
+	s.Require().Contains(resp.Header.Get("Content-Type"), "text/html")
+	s.Require().Contains(s.body(resp), "<title>wavelen</title>")
+}
+
+// Not using s.get which is validated against the spec. api.yaml only specifies
+// "/" path (not "/app.js"), so there is nothing to validate the resp against.
+func (s *APISuite) TestAssetsAreServedNextToTheAPI() {
+	resp, err := s.client.Get(s.server.URL + "/app.js")
+	s.Require().NoError(err)
+	defer resp.Body.Close()
+
+	s.Require().Equal(http.StatusOK, resp.StatusCode)
+	s.Require().Contains(s.body(resp), "stub")
+}
+
+func (s *APISuite) TestWritingToAssetIsNotFound() {
+	// [handlers.readOnly] should catch it
+	resp := s.post("/app.js", nil)
+	s.Require().Equal(http.StatusNotFound, resp.StatusCode)
+}
+
+func (s *APISuite) TestVersionReturnsTheBuildVersion() {
+	resp := s.get("/api/v1/version")
+	s.Require().Equal(http.StatusOK, resp.StatusCode)
+
+	var out handlers.VersionResp
+	s.decode(resp, &out)
+	// the version value is build-time injected
+	s.Require().NotEmpty(out.Version)
 }
 
 func (s *APISuite) TestLivezReturnsOkWithoutTouchingStorage() {
@@ -123,8 +157,13 @@ func (s *APISuite) TestReadyzReturnsServiceUnavailableAndNamesDependency() {
 }
 
 func (s *APISuite) TestUnknownPathReturnsNotFound() {
-	resp := s.get("/no-such-path")
-	s.Require().Equal(http.StatusNotFound, resp.StatusCode)
+	// NewStaticHandler catches this
+	for _, path := range []string{"/no-such-path", "/api/v1/no-such-path"} {
+		s.Run(path, func() {
+			resp := s.get(path)
+			s.Require().Equal(http.StatusNotFound, resp.StatusCode)
+		})
+	}
 }
 
 func (s *APISuite) TestRequestIDIsGeneratedAndClientHeaderIgnored() {

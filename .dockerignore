@@ -7,11 +7,9 @@
 .dockerignore
 Dockerfile
 docker-compose.yml
-docker-compose.web.yml
 
-# web ui, caddy serves it from a bind mount
-Caddyfile
-web/
+# web ui: the binary embeds web/
+web/README.md
 
 # credentials
 .env
@@ -27,6 +25,7 @@ coverage.*
 *.coverprofile
 
 # docs / configs / ci
+dev/
 .github/
 __docs/
 docs/

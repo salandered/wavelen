@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/salandered/wavelen"
 	"github.com/salandered/wavelen/internal/dbconfig"
 	"github.com/salandered/wavelen/internal/requestid"
 	"github.com/salandered/wavelen/internal/server"
@@ -77,6 +79,12 @@ func run() error {
 	handlerCfg, err := handlerConfig()
 	if err != nil {
 		return err
+	}
+
+	// fs.Sub strips the "web/" prefix: the file server sees index.html at its root
+	handlerCfg.WebFS, err = fs.Sub(wavelen.WebFS, "web")
+	if err != nil {
+		return fmt.Errorf("web assets: %w", err)
 	}
 
 	// Startup does not wait for the database
