@@ -1,11 +1,10 @@
 module github.com/salandered/wavelen
 
-go 1.26.7 // TODO try go 1.27 !
+go 1.27.1
 
 require (
 	github.com/getkin/kin-openapi v0.147.0
 	github.com/golang-migrate/migrate/v4 v4.19.1
-	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/salandered/httputils v0.0.1
 	github.com/salandered/slogenv v0.1.0
@@ -37,6 +36,7 @@ require (
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-openapi/jsonpointer v0.22.5 // indirect
 	github.com/go-openapi/swag/jsonname v0.25.5 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/jackc/pgerrcode v0.0.0-20220416144525-469b46aa5efa // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect

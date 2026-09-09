@@ -3,8 +3,8 @@ package server_test
 import (
 	"context"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/salandered/wavelen/internal/auth"
 	"github.com/salandered/wavelen/internal/collection"
 	"github.com/salandered/wavelen/internal/color"

@@ -3,7 +3,8 @@
 package storage_test
 
 import (
-	"github.com/google/uuid"
+	"uuid"
+
 	"github.com/salandered/wavelen/internal/collection"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/storage"

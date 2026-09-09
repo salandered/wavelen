@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/salandered/strvalid"
 )
 

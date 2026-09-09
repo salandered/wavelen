@@ -3,8 +3,8 @@ package collection_test
 import (
 	"strings"
 	"testing"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/salandered/wavelen/internal/collection"
 	"github.com/stretchr/testify/require"
 )
@@ -53,7 +53,7 @@ func TestParseIDRejectsInvalidUUID(t *testing.T) {
 }
 
 func TestParseIDTakesNilUUID(t *testing.T) {
-	id, err := collection.ParseID(uuid.Nil.String())
+	id, err := collection.ParseID(uuid.Nil().String())
 
 	require.NoError(t, err)
 	require.Equal(t, collection.ID{}, id)

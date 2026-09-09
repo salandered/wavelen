@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/salandered/wavelen/internal/collection"
 	"github.com/stretchr/testify/require"
 )

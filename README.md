@@ -2,7 +2,7 @@
 
 A web app for saving colors. Users keep their own list of hex codes.
 
-Go 1.26, Postgres, pgx v5.
+Go 1.27, Postgres, pgx v5.
 
 ## Running locally
 
