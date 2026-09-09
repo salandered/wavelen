@@ -19,7 +19,7 @@ import (
 	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/version"
 
-	logging "github.com/salandered/slogenv"
+	"github.com/salandered/slogenv"
 )
 
 var ErrConfig = errors.New("invalid config")
@@ -49,11 +49,11 @@ func main() {
 // LOG_LEVEL, LOG_FORMAT, LOG_FILE and LOG_TIME are read by slogenv, see its README.
 // requestid.LogAttrs puts the correlation id in every record logged with a request ctx
 func setupLogging() (io.Closer, error) {
-	cfg, err := logging.ConfigFromEnv()
+	cfg, err := slogenv.ConfigFromEnv()
 	if err != nil {
 		return nil, err
 	}
-	return logging.Setup(cfg, requestid.LogAttrs)
+	return slogenv.Setup(cfg, requestid.LogAttrs)
 }
 
 func run() error {

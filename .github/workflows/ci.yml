@@ -61,7 +61,17 @@ jobs:
         run: go mod verify
 
       - name: Run tests
-        run: go test ./...
+        run: go test -covermode=atomic -coverprofile=cover.out ./...
+
+      # https://github.com/marketplace/actions/codecov#arguments
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: ./cover.out
+          flags: unit
+          disable_search: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
   integration-test:
     name: Go integration tests
@@ -78,7 +88,19 @@ jobs:
           cache: true
 
       - name: Run integration tests
-        run: go test -tags=integration -run TestStorageSuite ./internal/storage/
+        run: >
+          go test -tags=integration -run TestStorageSuite
+          -covermode=atomic -coverpkg=./internal/storage/...
+          -coverprofile=cover.out ./internal/storage/
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: ./cover.out
+          flags: integration
+          disable_search: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
   smoke:
     name: Smoke (docker compose)

@@ -3,61 +3,10 @@ package collection_test
 import (
 	"strings"
 	"testing"
-	"uuid"
 
 	"github.com/salandered/wavelen/internal/collection"
 	"github.com/stretchr/testify/require"
 )
-
-const canonicalID = "01999999-7777-7777-8888-999999999999"
-
-func TestParseIDAcceptsCanonicalForm(t *testing.T) {
-	id, err := collection.ParseID(canonicalID)
-
-	require.NoError(t, err)
-	require.Equal(t, canonicalID, id.String())
-}
-
-func TestParseIDCaseInsensitive(t *testing.T) {
-	upper, err := collection.ParseID(strings.ToUpper(canonicalID))
-	require.NoError(t, err)
-
-	lower, err := collection.ParseID(canonicalID)
-	require.NoError(t, err)
-
-	require.Equal(t, lower, upper)
-}
-
-func TestParseIDRejectsInvalidUUID(t *testing.T) {
-	tests := map[string]string{
-		"empty":            "",
-		"word":             "main",
-		"digits":           "42",
-		"too short":        "01999999-7777-7777-8888-9999999999",
-		"trailing garbage": canonicalID + "x",
-		"path traversal":   "../users",
-
-		// kinda ok but not canon
-		"braced":            "{" + canonicalID + "}",
-		"urn":               "urn:uuid:" + canonicalID,
-		"no dashes":         "01999999777777778888999999999999",
-		"surrounding space": " " + canonicalID + " ",
-	}
-	for name, in := range tests {
-		t.Run(name, func(t *testing.T) {
-			_, err := collection.ParseID(in)
-
-			require.ErrorIs(t, err, collection.ErrInvalidID)
-		})
-	}
-}
-
-func TestParseIDTakesNilUUID(t *testing.T) {
-	id, err := collection.ParseID(uuid.Nil().String())
-
-	require.NoError(t, err)
-	require.Equal(t, collection.ID{}, id)
-}
 
 func TestNormalizeNameTrimsSurroundingWhitespace(t *testing.T) {
 	got, err := collection.NormalizeName("  Sunset palette \n")

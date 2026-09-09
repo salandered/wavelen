@@ -1,5 +1,11 @@
 <img src="web/logo.png" alt="alt text" width="358">
 
+[![CI](https://github.com/salandered/wavelen/actions/workflows/ci.yml/badge.svg)](https://github.com/salandered/wavelen/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/salandered/wavelen/branch/main/graph/badge.svg)](https://codecov.io/gh/salandered/wavelen)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/salandered/wavelen)](go.mod)
+[![Latest tag](https://img.shields.io/github/v/tag/salandered/wavelen?sort=semver&label=release)](https://github.com/salandered/wavelen/tags)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 A web app for saving colors. Users keep their own list of hex codes.
 
 Go 1.27, Postgres, pgx v5.

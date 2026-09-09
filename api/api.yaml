@@ -841,7 +841,7 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
           example:
-            error: 'invalid hex color: want 6 hex digits, got "123"'
+            error: 'invalid hex color "123": must be 6 hex digits'
 
     Unauthorized:
       description: No credential or they can't be verified

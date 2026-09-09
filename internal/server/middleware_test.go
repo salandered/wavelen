@@ -12,7 +12,7 @@ import (
 	"github.com/salandered/wavelen/internal/requestid"
 	"github.com/stretchr/testify/require"
 
-	logging "github.com/salandered/slogenv"
+	"github.com/salandered/slogenv"
 )
 
 func TestRecoveryMiddlewarePanicBeforeWriteReturns500(t *testing.T) {
@@ -89,8 +89,6 @@ func TestLoggingMiddlewareLevelFollowsStatus(t *testing.T) {
 	}
 }
 
-// The whole point of wiring requestid.LogAttrs into the handler: a handler that logs with
-// the request ctx gets the id without naming it.
 func TestRequestIDReachesLogRecordsBelowTheMiddleware(t *testing.T) {
 	var handlerSawID string
 
@@ -128,7 +126,7 @@ func captureLogs(t *testing.T, fn func()) []map[string]any {
 	t.Helper()
 
 	var buf bytes.Buffer
-	h := logging.NewContextHandler(
+	h := slogenv.NewContextHandler(
 		slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}),
 		requestid.LogAttrs,
 	)

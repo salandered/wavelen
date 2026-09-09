@@ -19,7 +19,7 @@ import (
 	"github.com/salandered/wavelen/internal/dbconfig"
 	"github.com/salandered/wavelen/internal/version"
 
-	logging "github.com/salandered/slogenv"
+	"github.com/salandered/slogenv"
 )
 
 // sourceName labels the source driver in golang-migrate errors
@@ -41,11 +41,11 @@ func main() {
 }
 
 func setupLogging() (io.Closer, error) {
-	cfg, err := logging.ConfigFromEnv()
+	cfg, err := slogenv.ConfigFromEnv()
 	if err != nil {
 		return nil, err
 	}
-	return logging.Setup(cfg, nil)
+	return slogenv.Setup(cfg, nil)
 }
 
 func run() error {

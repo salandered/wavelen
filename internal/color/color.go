@@ -1,18 +1,15 @@
 package color
 
 import (
-	"errors"
-	"fmt"
-	"strings"
 	"time"
+
+	"github.com/salandered/strvalid"
 )
 
 // Hex is a normalized color code like "#rrggbb"
 type Hex string
 
 const HexLen = 7
-
-var ErrInvalidHex = errors.New("invalid hex color")
 
 // Color is one entry of a user's own list.
 type Color struct {
@@ -26,28 +23,17 @@ type Common struct {
 	Name string
 }
 
+var hexCfg = strvalid.HexConfig{
+	Subject:   "hex color",
+	EchoValue: true,
+}
+
 // ParseHex creates a Hex out of s. Validates and normalizes data from s.
 // Normalization: trimmed, lowercased, added '#' if wasn't provided.
-// TODO: consider moving to strvalid
 func ParseHex(s string) (Hex, error) {
-	digits := strings.TrimPrefix(strings.TrimSpace(s), "#")
-	if len(digits) != HexLen-1 {
-		return "", fmt.Errorf("%w: want 6 hex digits, got %q", ErrInvalidHex, s)
+	parsed, err := strvalid.ParseHex(s, hexCfg)
+	if err != nil {
+		return "", err
 	}
-
-	var b strings.Builder
-	b.Grow(HexLen)
-	b.WriteByte('#')
-	for i := range len(digits) {
-		c := digits[i]
-		switch {
-		case c >= '0' && c <= '9', c >= 'a' && c <= 'f':
-			b.WriteByte(c)
-		case c >= 'A' && c <= 'F':
-			b.WriteByte(c - 'A' + 'a')
-		default:
-			return "", fmt.Errorf("%w: want 6 hex digits, got %q", ErrInvalidHex, s)
-		}
-	}
-	return Hex(b.String()), nil
+	return Hex(parsed), nil
 }

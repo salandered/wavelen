@@ -46,10 +46,7 @@ func collectionIDFromPath(req *http.Request) (collection.ID, error) {
 func hexFromPath(req *http.Request) (color.Hex, error) {
 	raw := req.PathValue(hexPathValue)
 	if strings.Contains(raw, "#") {
-		return "", fmt.Errorf(
-			"%w: want 6 hex digits without '#', got %q",
-			color.ErrInvalidHex, raw,
-		)
+		return "", fmt.Errorf("invalid hex color %q: must be 6 hex digits without '#'", raw)
 	}
 	return color.ParseHex(raw)
 }
