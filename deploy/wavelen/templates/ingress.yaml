@@ -1,4 +1,5 @@
 # https://doc.traefik.io/traefik/reference/routing-configuration/kubernetes/ingress
+# "requests for host Values.ingress.host, path prefix /, go to Service wavelen on port 8080"
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
