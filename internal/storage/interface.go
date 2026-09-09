@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/salandered/wavelen/internal/auth"
+	"github.com/salandered/wavelen/internal/collection"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/user"
 )
@@ -12,7 +13,7 @@ type UserRepo interface {
 	CreateUser(ctx context.Context, u *user.User) error
 	UserByNickname(ctx context.Context, nickname string) (*user.User, error)
 	UserByID(ctx context.Context, id user.ID) (*user.User, error)
-	LockUser(ctx context.Context, userID user.ID) error
+	LockUser(ctx context.Context, id user.ID) error
 }
 
 type TokenRepo interface {
@@ -21,12 +22,31 @@ type TokenRepo interface {
 	DeleteToken(ctx context.Context, hash []byte) error
 }
 
+type CollectionRepo interface {
+	CreateCollection(
+		ctx context.Context, userID user.ID, name string, isDefault bool,
+	) (*collection.Collection, error)
+	ListCollections(ctx context.Context, userID user.ID) ([]collection.Collection, error)
+	CountCollections(ctx context.Context, userID user.ID) (int, error)
+	CollectionByID(
+		ctx context.Context, userID user.ID, id collection.ID,
+	) (*collection.Collection, error)
+	DeleteCollection(ctx context.Context, userID user.ID, id collection.ID) error
+
+	ResolveCollection(
+		ctx context.Context, userID user.ID, id collection.ID,
+	) (collection.ID, error)
+	LockCollection(
+		ctx context.Context, userID user.ID, id collection.ID,
+	) (collection.ID, error)
+}
+
 type ColorRepo interface {
-	AddColor(ctx context.Context, userID user.ID, hex color.Hex) (bool, error)
-	ListColors(ctx context.Context, userID user.ID, p ListColorsParams) (ColorPage, error)
-	CountColors(ctx context.Context, userID user.ID) (int, error)
-	HasColor(ctx context.Context, userID user.ID, hex color.Hex) (bool, error)
-	DeleteColor(ctx context.Context, userID user.ID, hex color.Hex) error
+	AddColor(ctx context.Context, cltID collection.ID, hex color.Hex) (bool, error)
+	ListColors(ctx context.Context, cltID collection.ID, p ListColorsParams) (ColorPage, error)
+	CountColors(ctx context.Context, cltID collection.ID) (int, error)
+	HasColor(ctx context.Context, cltID collection.ID, hex color.Hex) (bool, error)
+	DeleteColor(ctx context.Context, cltID collection.ID, hex color.Hex) error
 }
 
 type HealthRepo interface {
@@ -36,6 +56,7 @@ type HealthRepo interface {
 type Storage interface {
 	UserRepo
 	TokenRepo
+	CollectionRepo
 	ColorRepo
 	HealthRepo
 

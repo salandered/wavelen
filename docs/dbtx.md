@@ -69,14 +69,17 @@ func (s *Postgres) InTx(ctx context.Context, fn func(Storage) error) error {
 
 Service method example
 ```go
-func (c *Colors) AddColor(ctx context.Context, userID user.ID, hex color.Hex) {
+func (c *ColorSvc) AddColor(
+	ctx context.Context, userID user.ID, id collection.ID, hex color.Hex,
+) {
 	err := c.storage.InTx(ctx, 
 		func(s storage.Storage) error {
 			// inside them calls s.db.Exec; s.db.QueryRow; s.db.Query etc
-			s.LockUser(ctx, userID)
-			s.CountColors(ctx, userID)
-			if ... { s.HasColor(ctx, userID, hex) }
-			else { s.AddColor(ctx, userID, hex) }
+			// resolves the collection, proves the caller owns it, locks the row
+			owned, _ := s.LockCollection(ctx, userID, id)
+			s.CountColors(ctx, owned)
+			if ... { s.HasColor(ctx, owned, hex) }
+			else { s.AddColor(ctx, owned, hex) }
 		},	) }
 ```
 
@@ -160,14 +163,16 @@ func (tx *Tx) Begin(ctx context.Context) (pgx.Tx, error) {
 So this resolves like this
 
 ```go
-func (c *Colors) AddColor(ctx context.Context, userID user.ID, hex color.Hex) {
+func (c *ColorSvc) AddColor(
+	ctx context.Context, userID user.ID, id collection.ID, hex color.Hex,
+) {
 	// c.storage is &Postgres{db: pool [querier]}
 	// this is a fn which is called between the Begin and Rollback/Commit
 	c.storage.InTx(ctx, 
 		func(s storage.Storage) error { // s would be &Postgres{db: tx}
 			// inside them calls s.db.Exec; s.db.Query etc. Would be like tx.Exec
-			s.LockUser(ctx, userID)
-			s.CountColors(ctx, userID)
+			owned, _ := s.LockCollection(ctx, userID, id)
+			s.CountColors(ctx, owned)
 		},	) }
 
 func (s *Postgres) InTx(ctx context.Context, fn func(Storage) error) error {

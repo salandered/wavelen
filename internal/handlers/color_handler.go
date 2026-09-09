@@ -6,17 +6,23 @@ import (
 	"time"
 
 	"github.com/salandered/httputils/httputils"
+	"github.com/salandered/wavelen/internal/collection"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/user"
 )
 
 type ColorService interface {
-	AddColor(ctx context.Context, userID user.ID, hex color.Hex) (bool, error)
+	AddColor(
+		ctx context.Context, userID user.ID, collectionID collection.ID, hex color.Hex,
+	) (bool, error)
 	ListColors(
-		ctx context.Context, userID user.ID, p storage.ListColorsParams,
+		ctx context.Context, userID user.ID, collectionID collection.ID,
+		p storage.ListColorsParams,
 	) (storage.ColorPage, error)
-	DeleteColor(ctx context.Context, userID user.ID, hex color.Hex) error
+	DeleteColor(
+		ctx context.Context, userID user.ID, collectionID collection.ID, hex color.Hex,
+	) error
 }
 
 type ColorHandler struct {
@@ -27,7 +33,6 @@ type AddColorReq struct {
 	Hex string `json:"hex"`
 }
 
-// The normalized hex, so the client learns what was actually stored.
 type AddColorResp struct {
 	Hex string `json:"hex"`
 }
@@ -45,6 +50,12 @@ type ListColorsResp struct {
 func (h *ColorHandler) HandleAddColor(w http.ResponseWriter, req *http.Request, userID user.ID) {
 	ctx := req.Context()
 
+	collectionID, err := collectionIDFromPath(req)
+	if err != nil {
+		writeRequestError(ctx, w, err)
+		return
+	}
+
 	var data AddColorReq
 	if err := httputils.ReadJSON(w, req, &data, maxRequestBodyBytes); err != nil {
 		writeRequestError(ctx, w, err)
@@ -57,7 +68,7 @@ func (h *ColorHandler) HandleAddColor(w http.ResponseWriter, req *http.Request, 
 		return
 	}
 
-	created, err := h.ColorSrv.AddColor(ctx, userID, hex)
+	created, err := h.ColorSrv.AddColor(ctx, userID, collectionID, hex)
 	if err != nil {
 		writeStorageError(ctx, w, err)
 		return
@@ -73,13 +84,19 @@ func (h *ColorHandler) HandleAddColor(w http.ResponseWriter, req *http.Request, 
 func (h *ColorHandler) HandleListColors(w http.ResponseWriter, req *http.Request, userID user.ID) {
 	ctx := req.Context()
 
+	collectionID, err := collectionIDFromPath(req)
+	if err != nil {
+		writeRequestError(ctx, w, err)
+		return
+	}
+
 	params, err := listColorsParams(req)
 	if err != nil {
 		writeRequestError(ctx, w, err)
 		return
 	}
 
-	page, err := h.ColorSrv.ListColors(ctx, userID, params)
+	page, err := h.ColorSrv.ListColors(ctx, userID, collectionID, params)
 	if err != nil {
 		writeStorageError(ctx, w, err)
 		return
@@ -107,13 +124,19 @@ func (h *ColorHandler) HandleListColors(w http.ResponseWriter, req *http.Request
 func (h *ColorHandler) HandleDeleteColor(w http.ResponseWriter, req *http.Request, userID user.ID) {
 	ctx := req.Context()
 
+	collectionID, err := collectionIDFromPath(req)
+	if err != nil {
+		writeRequestError(ctx, w, err)
+		return
+	}
+
 	hex, err := hexFromPath(req)
 	if err != nil {
 		writeRequestError(ctx, w, err)
 		return
 	}
 
-	if err := h.ColorSrv.DeleteColor(ctx, userID, hex); err != nil {
+	if err := h.ColorSrv.DeleteColor(ctx, userID, collectionID, hex); err != nil {
 		writeStorageError(ctx, w, err)
 		return
 	}

@@ -17,8 +17,12 @@ const (
 	// WriteTimeout is the maximum duration before timing out writes of the response
 	WriteTimeout = 10 * time.Second
 
+	// colors in one collection
 	DefUserColorQuota = 100
-	DefAuthTokenTTL   = 24 * time.Hour
+	// collections in one account
+	DefUserCollectionQuota = 10
+
+	DefAuthTokenTTL = 24 * time.Hour
 
 	// 3 against the 4 vCPU box
 	DefAuthConcurLimit = 3

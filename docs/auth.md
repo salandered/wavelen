@@ -86,7 +86,7 @@ chain: endpoints like `/livez` are not wrapped and don't use storage.
 
 ```mermaid
 flowchart TD
-    A["GET /api/v1/me/colors"] --> B{"Authorization: Bearer ...?"}
+    A["GET /api/v1/me/collections"] --> B{"Authorization: Bearer ...?"}
     B -- absent or malformed --> E1["401, no query made"]
     B -- present --> C["SHA-256 the token"]
     C --> D{"SELECT user_id FROM tokens<br/>WHERE hash = $1 AND expiry > now()"}

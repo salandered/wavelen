@@ -12,12 +12,14 @@ tags:
     description: User accounts
   - name: Auth
     description: Login
+  - name: Collections
+    description: A user's own groups of colors
   - name: Colors
-    description: A user's own saved colors
+    description: The colors inside one collection
   - name: Palette
     description: The shared read-only palette
   - name: Harmony
-    description: Colors computed from a color. Nothing is read or stored.
+    description: Compute some colors based on a specific one.
 
 paths:
   /:
@@ -67,8 +69,7 @@ paths:
     post:
       tags: [Users]
       summary: Creates a user (sign up)
-      description: >-
-        The nickname is trimmed and lowercased before storage.
+      description: The nickname is trimmed and lowercased before storage.
       requestBody:
         required: true
         content:
@@ -139,7 +140,7 @@ paths:
         - bearerAuth: []
       summary: Logout. Revokes the token
       description: >-
-        The token in the `Authorization` header is deleted and stops working.
+        The token in the 'Authorization' header is deleted and stops working.
         This user's other tokens are untouched. An already invalid token
         answers 401, not 204.
       responses:
@@ -172,24 +173,133 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
-          description: No such user
+          $ref: "#/components/responses/NotFoundUser"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/me/collections:
+    get:
+      tags: [Collections]
+      security:
+        - bearerAuth: []
+      summary: Lists all collections, oldest first.
+      responses:
+        "200":
+          description: Collections
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListCollectionsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      tags: [Collections]
+      security:
+        - bearerAuth: []
+      summary: Creates a collection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCollectionRequest"
+      responses:
+        "201":
+          description: The collection was created
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFoundUser"
+        "409":
+          description: Collection quota is exceeded.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               example:
-                error: user not found
+                error: collection quota full
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /api/v1/me/colors:
+  /api/v1/me/collections/{collectionId}:
+    parameters:
+      - $ref: "#/components/parameters/CollectionId"
+    get:
+      tags: [Collections]
+      security:
+        - bearerAuth: []
+      summary: One collection
+      responses:
+        "200":
+          description: The collection
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFoundCollection"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    delete:
+      tags: [Collections]
+      security:
+        - bearerAuth: []
+      summary: Removes the collection and all its colors
+      description: The default collection cannot be removed.
+      responses:
+        "204":
+          description: The collection was removed
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/XRequestId"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFoundCollection"
+        "409":
+          description: The default collection cannot be deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/me/collections/{collectionId}/colors:
+    parameters:
+      - $ref: "#/components/parameters/CollectionId"
     get:
       tags: [Colors]
       security:
         - bearerAuth: []
-      summary: Lists your saved colors
+      summary: List the collection colors
       description: >-
-        Ordered by the `sort`. No `next_cursor` means the end of the list.
+        Ordered by the 'sort'. No 'next_cursor' means the end of the list.
       parameters:
         - name: limit
           in: query
@@ -203,8 +313,8 @@ paths:
           in: query
           required: false
           description: >-
-            The page is ordered by it. hex is the tiebreak for created_at and for color.
-            hex is lexicographic; color is perceptual
+            The page is ordered by it. 'hex' is the tiebreak for 'created_at' and 'color'.
+            'hex' is lexicographic; 'color' is perceptual
           schema:
             type: string
             enum: [created_at, hex, color]
@@ -224,7 +334,7 @@ paths:
           example: "Y3JlYXRlZF9hdHxkZXNjfDIwMjYtMDgtMjNUMTQ6MDA6MDAuODI1MDIzWnwjZmYwMGFh"
       responses:
         "200":
-          description: Your saved colors
+          description: The collection colors
           headers:
             X-Request-Id:
               $ref: "#/components/headers/XRequestId"
@@ -236,15 +346,17 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFoundCollection"
         "500":
           $ref: "#/components/responses/InternalServerError"
     post:
       tags: [Colors]
       security:
         - bearerAuth: []
-      summary: Saves a color
+      summary: Adds a color into collection
       description: >-
-        Idempotent. Saving an already existing color returns the same body with 200.
+        Idempotent. Adding an already existing color returns the same body with 200.
       requestBody:
         required: true
         content:
@@ -262,7 +374,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/AddColorResponse"
         "200":
-          description: You had already saved this color
+          description: The color was already in the collection
           headers:
             X-Request-Id:
               $ref: "#/components/headers/XRequestId"
@@ -275,32 +387,29 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
-          description: No such user
+          $ref: "#/components/responses/NotFoundCollection"
+        "409":
+          description: The color quota is exceeded for this collection
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
               example:
-                error: user not found
-        "409":
-          description: You exceeded the color quota
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                error: color quota full
         "413":
           $ref: "#/components/responses/PayloadTooLarge"
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /api/v1/me/colors/{hex}:
+  /api/v1/me/collections/{collectionId}/colors/{hex}:
     parameters:
+      - $ref: "#/components/parameters/CollectionId"
       - $ref: "#/components/parameters/ColorHex"
     delete:
       tags: [Colors]
       security:
         - bearerAuth: []
-      summary: Removes one of your saved colors
+      summary: Removes a color from the collection
       responses:
         "204":
           description: The color was removed
@@ -312,7 +421,7 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
-          description: You don't have this color
+          description: No such collection, or no such color inside it
           content:
             application/json:
               schema:
@@ -326,8 +435,7 @@ paths:
     get:
       tags: [Palette]
       summary: Lists the shared palette
-      description: >-
-        The 100 preset named colors.
+      description: The 100 preset named colors.
       parameters:
         - name: sort
           in: query
@@ -435,6 +543,15 @@ components:
       example: "public, max-age=31536000, immutable"
 
   parameters:
+    CollectionId:
+      name: collectionId
+      in: path
+      required: true
+      description: A collection uuid.
+      schema:
+        type: string
+        format: uuid
+
     ColorHex:
       name: hex
       in: path
@@ -457,7 +574,7 @@ components:
     HexInput:
       type: string
       description: >-
-        A color code as accepted. Surrounding whitespace is trimmed, the leading '#' is
+        A color code as accepted. Surrounding whitespace trimmed, the leading '#' is
         optional, case does not matter. The normalized form is stored.
       pattern: "^\\s*#?[0-9a-fA-F]{6}\\s*$"
       example: "FF00AA"
@@ -481,9 +598,8 @@ components:
     Nickname:
       type: string
       description: >-
-        The login identifier, 3 to 30 characters. Letters, digits, '_', '-'. Starts and
-        ends with a letter or a digit. All is lowercased and surrounding whitespace trimmed 
-        before storing.
+        The login identifier, 3 to 30 chars. Letters, digits, '_', '-'. Starts and ends with 
+        a letter or a digit. All is lowercased and surrounding whitespace trimmed before storing.
       pattern: "^\\s*[A-Za-z0-9][A-Za-z0-9_-]{1,28}[A-Za-z0-9]\\s*$"
       example: salandered-123
 
@@ -540,6 +656,58 @@ components:
       properties:
         user:
           $ref: "#/components/schemas/User"
+
+    CollectionName:
+      type: string
+      minLength: 1
+      maxLength: 60
+      description: >-
+        Free form, display only. Length is counted in runes, after trimming. Not unique.
+      example: Sunset palette
+
+    CreateCollectionRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name:
+          $ref: "#/components/schemas/CollectionName"
+
+    Collection:
+      type: object
+      required: [id, name, is_default, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: A uuidv7, generated by the server.
+          example: "01a083f4-5c2f-71d9-9757-5d6635ded04d"
+        name:
+          $ref: "#/components/schemas/CollectionName"
+        is_default:
+          type: boolean
+          description: The default collection. One per user, cannot be deleted.
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-08-22T13:37:08.688203Z"
+
+    CollectionResponse:
+      type: object
+      required: [collection]
+      properties:
+        collection:
+          $ref: "#/components/schemas/Collection"
+
+    ListCollectionsResponse:
+      type: object
+      required: [collections]
+      properties:
+        collections:
+          type: array
+          items:
+            $ref: "#/components/schemas/Collection"
 
     AddColorRequest:
       type: object
@@ -614,7 +782,7 @@ components:
     ComplementResponse:
       type: object
       required: [hex, complement]
-      description: Echoes the normalized hex asked about, beside its complement.
+      description: Echoes the normalized incoming hex and its complement.
       properties:
         hex:
           $ref: "#/components/schemas/HexStored"
@@ -625,8 +793,8 @@ components:
       type: object
       required: [hex, triad]
       description: >-
-        Echoes the normalized hex asked about, beside the OTHER two colors of the triad in hue
-        order. The color asked about is not repeated in the array.
+        Echoes the normalized incoming hex and other two colors of the triad in hue
+        order.
       properties:
         hex:
           $ref: "#/components/schemas/HexStored"
@@ -664,8 +832,6 @@ components:
       properties:
         error:
           type: string
-          description: For 5xx this is always the "internal server error"
-          example: invalid hex color
 
   responses:
     BadRequest:
@@ -675,7 +841,7 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
           example:
-            error: 'invalid hex color: want 6 hex digits, got "nope"'
+            error: 'invalid hex color: want 6 hex digits, got "123"'
 
     Unauthorized:
       description: No credential or they can't be verified
@@ -694,6 +860,24 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
           example:
             error: request body too large
+
+    NotFoundCollection:
+      description: No such collection
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: not found
+
+    NotFoundUser:
+      description: No such user
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: user not found
 
     TooManyRequests:
       description: Too many requests

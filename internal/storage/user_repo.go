@@ -9,6 +9,7 @@ import (
 	"github.com/salandered/wavelen/internal/user"
 )
 
+// Fills in u.ID and u.CreatedAt. A taken nickname -> ErrDuplicateNickname.
 func (s *Postgres) CreateUser(ctx context.Context, u *user.User) error {
 	const query = `
 		INSERT INTO users (nickname, name, password_hash)
@@ -28,7 +29,6 @@ func (s *Postgres) CreateUser(ctx context.Context, u *user.User) error {
 	return nil
 }
 
-// Fills in u.ID and u.CreatedAt. A taken nickname -> ErrDuplicateNickname.
 func (s *Postgres) UserByNickname(ctx context.Context, nickname string) (*user.User, error) {
 	const query = `
 		SELECT id, nickname, name, password_hash, created_at
@@ -66,14 +66,12 @@ func (s *Postgres) UserByID(ctx context.Context, id user.ID) (*user.User, error)
 	return &u, nil
 }
 
-// Row lock on the user.
-// Makes sense inside a transaction with some logic.
-// An unknown user yields ErrUserNotFound.
-func (s *Postgres) LockUser(ctx context.Context, userID user.ID) error {
+// Row lock on the user row.
+func (s *Postgres) LockUser(ctx context.Context, id user.ID) error {
 	const query = `SELECT 1 FROM users WHERE id = $1 FOR UPDATE`
 
 	var one int
-	if err := s.db.QueryRow(ctx, query, userID).Scan(&one); err != nil {
+	if err := s.db.QueryRow(ctx, query, id).Scan(&one); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrUserNotFound
 		}

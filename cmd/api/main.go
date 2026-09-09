@@ -169,6 +169,15 @@ func handlerConfig() (server.HandlerConfig, error) {
 			"%w: USER_COLOR_QUOTA should be positive, got %d", ErrConfig, colorQuota)
 	}
 
+	collectionQuota, err := intFromEnv("USER_COLLECTION_QUOTA", server.DefUserCollectionQuota)
+	if err != nil {
+		return server.HandlerConfig{}, err
+	}
+	if collectionQuota <= 0 {
+		return server.HandlerConfig{}, fmt.Errorf(
+			"%w: USER_COLLECTION_QUOTA should be positive, got %d", ErrConfig, collectionQuota)
+	}
+
 	ttl, err := durationFromEnv("AUTH_TOKEN_TTL", server.DefAuthTokenTTL)
 	if err != nil {
 		return server.HandlerConfig{}, err
@@ -200,10 +209,11 @@ func handlerConfig() (server.HandlerConfig, error) {
 	}
 
 	return server.HandlerConfig{
-		UserColorQuota:  colorQuota,
-		AuthTokenTTL:    ttl,
-		AuthConcurLimit: authLimit,
-		AuthConcurWait:  authWait,
+		UserColorQuota:      colorQuota,
+		UserCollectionQuota: collectionQuota,
+		AuthTokenTTL:        ttl,
+		AuthConcurLimit:     authLimit,
+		AuthConcurWait:      authWait,
 	}, nil
 }
 

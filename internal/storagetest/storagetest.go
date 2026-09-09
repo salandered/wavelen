@@ -62,8 +62,8 @@ func Truncate(t *testing.T, pool *pgxpool.Pool) {
 	ctx, cancel := context.WithTimeout(context.Background(), opTimeout)
 	defer cancel()
 
-	// CASCADE would reach tokens anyway
-	_, err := pool.Exec(ctx, `TRUNCATE users, user_colors, tokens RESTART IDENTITY CASCADE`)
+	// Note: CASCADE would reach the children anyway
+	_, err := pool.Exec(ctx, `TRUNCATE users, collections, collection_colors, tokens RESTART IDENTITY CASCADE`)
 	require.NoError(t, err)
 }
 

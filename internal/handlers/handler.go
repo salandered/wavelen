@@ -10,13 +10,18 @@ import (
 
 	"github.com/salandered/httputils/httputils"
 	"github.com/salandered/wavelen/internal/authsvc"
+	"github.com/salandered/wavelen/internal/collection"
+	"github.com/salandered/wavelen/internal/collectionsvc"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/colorsvc"
 	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/version"
 )
 
-const hexPathValue = "hex"
+const (
+	hexPathValue          = "hex"
+	collectionIDPathValue = "id"
+)
 
 const (
 	limitQuery  = "limit"
@@ -32,6 +37,10 @@ func HandleRoot(w http.ResponseWriter, req *http.Request) {
 	if _, err := fmt.Fprintf(w, "wavelen version %v\n", version.Get()); err != nil {
 		slog.ErrorContext(req.Context(), "failed writing root response", "error", err)
 	}
+}
+
+func collectionIDFromPath(req *http.Request) (collection.ID, error) {
+	return collection.ParseID(req.PathValue(collectionIDPathValue))
 }
 
 func hexFromPath(req *http.Request) (color.Hex, error) {
@@ -75,6 +84,11 @@ func writeStorageError(ctx context.Context, w http.ResponseWriter, err error) {
 		httputils.WriteError(ctx, w, errors.New("invalid credentials"), http.StatusUnauthorized)
 	case errors.Is(err, colorsvc.ErrQuotaFull):
 		httputils.WriteError(ctx, w, errors.New("color quota full"), http.StatusConflict)
+	case errors.Is(err, collectionsvc.ErrQuotaFull):
+		httputils.WriteError(ctx, w, errors.New("collection quota full"), http.StatusConflict)
+	case errors.Is(err, collectionsvc.ErrDeleteDefault):
+		httputils.WriteError(ctx, w,
+			errors.New("default collection cannot be deleted"), http.StatusConflict)
 	default:
 		httputils.WriteError(ctx, w, err, http.StatusInternalServerError)
 	}

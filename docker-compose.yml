@@ -21,6 +21,7 @@ services:
       SHUTDOWN_TIMEOUT: "${SHUTDOWN_TIMEOUT:-10s}"
       # empty means the app default, see .env.template
       USER_COLOR_QUOTA: "${USER_COLOR_QUOTA:-}"
+      USER_COLLECTION_QUOTA: "${USER_COLLECTION_QUOTA:-}"
       AUTH_TOKEN_TTL: "${AUTH_TOKEN_TTL:-}"
       AUTH_CONCUR_LIMIT: "${AUTH_CONCUR_LIMIT:-}"
       AUTH_CONCUR_WAIT: "${AUTH_CONCUR_WAIT:-}"

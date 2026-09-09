@@ -73,8 +73,8 @@ VERSION=0.2.0 docker compose build   # the compose default is dev
 
 See [api/api.yaml](api/api.yaml).
 
-Sign up, then log in. A user's own colors need the token from the login response;
-everything else is public. See also [docs/auth.md](docs/auth.md).
+Sign up, then log in. A user's own collections and colors need the token from the login
+response; everything else is public. See also [docs/auth.md](docs/auth.md).
 
 ```sh
 curl -X POST localhost:8080/api/v1/users \
@@ -90,10 +90,23 @@ TOKEN=<the token from above>
 
 curl localhost:8080/api/v1/me -H "Authorization: Bearer $TOKEN"
 
-curl -X POST localhost:8080/api/v1/me/colors \
+# an account comes with a "Main" collection; colors hang off a collection, not off the account
+curl localhost:8080/api/v1/me/collections -H "Authorization: Bearer $TOKEN"
+
+curl -X POST localhost:8080/api/v1/me/collections \
+  -H "Authorization: Bearer $TOKEN" -d '{"name":"Sunset"}'
+# 201 {"collection":{"id":"019927...","name":"Sunset","is_default":false,"created_at":"..."}}
+
+COLLECTION=<a collection id from above>
+
+curl -X POST localhost:8080/api/v1/me/collections/$COLLECTION/colors \
   -H "Authorization: Bearer $TOKEN" -d '{"hex":"FF00AA"}'
-curl localhost:8080/api/v1/me/colors -H "Authorization: Bearer $TOKEN"
-curl -X DELETE localhost:8080/api/v1/me/colors/ff00aa -H "Authorization: Bearer $TOKEN"
+curl localhost:8080/api/v1/me/collections/$COLLECTION/colors -H "Authorization: Bearer $TOKEN"
+curl -X DELETE localhost:8080/api/v1/me/collections/$COLLECTION/colors/ff00aa \
+  -H "Authorization: Bearer $TOKEN"
+
+# every collection but the default deletes, and takes its colors with it
+curl -X DELETE localhost:8080/api/v1/me/collections/$COLLECTION -H "Authorization: Bearer $TOKEN"
 
 # log out
 curl -X DELETE localhost:8080/api/v1/tokens -H "Authorization: Bearer $TOKEN"

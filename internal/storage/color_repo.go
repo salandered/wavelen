@@ -5,52 +5,62 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/salandered/wavelen/internal/collection"
 	"github.com/salandered/wavelen/internal/color"
-	"github.com/salandered/wavelen/internal/user"
 )
 
-// Returns false if such color already exists for this user.
-// An unknown user yields ErrUserNotFound.
-func (s *Postgres) AddColor(ctx context.Context, userID user.ID, hex color.Hex) (bool, error) {
+// Returns whether the color already was in the collection.
+// An unknown collection yields ErrNotFound
+func (s *Postgres) AddColor(
+	ctx context.Context, cltID collection.ID, hex color.Hex,
+) (bool, error) {
 	const query = `
-		INSERT INTO user_colors (user_id, hex, color_key)
+		INSERT INTO collection_colors (collection_id, hex, color_key)
 		VALUES ($1, $2, $3)
-		ON CONFLICT (user_id, hex) DO NOTHING`
+		ON CONFLICT (collection_id, hex) DO NOTHING`
 
-	tag, err := s.db.Exec(ctx, query, userID, hex, color.Feel(hex))
+	tag, err := s.db.Exec(ctx, query, cltID, hex, color.Feel(hex))
 	if err != nil {
 		if pgErrCode(err) == foreignKeyViolation {
-			return false, ErrUserNotFound
+			return false, ErrNotFound
 		}
 		return false, fmt.Errorf("storage add color: %w", err)
 	}
 	return tag.RowsAffected() == 1, nil
 }
 
-func (s *Postgres) CountColors(ctx context.Context, userID user.ID) (int, error) {
-	const query = `SELECT count(*) FROM user_colors WHERE user_id = $1`
+func (s *Postgres) CountColors(ctx context.Context, collectionID collection.ID) (int, error) {
+	const query = `SELECT count(*) FROM collection_colors WHERE collection_id = $1`
 
 	var n int
-	if err := s.db.QueryRow(ctx, query, userID).Scan(&n); err != nil {
+	if err := s.db.QueryRow(ctx, query, collectionID).Scan(&n); err != nil {
 		return 0, fmt.Errorf("storage count colors: %w", err)
 	}
 	return n, nil
 }
 
-func (s *Postgres) HasColor(ctx context.Context, userID user.ID, hex color.Hex) (bool, error) {
-	const query = `SELECT EXISTS (SELECT 1 FROM user_colors WHERE user_id = $1 AND hex = $2)`
+func (s *Postgres) HasColor(
+	ctx context.Context, cltID collection.ID, hex color.Hex,
+) (bool, error) {
+	const query = `
+		SELECT EXISTS (
+			SELECT 1 FROM collection_colors WHERE collection_id = $1 AND hex = $2
+		)`
 
 	var has bool
-	if err := s.db.QueryRow(ctx, query, userID, hex).Scan(&has); err != nil {
+	if err := s.db.QueryRow(ctx, query, cltID, hex).Scan(&has); err != nil {
 		return false, fmt.Errorf("storage has color: %w", err)
 	}
 	return has, nil
 }
 
-func (s *Postgres) DeleteColor(ctx context.Context, userID user.ID, hex color.Hex) error {
-	const query = `DELETE FROM user_colors WHERE user_id = $1 AND hex = $2`
+// ErrNotFound if no such row
+func (s *Postgres) DeleteColor(
+	ctx context.Context, cltID collection.ID, hex color.Hex,
+) error {
+	const query = `DELETE FROM collection_colors WHERE collection_id = $1 AND hex = $2`
 
-	tag, err := s.db.Exec(ctx, query, userID, hex)
+	tag, err := s.db.Exec(ctx, query, cltID, hex)
 	if err != nil {
 		return fmt.Errorf("storage delete color: %w", err)
 	}
@@ -62,11 +72,11 @@ func (s *Postgres) DeleteColor(ctx context.Context, userID user.ID, hex color.He
 
 // One page after the cursor, ordered by the column p names with hex as the tiebreak
 func (s *Postgres) ListColors(
-	ctx context.Context, userID user.ID, p ListColorsParams,
+	ctx context.Context, cltID collection.ID, p ListColorsParams,
 ) (ColorPage, error) {
 	p = p.normalized()
 
-	query, args, err := p.listQuery(userID)
+	query, args, err := p.listQuery(cltID)
 	if err != nil {
 		return ColorPage{}, fmt.Errorf("storage list colors: %w", err)
 	}
@@ -90,11 +100,11 @@ func (s *Postgres) ListColors(
 }
 
 // Builds the query with all the arguments
-func (p ListColorsParams) listQuery(userID user.ID) (string, []any, error) {
+func (p ListColorsParams) listQuery(cltID collection.ID) (string, []any, error) {
 	const template = `
 		SELECT hex, created_at
-		FROM user_colors
-		WHERE user_id = $1 %s
+		FROM collection_colors
+		WHERE collection_id = $1 %s
 		ORDER BY %s
 		LIMIT $2`
 
@@ -103,8 +113,8 @@ func (p ListColorsParams) listQuery(userID user.ID) (string, []any, error) {
 		return "", nil, err
 	}
 
-	args := []any{userID, p.Limit + 1} // one extra row is what HasMore reads
-	filter := ""                       // no cursor, no filter: the first page starts at the top
+	args := []any{cltID, p.Limit + 1} // one extra row is what HasMore reads
+	filter := ""                      // no cursor, no filter: the first page starts at the top
 	if p.After != nil {
 		filter = "AND " + predicate
 		args = append(args, cursorArgs...)

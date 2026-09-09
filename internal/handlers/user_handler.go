@@ -1,17 +1,22 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"time"
 
 	"github.com/salandered/httputils/httputils"
 	"github.com/salandered/wavelen/internal/auth"
-	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/user"
 )
 
+type UserService interface {
+	CreateUser(ctx context.Context, u *user.User) error
+	UserByID(ctx context.Context, id user.ID) (*user.User, error)
+}
+
 type UserHandler struct {
-	Users storage.UserRepo
+	UserSvc UserService
 }
 
 type CreateUserReq struct {
@@ -62,7 +67,7 @@ func (h *UserHandler) HandleCreateUser(w http.ResponseWriter, req *http.Request)
 	}
 
 	u := user.User{Nickname: nickname, Name: name, PasswordHash: hash}
-	if err := h.Users.CreateUser(ctx, &u); err != nil {
+	if err := h.UserSvc.CreateUser(ctx, &u); err != nil {
 		writeStorageError(ctx, w, err)
 		return
 	}
@@ -74,7 +79,7 @@ func (h *UserHandler) HandleCreateUser(w http.ResponseWriter, req *http.Request)
 func (h *UserHandler) HandleGetMe(w http.ResponseWriter, req *http.Request, userID user.ID) {
 	ctx := req.Context()
 
-	u, err := h.Users.UserByID(ctx, userID)
+	u, err := h.UserSvc.UserByID(ctx, userID)
 	if err != nil {
 		writeStorageError(ctx, w, err)
 		return

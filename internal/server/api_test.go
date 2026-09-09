@@ -19,12 +19,14 @@ import (
 	"github.com/getkin/kin-openapi/routers/gorillamux"
 	"github.com/salandered/wavelen"
 	"github.com/salandered/wavelen/internal/auth"
+	"github.com/salandered/wavelen/internal/collection"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/handlers"
 	"github.com/salandered/wavelen/internal/requestid"
 	"github.com/salandered/wavelen/internal/server"
 	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/user"
+	"github.com/salandered/wavelen/internal/usersvc"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -32,11 +34,18 @@ func TestAPISuite(t *testing.T) {
 	suite.Run(t, new(APISuite))
 }
 
+var (
+	collectionsPath = "/api/v1/me/collections"
+	collectionPath  = collectionsPath + "/" + stubCollectionID.String()
+	savedColorsPath = collectionPath + "/colors"
+)
+
 const (
-	testQuota    = 3
-	testTTL      = time.Hour
-	testPassword = "correct horse battery"
-	testToken    = "X3ASTT2CDAN66BACKSCI4SU7SI"
+	testQuota           = 3
+	testCollectionQuota = 2
+	testTTL             = time.Hour
+	testPassword        = "correct horse battery"
+	testToken           = "X3ASTT2CDAN66BACKSCI4SU7SI"
 
 	testAuthConcurLimit = 2
 	testAuthConcurWait  = 50 * time.Millisecond
@@ -65,10 +74,11 @@ func (s *APISuite) SetupSuite() {
 func (s *APISuite) SetupTest() {
 	s.storage = newMockStorage()
 	s.server = httptest.NewServer(server.NewHandler(s.storage, server.HandlerConfig{
-		UserColorQuota:  testQuota,
-		AuthTokenTTL:    testTTL,
-		AuthConcurLimit: testAuthConcurLimit,
-		AuthConcurWait:  testAuthConcurWait,
+		UserColorQuota:      testQuota,
+		UserCollectionQuota: testCollectionQuota,
+		AuthTokenTTL:        testTTL,
+		AuthConcurLimit:     testAuthConcurLimit,
+		AuthConcurWait:      testAuthConcurWait,
 	}))
 	s.client = s.server.Client()
 }
@@ -104,7 +114,7 @@ func (s *APISuite) TestReadyzReturnsOkWhenTheDatabaseAnswers() {
 	s.Require().Equal(1, s.storage.pingCalls)
 }
 
-func (s *APISuite) TestReadyzReturnsServiceUnavailableAndNamesTheDependency() {
+func (s *APISuite) TestReadyzReturnsServiceUnavailableAndNamesDependency() {
 	s.storage.pingErr = errors.New("connection refused")
 
 	resp := s.get("/readyz")
@@ -160,7 +170,18 @@ func (s *APISuite) TestCreateUserPassesNormalizedFieldsToStorage() {
 	s.Require().Equal("Olya", s.storage.gotUser.Name)
 }
 
-func (s *APISuite) TestCreateUserMapsDuplicateNicknameToConflict() {
+func (s *APISuite) TestCreateUserAlsoCreatesTheDefaultCollection() {
+	resp := s.post("/api/v1/users", handlers.CreateUserReq{
+		Nickname: "olya",
+		Name:     "Olya",
+		Password: testPassword,
+	})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+
+	s.Require().Equal(usersvc.DefCollectionName, s.storage.gotCollName)
+}
+
+func (s *APISuite) TestCreateUserDuplicateNicknameReturnsConflict() {
 	s.storage.createErr = storage.ErrDuplicateNickname
 
 	resp := s.post("/api/v1/users", handlers.CreateUserReq{
@@ -196,8 +217,7 @@ func (s *APISuite) TestGetMeWithoutCredentialsIsUnauthorized() {
 	s.Require().Zero(s.storage.gotUserID)
 }
 
-// Unreachable in production, tokens cascade with the user. Kept as defence, same as the
-// color routes.
+// Unreachable in production, tokens cascade with the user.
 func (s *APISuite) TestGetMeUnknownUserReturnsNotFound() {
 	s.storage.idErr = storage.ErrUserNotFound
 
@@ -293,19 +313,180 @@ func (s *APISuite) TestCreateUserRejectsBadInput() {
 	}
 }
 
+// Collections
+
+func (s *APISuite) TestCreateCollectionReturnsCreated() {
+	s.storage.tokenUser = 42
+
+	resp := s.post(collectionsPath, handlers.CreateCollectionReq{Name: "Sunset palette"})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+
+	var out handlers.OneCollectionResp
+	s.decode(resp, &out)
+	s.Require().Equal(stubCollectionID.String(), out.Collection.ID)
+	s.Require().Equal("Sunset palette", out.Collection.Name)
+	s.Require().Equal(stubTime.UTC(), out.Collection.CreatedAt)
+	// the id came from the token, the request carried none
+	s.Require().Equal(user.ID(42), s.storage.gotUserID)
+}
+
+func (s *APISuite) TestCreateCollectionIsNotDefault() {
+	resp := s.post(collectionsPath, handlers.CreateCollectionReq{Name: "Sunset"})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+
+	var out handlers.OneCollectionResp
+	s.decode(resp, &out)
+	s.Require().False(out.Collection.IsDefault)
+}
+
+func (s *APISuite) TestCreateCollectionPassesTrimmedNameToStorage() {
+	resp := s.post(collectionsPath, handlers.CreateCollectionReq{Name: "  Sunset  "})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+
+	s.Require().Equal("Sunset", s.storage.gotCollName)
+}
+
+func (s *APISuite) TestCreateCollectionRejectsBadInput() {
+	tests := map[string]string{
+		"empty name":    `{"name":""}`,
+		"blank name":    `{"name":"   "}`,
+		"overlong name": `{"name":"` + strings.Repeat("a", collection.MaxNameLen+1) + `"}`,
+		"missing name":  `{}`,
+		"unknown field": `{"name":"Sunset","is_default":true}`,
+		"empty body":    ``,
+		"not an object": `["Sunset"]`,
+	}
+	for name, body := range tests {
+		s.Run(name, func() {
+			resp := s.postRaw(collectionsPath, body)
+			s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
+			s.Require().Empty(s.storage.gotCollName)
+		})
+	}
+}
+
+func (s *APISuite) TestCreateCollectionAtTheQuotaReturnsConflict() {
+	s.storage.collectionCount = testCollectionQuota
+
+	resp := s.post(collectionsPath, handlers.CreateCollectionReq{Name: "Sunset"})
+
+	s.Require().Equal(http.StatusConflict, resp.StatusCode)
+	s.Require().Equal("collection quota full", s.errorMessage(resp))
+}
+
+func (s *APISuite) TestCreateCollectionForUnknownUserReturnsNotFound() {
+	s.storage.lockUserErr = storage.ErrUserNotFound
+
+	resp := s.post(collectionsPath, handlers.CreateCollectionReq{Name: "Sunset"})
+
+	s.Require().Equal(http.StatusNotFound, resp.StatusCode)
+	s.Require().Equal("user not found", s.errorMessage(resp))
+}
+
+func (s *APISuite) TestListCollectionsRendersEmptyArrayNotNull() {
+	s.storage.collections = nil
+
+	resp := s.get(collectionsPath)
+	s.Require().Equal(http.StatusOK, resp.StatusCode)
+	s.Require().JSONEq(`{"collections":[]}`, s.body(resp))
+}
+
+func (s *APISuite) TestListCollectionsKeepsOrderAndNormalizesTimeToUTC() {
+	s.storage.collections = []collection.Collection{
+		{ID: stubCollectionID, Name: "Main", IsDefault: true, CreatedAt: stubTime},
+		{ID: otherCollectionID, Name: "Sunset", CreatedAt: stubTime.Add(time.Hour)},
+	}
+
+	var out handlers.ListCollectionsResp
+	s.decode(s.get(collectionsPath), &out)
+
+	s.Require().Len(out.Collections, 2)
+	s.Require().Equal("Main", out.Collections[0].Name)
+	s.Require().True(out.Collections[0].IsDefault)
+	s.Require().Equal(otherCollectionID.String(), out.Collections[1].ID)
+	s.Require().False(out.Collections[1].IsDefault)
+	s.Require().Equal(time.UTC, out.Collections[0].CreatedAt.Location())
+}
+
+func (s *APISuite) TestGetCollection() {
+	s.storage.tokenUser = 42
+
+	resp := s.get(collectionPath)
+	s.Require().Equal(http.StatusOK, resp.StatusCode)
+
+	var out handlers.OneCollectionResp
+	s.decode(resp, &out)
+	s.Require().Equal(stubCollectionID.String(), out.Collection.ID)
+	s.Require().Equal(user.ID(42), s.storage.gotUserID)
+	s.Require().Equal(stubCollectionID, s.storage.gotCollectionID)
+}
+
+func (s *APISuite) TestGetCollectionTheCallerDoesNotOwnReturnsNotFound() {
+	s.storage.resolveErr = storage.ErrNotFound
+
+	resp := s.get(collectionPath)
+
+	s.Require().Equal(http.StatusNotFound, resp.StatusCode)
+	s.Require().Equal("not found", s.errorMessage(resp))
+}
+
+func (s *APISuite) TestCollectionRoutesRejectAMalformedID() {
+	for _, path := range []string{
+		"/api/v1/me/collections/main",
+		"/api/v1/me/collections/42",
+		"/api/v1/me/collections/not-a-uuid/colors",
+	} {
+		s.Run(path, func() {
+			resp := s.get(path)
+
+			s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
+			s.Require().Contains(s.errorMessage(resp), "invalid collection id")
+		})
+	}
+}
+
+func (s *APISuite) TestDeleteCollectionReturnsNoContent() {
+	s.storage.tokenUser = 42
+
+	resp := s.del(collectionPath)
+
+	s.Require().Equal(http.StatusNoContent, resp.StatusCode)
+	s.Require().Empty(s.body(resp))
+	s.Require().Equal(user.ID(42), s.storage.gotUserID)
+	s.Require().Equal(stubCollectionID, s.storage.gotCollectionID)
+}
+
+func (s *APISuite) TestDeleteDefaultCollectionReturnsConflict() {
+	s.storage.collIsDefault = true
+
+	resp := s.del(collectionPath)
+
+	s.Require().Equal(http.StatusConflict, resp.StatusCode)
+	s.Require().Equal("default collection cannot be deleted", s.errorMessage(resp))
+}
+
+func (s *APISuite) TestDeleteCollectionTheCallerDoesNotOwnReturnsNotFound() {
+	s.storage.resolveErr = storage.ErrNotFound
+
+	resp := s.del(collectionPath)
+
+	s.Require().Equal(http.StatusNotFound, resp.StatusCode)
+	s.Require().Equal("not found", s.errorMessage(resp))
+}
+
 // Adding a color
 
-func (s *APISuite) TestAddColorReturnsCreatedWhenStorageAddedIt() {
-	s.storage.added = true
+func (s *APISuite) TestAddColorReturnsCreated() {
+	s.storage.colorAdded = true
 
-	resp := s.post("/api/v1/me/colors", handlers.AddColorReq{Hex: "#ff0000"})
+	resp := s.post(savedColorsPath, handlers.AddColorReq{Hex: "#ff0000"})
 	s.Require().Equal(http.StatusCreated, resp.StatusCode)
 }
 
 func (s *APISuite) TestAddColorReturnsOKWhenAlreadySaved() {
-	s.storage.added = false
+	s.storage.colorAdded = false
 
-	resp := s.post("/api/v1/me/colors", handlers.AddColorReq{Hex: "#ff0000"})
+	resp := s.post(savedColorsPath, handlers.AddColorReq{Hex: "#ff0000"})
 	s.Require().Equal(http.StatusOK, resp.StatusCode)
 
 	// same body either way, only the status differs
@@ -317,7 +498,7 @@ func (s *APISuite) TestAddColorReturnsOKWhenAlreadySaved() {
 func (s *APISuite) TestAddColorPassesNormalizedHexAndTokenUserToStorage() {
 	s.storage.tokenUser = 42
 
-	resp := s.post("/api/v1/me/colors", handlers.AddColorReq{Hex: "  FF00AA  "})
+	resp := s.post(savedColorsPath, handlers.AddColorReq{Hex: "  FF00AA  "})
 	s.Require().Equal(http.StatusCreated, resp.StatusCode)
 
 	s.Require().Equal(color.Hex("#ff00aa"), s.storage.gotHex)
@@ -328,20 +509,20 @@ func (s *APISuite) TestAddColorPassesNormalizedHexAndTokenUserToStorage() {
 	s.Require().Equal("#ff00aa", out.Hex)
 }
 
-func (s *APISuite) TestAddColorUnknownUserShouldReturnNotFound() {
-	s.storage.lockErr = storage.ErrUserNotFound
+func (s *APISuite) TestAddColorToCollectionCallerDoesNotOwnReturnsNotFound() {
+	s.storage.resolveErr = storage.ErrNotFound
 
 	s.storage.tokenUser = 999
 
-	resp := s.post("/api/v1/me/colors", handlers.AddColorReq{Hex: "#ff0000"})
+	resp := s.post(savedColorsPath, handlers.AddColorReq{Hex: "#ff0000"})
 	s.Require().Equal(http.StatusNotFound, resp.StatusCode)
-	s.Require().Equal("user not found", s.errorMessage(resp))
+	s.Require().Equal("not found", s.errorMessage(resp))
 }
 
-func (s *APISuite) TestAddColorAFullQuotaShouldReturnConflict() {
+func (s *APISuite) TestAddColorFullQuotaShouldReturnConflict() {
 	s.storage.colorCount = testQuota
 
-	resp := s.post("/api/v1/me/colors", handlers.AddColorReq{Hex: "#ff0000"})
+	resp := s.post(savedColorsPath, handlers.AddColorReq{Hex: "#ff0000"})
 	s.Require().Equal(http.StatusConflict, resp.StatusCode)
 	s.Require().Equal("color quota full", s.errorMessage(resp))
 }
@@ -349,7 +530,7 @@ func (s *APISuite) TestAddColorAFullQuotaShouldReturnConflict() {
 func (s *APISuite) TestAddColorRejectsBadHex() {
 	for _, hex := range []string{"", "#fff", "red", "#ff00gg", "#ff0000ff"} {
 		s.Run(hex, func() {
-			resp := s.post("/api/v1/me/colors", handlers.AddColorReq{Hex: hex})
+			resp := s.post(savedColorsPath, handlers.AddColorReq{Hex: hex})
 			s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
 			s.Require().Empty(s.storage.gotHex)
 		})
@@ -361,7 +542,7 @@ func (s *APISuite) TestAddColorRejectsBadHex() {
 func (s *APISuite) TestDeleteColorReturnsNoContent() {
 	s.storage.tokenUser = 42
 
-	resp := s.del("/api/v1/me/colors/FF00AA")
+	resp := s.del(savedColorsPath + "/FF00AA")
 	s.Require().Equal(http.StatusNoContent, resp.StatusCode)
 	s.Require().Empty(s.body(resp))
 
@@ -370,21 +551,21 @@ func (s *APISuite) TestDeleteColorReturnsNoContent() {
 }
 
 func (s *APISuite) TestDeleteColorRejectsAnEscapedHash() {
-	resp := s.del("/api/v1/me/colors/%23ff00aa")
+	resp := s.del(savedColorsPath + "/%23ff00aa")
 	s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
 	s.Require().Empty(s.storage.gotHex)
 }
 
 // A '#' sent unescaped is a fragment: the server sees an empty segment and no route.
 func (s *APISuite) TestDeleteColorWithAnEmptyHexSegmentIsNotFound() {
-	s.Require().Equal(http.StatusNotFound, s.del("/api/v1/me/colors/").StatusCode)
+	s.Require().Equal(http.StatusNotFound, s.del(savedColorsPath+"/").StatusCode)
 	s.Require().Empty(s.storage.gotHex)
 }
 
-func (s *APISuite) TestDeleteColorTheUserDoesNotHaveReturnsNotFound() {
-	s.storage.deleteErr = storage.ErrNotFound
+func (s *APISuite) TestDeleteColorUserDoesNotHaveReturnsNotFound() {
+	s.storage.deleteColorErr = storage.ErrNotFound
 
-	resp := s.del("/api/v1/me/colors/ff0000")
+	resp := s.del(savedColorsPath + "/ff0000")
 	s.Require().Equal(http.StatusNotFound, resp.StatusCode)
 	s.Require().Equal("not found", s.errorMessage(resp))
 }
@@ -392,7 +573,7 @@ func (s *APISuite) TestDeleteColorTheUserDoesNotHaveReturnsNotFound() {
 func (s *APISuite) TestDeleteColorRejectsBadHex() {
 	for _, hex := range []string{"fff", "red", "ff00gg", "ff0000ff", "%23fff"} {
 		s.Run(hex, func() {
-			resp := s.del("/api/v1/me/colors/" + hex)
+			resp := s.del(savedColorsPath + "/" + hex)
 			s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
 			s.Require().Empty(s.storage.gotHex)
 		})
@@ -404,7 +585,7 @@ func (s *APISuite) TestDeleteColorRejectsBadHex() {
 func (s *APISuite) TestListColorsRendersEmptyArrayNotNull() {
 	s.storage.colors = nil
 
-	resp := s.get("/api/v1/me/colors")
+	resp := s.get(savedColorsPath)
 	s.Require().Equal(http.StatusOK, resp.StatusCode)
 	s.Require().JSONEq(`{"colors":[],"metadata":{"limit":50}}`, s.body(resp))
 }
@@ -416,7 +597,7 @@ func (s *APISuite) TestListColorsKeepsRepoOrderAndNormalizesTimeToUTC() {
 	}
 
 	var out handlers.ListColorsResp
-	s.decode(s.get("/api/v1/me/colors"), &out)
+	s.decode(s.get(savedColorsPath), &out)
 
 	s.Require().Len(out.Colors, 2)
 	s.Require().Equal("#0000ff", out.Colors[0].Hex)
@@ -425,7 +606,7 @@ func (s *APISuite) TestListColorsKeepsRepoOrderAndNormalizesTimeToUTC() {
 }
 
 func (s *APISuite) TestListColorsAppliesDefaultsWhenNoParamsAreGiven() {
-	s.get("/api/v1/me/colors")
+	s.get(savedColorsPath)
 
 	s.Require().Equal(storage.ListColorsParams{
 		Sort:  storage.SortByCreatedAt,
@@ -434,17 +615,17 @@ func (s *APISuite) TestListColorsAppliesDefaultsWhenNoParamsAreGiven() {
 	}, s.storage.gotParams)
 }
 
-func (s *APISuite) TestListColorsPassesEveryParsedParamDownIncludingACursorRoundTrip() {
+func (s *APISuite) TestListColorsPassesEveryParsedParamDownIncludingCursorRoundTrip() {
 	s.storage.colors = []color.Color{{Hex: "#00ff00", CreatedAt: stubTime}}
 	s.storage.hasMore = true
 
 	var first handlers.ListColorsResp
-	s.decode(s.get("/api/v1/me/colors?sort=hex&order=asc&limit=1"), &first)
+	s.decode(s.get(savedColorsPath+"?sort=hex&order=asc&limit=1"), &first)
 	s.Require().NotEmpty(first.Metadata.NextCursor)
 	s.Require().Equal(1, first.Metadata.Limit)
 
 	// when the client feeds that cursor back
-	s.get("/api/v1/me/colors?sort=hex&order=asc&limit=1&cursor=" + first.Metadata.NextCursor)
+	s.get(savedColorsPath + "?sort=hex&order=asc&limit=1&cursor=" + first.Metadata.NextCursor)
 
 	got := s.storage.gotParams
 	s.Require().Equal(storage.SortByHex, got.Sort)
@@ -459,7 +640,7 @@ func (s *APISuite) TestListColorsOmitsNextCursorAtTheEndOfTheList() {
 	s.storage.hasMore = false
 
 	var out handlers.ListColorsResp
-	s.decode(s.get("/api/v1/me/colors"), &out)
+	s.decode(s.get(savedColorsPath), &out)
 
 	s.Require().Empty(out.Metadata.NextCursor)
 }
@@ -471,7 +652,7 @@ func (s *APISuite) TestListColorsRejectsUnusableQueryParams() {
 		"cursor=!!!", "sort=hex&cursor=" + encodedCreatedAtCursor,
 	} {
 		s.Run(query, func() {
-			resp := s.get("/api/v1/me/colors?" + query)
+			resp := s.get(savedColorsPath + "?" + query)
 			s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
 		})
 	}
@@ -522,7 +703,6 @@ func (s *APISuite) TestListCommonColorsPassesTheColorSortDown() {
 	s.Require().Equal("black", out.Colors[0].Name) // the perceptual order opens on the neutrals
 }
 
-// created_at is a column of user_colors only, the palette has no such field
 func (s *APISuite) TestListCommonColorsRejectsInvalidQueryParams() {
 	for _, query := range []string{"sort=created_at", "sort=names", "order=sideways"} {
 		s.Run(query, func() {
@@ -596,7 +776,7 @@ func (s *APISuite) TestAuthenticatedRoutesRejectInvalidCreds() {
 		"lowercase kind": "bearer " + testToken,
 	} {
 		s.Run(name, func() {
-			resp := s.sendAs(http.MethodGet, "/api/v1/me/colors", nil, header)
+			resp := s.sendAs(http.MethodGet, savedColorsPath, nil, header)
 
 			s.Require().Equal(http.StatusUnauthorized, resp.StatusCode)
 			s.Require().Equal("invalid credentials", s.errorMessage(resp))
@@ -609,7 +789,7 @@ func (s *APISuite) TestAuthenticatedRoutesRejectInvalidCreds() {
 func (s *APISuite) TestUnknownOrExpiredTokenIsUnauthorized() {
 	s.storage.tokenErr = storage.ErrTokenNotFound
 
-	resp := s.get("/api/v1/me/colors")
+	resp := s.get(savedColorsPath)
 
 	s.Require().Equal(http.StatusUnauthorized, resp.StatusCode)
 	s.Require().Equal("invalid credentials", s.errorMessage(resp))
@@ -633,7 +813,7 @@ func (s *APISuite) TestPublicRoutesDoNotUseTokenStore() {
 }
 
 func (s *APISuite) TestAuthenticatedResponseVariesByAuthorization() {
-	resp := s.get("/api/v1/me/colors")
+	resp := s.get(savedColorsPath)
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode)
 	s.Require().Contains(resp.Header.Values("Vary"), "Authorization")
@@ -641,10 +821,10 @@ func (s *APISuite) TestAuthenticatedResponseVariesByAuthorization() {
 
 // Failure mapping
 
-func (s *APISuite) TestStorageFailureReturnsAbstractMessageNoInternalInfo() {
+func (s *APISuite) TestStorageOnFailureReturnsNoInternalInfo() {
 	s.storage.colorsErr = errors.New("connection refused to 10.0.0.5:5432")
 
-	resp := s.get("/api/v1/me/colors")
+	resp := s.get(savedColorsPath)
 	s.Require().Equal(http.StatusInternalServerError, resp.StatusCode)
 
 	body := s.body(resp)

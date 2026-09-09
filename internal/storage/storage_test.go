@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/salandered/wavelen/internal/collection"
 	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/storagetest"
 	"github.com/salandered/wavelen/internal/user"
@@ -47,40 +48,53 @@ func (s *StorageSuite) ctx() context.Context {
 // Not a valid bcrypt hash, nothing here verifies it.
 var stubPasswordHash = []byte("stub")
 
+const testCollectionName = "Main"
+
 func (s *StorageSuite) createUser(nickname, name string) user.ID {
+	userID, _ := s.createUserAndCollection(nickname, name)
+	return userID
+}
+
+// An account and its def collection
+func (s *StorageSuite) createUserAndCollection(
+	nickname, name string,
+) (user.ID, collection.ID) {
 	u := user.User{Nickname: nickname, Name: name, PasswordHash: stubPasswordHash}
 	s.Require().NoError(s.storage.CreateUser(s.ctx(), &u))
-	return u.ID
+
+	col, err := s.storage.CreateCollection(s.ctx(), u.ID, testCollectionName, true)
+	s.Require().NoError(err)
+	return u.ID, col.ID
 }
 
 // Tx tests
 
 func (s *StorageSuite) TestInTxCommitsWhenCallbackReturnsNil() {
-	userID := s.createUser("olya", "Olya")
+	_, collectionID := s.createUserAndCollection("olya", "Olya")
 
 	// when
 	err := s.storage.InTx(s.ctx(), func(tx storage.Storage) error {
-		_, err := tx.AddColor(s.ctx(), userID, "#ff0000")
+		_, err := tx.AddColor(s.ctx(), collectionID, "#ff0000")
 		return err
 	})
 
 	// then
 	s.Require().NoError(err)
-	n, err := s.storage.CountColors(s.ctx(), userID)
+	n, err := s.storage.CountColors(s.ctx(), collectionID)
 	s.Require().NoError(err)
 	s.Require().Equal(1, n)
 }
 
 func (s *StorageSuite) TestInTxRollsbackAllWritesWhenCallbackFails() {
-	userID := s.createUser("olya", "Olya")
+	_, collectionID := s.createUserAndCollection("olya", "Olya")
 	sentinel := errors.New("callback gave up")
 
 	// when
 	err := s.storage.InTx(s.ctx(), func(tx storage.Storage) error {
-		if _, err := tx.AddColor(s.ctx(), userID, "#ff0000"); err != nil {
+		if _, err := tx.AddColor(s.ctx(), collectionID, "#ff0000"); err != nil {
 			return err
 		}
-		if _, err := tx.AddColor(s.ctx(), userID, "#00ff00"); err != nil {
+		if _, err := tx.AddColor(s.ctx(), collectionID, "#00ff00"); err != nil {
 			return err
 		}
 		return sentinel
@@ -88,7 +102,7 @@ func (s *StorageSuite) TestInTxRollsbackAllWritesWhenCallbackFails() {
 
 	// then
 	s.Require().ErrorIs(err, sentinel)
-	n, err := s.storage.CountColors(s.ctx(), userID)
+	n, err := s.storage.CountColors(s.ctx(), collectionID)
 	s.Require().NoError(err)
 	s.Require().Zero(n)
 }
