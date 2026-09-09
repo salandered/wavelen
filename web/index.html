@@ -139,6 +139,15 @@
 			}
 		}
 
+		/*
+		   The browser hides [hidden] with display:none from its own stylesheet, which any
+		   display declared here outranks - #logged-in is a .row, so it stayed on screen logged
+		   out. Four elements are toggled by setting el.hidden, so the rule has to win outright.
+		*/
+		[hidden] {
+			display: none !important;
+		}
+
 		.row {
 			display: flex;
 			align-items: center;

@@ -72,6 +72,7 @@ function loadSession() {
 
 function startSession(token, expiry, name) {
 	session = { token, expiry, name };
+	collectionRequest = null; // the previous account's collection id belongs to nothing now
 	writeStored(SESSION_KEY, session);
 	renderSession();
 }
@@ -87,6 +88,7 @@ function setSessionName(name) {
 // first, an expiry or a 401 means it already is.
 function endSession() {
 	session = null;
+	collectionRequest = null;
 	writeStored(SESSION_KEY, null);
 	renderSession();
 }
@@ -172,14 +174,53 @@ function setProgress(message) {
 	pushLog(message, { transient: true });
 }
 
-// The saved-colors calls need a token, not an id: /api/v1/me/colors resolves the user server-side.
-// This only stops a logged out click from sending a request that could only answer 401.
+// The saved-colors calls need a token, not a user id: /api/v1/me/... resolves the user
+// server-side. This only stops a logged out click from sending a request that could only
+// answer 401.
 function requireSession() {
 	if (session === null) {
 		setStatus("log in first", true);
 		return false;
 	}
 	return true;
+}
+
+// ---- the default collection ----
+// Colors live in a collection now, so every saved-colors path carries an id the page has to ask
+// for: GET /me/collections, take the one flagged is_default. There is no route meaning "the
+// default", by design - the id is the only way to name it.
+//
+// The page shows one collection and does not offer a picker. Everything below is the discovery
+// step alone, so adding a picker later is a second id in this variable and no new request.
+
+// The discovery request itself, kept rather than its answer, so the eight bulk-add workers share
+// one lookup instead of racing to make eight.
+let collectionRequest = null;
+
+function defaultCollection() {
+	collectionRequest ??= discoverDefaultCollection().catch((err) => {
+		// a failed lookup is not an answer, so the next click asks again instead of replaying it
+		collectionRequest = null;
+		throw err;
+	});
+	return collectionRequest;
+}
+
+// Signup creates the account and its default collection in one transaction, so the flag is
+// always on exactly one row. Missing means the account was built some other way.
+async function discoverDefaultCollection() {
+	const { data } = await call("GET", "/me/collections");
+	const found = data.collections.find((c) => c.is_default);
+	if (found === undefined) {
+		throw new Error("this account has no default collection");
+	}
+	return found.id;
+}
+
+// The path prefix every saved color goes through. Awaiting it is what makes the first saved-colors
+// action of a session cost two requests instead of one.
+async function savedColorsPath() {
+	return `/me/collections/${await defaultCollection()}/colors`;
 }
 
 // A saved swatch is captioned with its timestamp, and the label is one line that must fit a
@@ -310,7 +351,7 @@ async function deleteColor(hex, cell, button) {
 	}
 	button.disabled = true; // a second click while the first is out would answer 404
 	try {
-		await call("DELETE", `/me/colors/${hex.slice(1)}`);
+		await call("DELETE", `${await savedColorsPath()}/${hex.slice(1)}`);
 		cell.remove();
 		if ($("saved").childElementCount === 0) {
 			renderEmpty($("saved"), "nothing saved");
@@ -553,7 +594,7 @@ async function loadSaved({ append = false } = {}) {
 	// one is out would send it again and append the same page twice
 	$("load-more").disabled = true;
 	try {
-		const { data } = await call("GET", `/me/colors?${savedQuery(cursor)}`);
+		const { data } = await call("GET", `${await savedColorsPath()}?${savedQuery(cursor)}`);
 		if (generation !== savedGeneration) {
 			return; // a later load owns the grid now
 		}
@@ -608,6 +649,16 @@ async function addRandomColors() {
 		return;
 	}
 
+	// Resolved once, before any worker starts. A failed lookup ends the run here rather than
+	// failing all twenty adds with the same message.
+	let path;
+	try {
+		path = await savedColorsPath();
+	} catch (err) {
+		setStatus(err.message, true);
+		return;
+	}
+
 	// a set, so the run is BULK_COUNT distinct colors rather than that many draws with collisions
 	const queue = new Set();
 	while (queue.size < BULK_COUNT) {
@@ -625,7 +676,7 @@ async function addRandomColors() {
 		while (hexes.length > 0) {
 			const hex = hexes.pop();
 			try {
-				const { status } = await call("POST", "/me/colors", { hex });
+				const { status } = await call("POST", path, { hex });
 				if (status === 201) {
 					created++;
 				}
@@ -908,7 +959,7 @@ $("add-form").addEventListener("submit", async (event) => {
 		return;
 	}
 	try {
-		const { status, data } = await call("POST", "/me/colors", { hex: $("hex").value });
+		const { status, data } = await call("POST", await savedColorsPath(), { hex: $("hex").value });
 		setStatus(status === 201 ? `added ${data.hex}` : `${data.hex} was already saved`);
 		await loadSaved();
 	} catch (err) {
