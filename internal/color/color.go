@@ -1,6 +1,8 @@
 package color
 
 import (
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/salandered/strvalid"
@@ -36,4 +38,89 @@ func ParseHex(s string) (Hex, error) {
 		return "", err
 	}
 	return Hex(parsed), nil
+}
+
+// Feel is the perceptual ordering key of h.
+func Feel(h Hex) int32 {
+	return perceptualSortKey(h)
+}
+
+// Harmony is a supported color scheme
+type Harmony string
+
+const (
+	Complement      Harmony = "complement"
+	Analogous       Harmony = "analogous"
+	Triad           Harmony = "triad"
+	SplitComplement Harmony = "split-complement"
+	Square          Harmony = "square"
+	Ramp            Harmony = "ramp"
+	Tones           Harmony = "tones"
+)
+
+// The table of: harmony name, harmony formula.
+var harmonies = [...]struct {
+	name Harmony
+	of   func(Hex) []Hex
+}{
+	{Complement, rotations(complementDeg)},
+	{Analogous, rotations(-analogousDeg, analogousDeg)},
+	{Triad, rotations(triadDeg, 2*triadDeg)},
+	{SplitComplement, rotations(splitComplementDeg, 360-splitComplementDeg)},
+	{Square, rotations(squareDeg, 2*squareDeg, 3*squareDeg)},
+	{Ramp, ramp},
+	{Tones, tones},
+}
+
+var ErrUnknownHarmony = errors.New("unknown harmony")
+
+// ParseHarmony creates a Harmony out of s.
+func ParseHarmony(s string) (Harmony, error) {
+	harmony := Harmony(s)
+	for _, h := range harmonies {
+		if h.name == harmony {
+			return harmony, nil
+		}
+	}
+	return "", fmt.Errorf("%w %q", ErrUnknownHarmony, s)
+}
+
+// HarmonyNames lists the harmony names in table order.
+func HarmonyNames() []Harmony {
+	out := make([]Harmony, len(harmonies))
+	for i, h := range harmonies {
+		out[i] = h.name
+	}
+	return out
+}
+
+// Colors runs the harmony on hex.
+// A unknown Harmony answers nil. Use [ParseHarmony].
+func (harmony Harmony) Colors(hex Hex) []Hex {
+	for _, h := range harmonies {
+		if h.name == harmony {
+			return h.of(hex)
+		}
+	}
+	return nil
+}
+
+// A harmony turns the hue only. The rotations are the definition.
+const (
+	complementDeg      = 180
+	analogousDeg       = 30
+	triadDeg           = 120
+	splitComplementDeg = 150
+	squareDeg          = 90
+)
+
+// A harmony that is a hue rotation.
+func rotations(degs ...float64) func(Hex) []Hex {
+	return func(h Hex) []Hex {
+		out := make([]Hex, len(degs))
+		for i, deg := range degs {
+			out[i] = rotate(h, deg)
+		}
+		return out
+	}
 }

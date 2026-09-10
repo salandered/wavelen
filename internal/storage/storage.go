@@ -34,7 +34,7 @@ func pgErrCode(err error) string {
 }
 
 // Unit of work transactional boundaries
-// See dev/dbtx.md
+// See docs/dbtx.md
 
 // Satisfied by [*pgxpool.Pool] and [pgx.Tx].
 type querier interface {

@@ -5,7 +5,8 @@ const API = "/api/v1";
 // "theme" is written by the inline script in <head> and stays a raw string. Everything read
 // through readStored below is JSON, so the two don't share a key.
 const DETAILS_KEY = "details_open";
-const SWATCH_INFO_KEY = "swatch_info";
+const ZEN_KEY = "zen";
+const DENSE_KEY = "dense";
 const SESSION_KEY = "session";
 const CONTROLS_KEY = "controls";
 
@@ -265,13 +266,15 @@ function resetCollections() {
 // The set is the sprite in index.html and nowhere else on this page: the picker is built by reading
 // the symbol ids back out. The server holds the same list in internal/icon and answers 400 for a
 // slug outside it.
-const DEF_ICON = "folder";
+const DEF_ICON = "square";
 const DEF_ACCENT = "#808080";
 
 let selectedIcon = DEF_ICON;
 
+// i- only: the sprite also holds ui- glyphs the page uses for itself, and internal/icon answers
+// 400 for a slug it does not have.
 function iconNames() {
-	return [...document.querySelectorAll("#icon-sprite symbol")]
+	return [...document.querySelectorAll("#icon-sprite symbol[id^='i-']")]
 		.map((symbol) => symbol.id.replace(/^i-/, ""));
 }
 
@@ -279,15 +282,20 @@ function iconNames() {
 // browser parses them as unknown tags and draws nothing.
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-function iconSvg(name, className) {
+function spriteSvg(id, className) {
 	const svg = document.createElementNS(SVG_NS, "svg");
 	svg.setAttribute("class", className);
 	svg.setAttribute("aria-hidden", "true");
 
 	const use = document.createElementNS(SVG_NS, "use");
-	use.setAttribute("href", `#i-${name}`);
+	use.setAttribute("href", `#${id}`);
 	svg.append(use);
 	return svg;
+}
+
+// a collection icon, by the slug the API stores
+function iconSvg(name, className) {
+	return spriteSvg(`i-${name}`, className);
 }
 
 // Built once: the sprite is static, and only the selected mark and the tint change afterwards.
@@ -345,11 +353,9 @@ function iconMenuOpen() {
 	return $("icon-trigger").getAttribute("aria-expanded") === "true";
 }
 
-// One chip per collection: the name selects it, the "x" deletes it. The default chip carries the
+// One tab per collection: the name selects it, the "x" deletes it. The default tab carries the
 // marker instead, because the server refuses that delete with a 409.
 function renderCollections() {
-	$("saved-in").textContent = collectionName(activeCollection);
-
 	if (collections.length === 0) {
 		renderEmpty($("collections"), "none");
 		return;
@@ -359,20 +365,29 @@ function renderCollections() {
 		row.className = "collection";
 		row.classList.toggle("active", col.id === activeCollection);
 
-		// an account made before the icon existed has neither field, so both fall back
-		const glyph = iconSvg(col.icon ?? DEF_ICON, "icon collection-icon");
-		glyph.style.color = col.accent ?? DEF_ACCENT;
-		row.append(glyph);
-
+		// The glyph, the name and the marker are one button, so the whole tab selects. Only
+		// the delete stays outside it.
 		const name = document.createElement("button");
 		name.type = "button";
 		name.className = "collection-name";
-		name.textContent = col.name;
 		name.title = col.id === activeCollection ? "showing this one" : `show ${col.name}`;
 		name.addEventListener("click", () => selectCollection(col.id));
+
+		// an account made before the icon existed has neither field, so both fall back
+		const glyph = iconSvg(col.icon ?? DEF_ICON, "icon collection-icon");
+		glyph.style.color = col.accent ?? DEF_ACCENT;
+		const text = document.createElement("span");
+		text.className = "name";
+		text.textContent = col.name;
+		name.append(glyph, text);
+		if (col.is_default) {
+			name.append(defaultTag());
+		}
 		row.append(name);
 
-		row.append(col.is_default ? defaultTag() : collectionRemove(col));
+		if (!col.is_default) {
+			row.append(collectionRemove(col));
+		}
 		return row;
 	}));
 }
@@ -455,6 +470,10 @@ function savedLabel(at) {
 let selectedHex = null;
 let selectedLabel = "";
 
+// What the page opens on. The hex and the name are the palette's own row for gray, see
+// internal/palette, so the grid marks the swatch the panels are showing.
+const DEF_SELECTION = { hex: "#808080", name: "gray" };
+
 // Perceived brightness (the YIQ weights) picks between a black and a white label. Not a contrast
 // ratio, but one line and enough to keep every swatch readable.
 function labelColor(hex) {
@@ -491,23 +510,39 @@ function swatch(hex, label) {
 	return el;
 }
 
-// The picker mirrors the selection, so it lands on a color chosen anywhere else and can nudge it.
-//
-// Everything selects through here except the picker itself, which goes through setSelection: it
-// already holds the value, and writing it back into the input while its dialog is open would fight
-// the dialog for it.
+// The picker and the hex field mirror the selection, so both land on a color chosen anywhere else
+// and can nudge it. Each of them is also a producer that already holds the value, so it writes the
+// other one and not itself: a write into the picker while its dialog is open fights the dialog, and
+// a write into the field moves the caret. Swatches and the random button write both.
 function selectColor(hex, label) {
 	$("pick").value = hex;
-	renderPick();
 	setSelection(hex, label);
 }
 
-// Every producer comes through here, so the add field and the panels beside it cannot disagree.
+// the picker's path
 function setSelection(hex, label) {
+	$("hex").value = hex; // the add form's field, so "add" saves what the panels are showing
+	commitSelection(hex, label);
+}
+
+// the field's path
+function selectTyped(hex) {
+	$("pick").value = hex;
+	commitSelection(hex, "typed");
+}
+
+// Every producer comes through here, so the inputs and the panels beside them cannot disagree.
+function commitSelection(hex, label) {
 	selectedHex = hex;
 	selectedLabel = label;
-	$("hex").value = hex; // the add form's field, so "add" saves what the panels are showing
 	selectionChanged();
+}
+
+// The server's own normalization, see color.ParseHex: trimmed, the '#' optional, case folded.
+// Null is a field that names no color yet.
+function parseHex(text) {
+	const digits = text.trim().replace(/^#/, "");
+	return /^[0-9a-fA-F]{6}$/.test(digits) ? `#${digits.toLowerCase()}` : null;
 }
 
 function clearSelection() {
@@ -520,16 +555,19 @@ function clearSelection() {
 function selectionChanged() {
 	markSelected();
 	renderDetail();
-	$("complement").disabled = selectedHex === null;
-	$("triad").disabled = selectedHex === null;
+	$("pick").disabled = selectedHex === null;
+	for (const mode of HARMONIES) {
+		$(mode).disabled = selectedHex === null;
+	}
 
 	// a strip built for the previous color would be wrong, so it either follows or goes back to
 	// the placeholder
-	if (harmonyMode !== null && selectedHex !== null) {
+	if (selectedHex !== null) {
 		showHarmony(harmonyMode);
 	} else {
-		renderHarmonyPlaceholder();
+		clearHarmony();
 	}
+	showScales();
 }
 
 // A saved swatch carries a delete control, a palette one does not. Siblings inside a cell, not one
@@ -597,6 +635,8 @@ async function toggleFullscreen(el) {
 
 // navigator.clipboard exists only in a secure context, so over plain http the property is missing
 // and reading through it throws. In an async function that is a rejection like any other.
+// The dip on a press is on every button, so a copy needs none of its own. The log line is what
+// separates a copy that failed from one that went through.
 async function copyHex(hex) {
 	try {
 		await navigator.clipboard.writeText(hex);
@@ -609,7 +649,7 @@ async function copyHex(hex) {
 // One panel for both grids, since the selection they share is one hex.
 function renderDetail() {
 	if (selectedHex === null) {
-		renderEmpty($("detail"), "click a color");
+		$("detail").replaceChildren();
 		return;
 	}
 	const hex = selectedHex; // captured, so a later selection does not rewrite these handlers
@@ -644,58 +684,71 @@ function renderDetail() {
 	$("detail").replaceChildren(stack, caption);
 }
 
-// ---- color picker ----
-// <input type="color"> is the whole picker: the dialog belongs to the browser, and this panel is
-// the swatch that opens it. What it produces is a selection, the same as a swatch click.
+// ---- color pickers ----
+// Two <input type="color">, and the dialog belongs to the browser in both. The one in the Selected
+// panel mirrors the selection and nudges it: what it produces is a selection, the same as a swatch
+// click. The one in the Picker panel is a scratch pad and touches nothing else on the page.
 //
 // A drag reports every color it passes through, and with a harmony on screen each selection is a
-// request. So the label follows every step and the selection waits for the drag to go quiet.
+// request. So the selection waits for the drag to go quiet.
 const PICK_QUIET = 200;
 
 let pickTimer = null;
-
-function renderPick() {
-	$("pick-hex").textContent = $("pick").value;
-}
 
 function initPicker() {
 	// input reports each step of a drag, change the committed value. Which of them a browser sends
 	// and how often varies, so both schedule the same commit and the timer collapses the gesture.
 	for (const type of ["input", "change"]) {
 		$("pick").addEventListener(type, () => {
-			renderPick();
 			clearTimeout(pickTimer);
 			pickTimer = setTimeout(() => setSelection($("pick").value, "picked"), PICK_QUIET);
 		});
 	}
-	$("pick-hex").addEventListener("click", () => copyHex($("pick").value));
-	renderPick();
+}
+
+function renderScratch() {
+	$("scratch-hex").textContent = $("scratch").value;
+}
+
+// the label follows every step of a drag: nothing here costs a request
+function initScratch() {
+	for (const type of ["input", "change"]) {
+		$("scratch").addEventListener(type, renderScratch);
+	}
+	$("scratch-hex").addEventListener("click", () => copyHex($("scratch").value));
+	renderScratch();
 }
 
 // ---- harmony ----
 
 // Which harmony the panel is showing, so clicking a different swatch keeps it rather than making
-// the button be pressed again.
-let harmonyMode = null;
+// the button be pressed again. Complement from the start: a selection with an empty strip beside
+// it looked like a panel waiting for something.
+let harmonyMode = "complement";
 
 // Same guard as loadSaved: the buttons stay live while a request is out, so an earlier response
 // landing later must not replace a fresher strip.
 let harmonyGeneration = 0;
 
-// The endpoint answers with the color asked about beside the others, and the strip shows all of
-// them: the pairing is the point.
-const HARMONIES = {
-	complement: (data) => [data.hex, data.complement],
-	triad: (data) => [data.hex, ...data.triad],
-};
+// The modes, in the order the pills sit in, and each name is also its pill's id. These are the
+// hue rotations out of color.HarmonyNames; ramp is the server's sixth and has a section of its own.
+const HARMONIES = ["complement", "analogous", "triad", "split-complement", "square"];
 
-function renderHarmonyPlaceholder() {
-	renderEmpty($("harmony"), selectedHex === null ? "click a color" : "pick a harmony");
+function clearHarmony() {
+	$("harmony").replaceChildren();
 }
 
-// Only reached with a selection: both buttons are disabled without one.
+// aria-pressed is the record of the mode, and the CSS reads it
+function renderHarmonyButtons() {
+	for (const mode of HARMONIES) {
+		$(mode).setAttribute("aria-pressed", String(mode === harmonyMode));
+	}
+}
+
+// Only reached with a selection: the pills are disabled without one.
 async function showHarmony(mode) {
 	harmonyMode = mode;
+	renderHarmonyButtons();
 	const generation = ++harmonyGeneration;
 	const hex = selectedHex;
 
@@ -705,19 +758,172 @@ async function showHarmony(mode) {
 		if (generation !== harmonyGeneration) {
 			return; // a later click owns the panel now
 		}
-		renderHarmony(HARMONIES[mode](data));
+		// one shape for every harmony: the normalized hex asked about, the name, and the colors
+		// it derives. The strip shows the color beside them, since the pairing is the point.
+		renderHarmony([data.hex, ...data.colors]);
 	} catch (err) {
 		if (generation !== harmonyGeneration) {
 			return;
 		}
-		renderHarmonyPlaceholder();
+		clearHarmony();
 		setStatus(err.message, true);
 	}
+}
+
+// ---- scales ----
+
+// The two harmonies that hold the hue and sweep one axis: ramp the lightness, tones the chroma.
+// Seven bands each want the width of the main column, and the labels only fit there. Both are the
+// name of their harmony, of the div that holds the strip and of the button beside it, so one
+// function draws either. The section has no mode to keep, so it follows the selection alone.
+const SCALES = ["ramp", "tones"];
+
+let scaleGeneration = 0;
+
+// The steps of whichever strip is on screen, kept so the ramp's add button does not ask for them a
+// second time. Emptied with the strip, so the button cannot post a scale of an older selection.
+const scaleColors = { ramp: [], tones: [] };
+
+// A closed section asks for nothing. What it missed while closed is what it loads when it opens.
+let scalesStale = false;
+
+function showScales() {
+	if (!$("scales-section").open) {
+		scalesStale = true;
+		return;
+	}
+	scalesStale = false;
+
+	// one number for the pair, so a selection landing mid-flight drops both older strips
+	const generation = ++scaleGeneration;
+	for (const scale of SCALES) {
+		if (selectedHex === null) {
+			scaleColors[scale] = [];
+			$(scale).replaceChildren();
+		} else {
+			loadScale(scale, selectedHex, generation);
+		}
+	}
+}
+
+async function loadScale(scale, hex, generation) {
+	try {
+		const { data } = await call("GET", `/colors/${hex.slice(1)}/${scale}`);
+		if (generation !== scaleGeneration) {
+			return; // a later selection owns the section now
+		}
+		// The steps alone, unlike the harmony panel. A scale is seven points on an axis and the
+		// selection is not one of them, so a band for it would sit at the head reading as a step
+		// out of order. A band selects, the way a swatch does, and the button above the strip is
+		// what sends it full screen.
+		scaleColors[scale] = data.colors;
+		$(scale).replaceChildren(buildStrip(data.colors, (step) => selectColor(step, scale)));
+	} catch (err) {
+		if (generation !== scaleGeneration) {
+			return;
+		}
+		scaleColors[scale] = [];
+		$(scale).replaceChildren();
+		setStatus(err.message, true);
+	}
+}
+
+// A step the collection already holds answers 200 rather than 201, so created counts what was new,
+// the same shape the bulk run reports.
+async function addRamp() {
+	if (!requireSession()) {
+		return;
+	}
+	const hexes = scaleColors.ramp;
+	if (hexes.length === 0) {
+		setStatus("nothing to add", true);
+		return;
+	}
+
+	let path;
+	try {
+		path = await savedColorsPath();
+	} catch (err) {
+		setStatus(err.message, true);
+		return;
+	}
+
+	let created = 0;
+	let failed = 0;
+	let firstError = null;
+
+	$("ramp-add").disabled = true;
+	try {
+		for (const [done, hex] of hexes.entries()) {
+			try {
+				const { status } = await call("POST", path, { hex });
+				if (status === 201) {
+					created++;
+				}
+			} catch (err) {
+				failed++;
+				firstError ??= err.message;
+			}
+			setProgress(`adding the ramp... ${done + 1}/${hexes.length}`);
+		}
+	} finally {
+		$("ramp-add").disabled = false;
+	}
+
+	const summary = `added ${created} of ${hexes.length} to ${collectionName(activeCollection)}`;
+	setStatus(failed === 0 ? summary : `${summary}, ${failed} failed - ${firstError}`, failed > 0);
+	await loadSaved();
+}
+
+// The strip is already on the page, so it goes full screen where it stands. The saved grid has to
+// build one first, since a grid of cells is not a strip.
+function showScaleFullscreen(scale) {
+	const strip = $(scale).querySelector(".harmony");
+	if (strip === null) {
+		setStatus("nothing to show", true);
+		return;
+	}
+	toggleFullscreen(strip);
 }
 
 // The strip goes full screen, not a band: one color of a harmony full screen is what the Selected
 // panel already does. So the strip is a plain element and every band carries its own pair.
 function renderHarmony(hexes) {
+	$("harmony").replaceChildren(buildStrip(hexes));
+}
+
+// The saved grid as the same strip, straight to full screen. It is the swatches on screen, pages
+// loaded so far in their sort order, so what goes full screen is what the grid shows. The strip
+// lives off stage in <body> only while it is up: it has no panel of its own.
+async function showSavedFullscreen() {
+	const hexes = [...document.querySelectorAll("#saved .swatch")].map((el) => el.dataset.hex);
+	if (hexes.length === 0) {
+		setStatus("nothing to show", true);
+		return;
+	}
+	const strip = buildStrip(hexes);
+	strip.classList.add("offstage");
+	document.body.append(strip);
+
+	// leaving full screen, by Escape or by a band click, is when the element goes
+	document.addEventListener("fullscreenchange", function onLeave() {
+		if (document.fullscreenElement === null) {
+			document.removeEventListener("fullscreenchange", onLeave);
+			strip.remove();
+		}
+	});
+	try {
+		await strip.requestFullscreen();
+	} catch (err) {
+		strip.remove();
+		setStatus(`full screen refused - ${err.message}`, true);
+	}
+}
+
+// A band click goes full screen, since the strip is what has a fullscreen view and a panel strip
+// has no room for a button of its own. A caller that passes onBand takes the click instead and
+// carries its own button, see the ramp section.
+function buildStrip(hexes, onBand) {
 	const strip = document.createElement("div");
 	strip.className = "harmony";
 	// every band opens the same strip, so they share one label rather than each naming its color
@@ -731,9 +937,14 @@ function renderHarmony(hexes) {
 		block.type = "button";
 		block.className = "band-color";
 		block.style.background = hex;
-		block.title = "full screen, click again to leave";
-		block.setAttribute("aria-label", fullscreenLabel);
-		block.addEventListener("click", () => toggleFullscreen(strip));
+		if (onBand === undefined) {
+			block.title = "full screen, click again to leave";
+			block.setAttribute("aria-label", fullscreenLabel);
+			block.addEventListener("click", () => toggleFullscreen(strip));
+		} else {
+			block.setAttribute("aria-label", hex);
+			block.addEventListener("click", () => onBand(hex));
+		}
 
 		const code = document.createElement("button");
 		code.type = "button";
@@ -746,7 +957,7 @@ function renderHarmony(hexes) {
 		band.append(block, code);
 		strip.append(band);
 	}
-	$("harmony").replaceChildren(strip);
+	return strip;
 }
 
 // markSelected, so a swatch keeps its mark across a re-render.
@@ -860,7 +1071,7 @@ function randomDigits() {
 // Dev only. There is no bulk endpoint: these are ordinary POSTs, a few in flight at a time. All at
 // once is a burst nothing else on this page produces, one at a time is a round trip each.
 
-const BULK_COUNT = 20;
+const BULK_COUNT = 10;
 const BULK_IN_FLIGHT = 8;
 
 async function addRandomColors() {
@@ -924,29 +1135,51 @@ async function addRandomColors() {
 // ---- account ----
 
 // Both forms ask for a nickname and a password, so only one is on screen. The choice is not stored:
-// the panel only exists logged out.
+// the dialog only opens logged out.
 const ACCOUNT_TABS = ["login", "signup"];
 
-// aria-selected is the record, and the CSS reads it: nothing else tracks which tab is up.
+// aria-selected is the record, and the CSS reads it: nothing else tracks which tab is up. With the
+// dialog open the focus follows into the form, since the tab was clicked to type there.
 function selectAccountTab(name) {
 	for (const tab of ACCOUNT_TABS) {
 		const selected = tab === name;
 		$(`tab-${tab}`).setAttribute("aria-selected", String(selected));
 		$(`${tab}-form`).hidden = !selected;
 	}
+	if ($("account").open) {
+		$(`${name}-form`).querySelector("input").focus();
+	}
 }
 
-// Only Collections and Saved colors need a token. The palette and both harmonies are public, so a
+function openAccount() {
+	showAccountError("");
+	$("account").showModal();
+	selectAccountTab("login");
+}
+
+// The log panel is behind the backdrop while the dialog is up, so a failure is written here as
+// well. Cleared on open and on success, since the line is only there while it has text.
+function showAccountError(message) {
+	$("account-error").textContent = message;
+}
+
+// A click on the backdrop lands on the dialog element itself, not on anything inside it.
+function closeOnBackdrop(dialog) {
+	dialog.addEventListener("click", (event) => {
+		if (event.target === dialog) {
+			dialog.close();
+		}
+	});
+}
+
+// Only Collections and Saved colors need a token. The palette and every harmony are public, so a
 // logged out visitor keeps a working page.
 function renderSession() {
 	$("logged-out").hidden = session !== null;
 	$("logged-in").hidden = session === null;
 	$("saved-section").hidden = session === null;
-	$("collections-section").hidden = session === null;
 
 	if (session === null) {
-		// the last visit may have left the panel on sign up
-		selectAccountTab("login");
 		// the cursor was minted for the session that just ended and carries no user of its own,
 		// so a later load-more would append the previous account's next page
 		setNextCursor(null);
@@ -964,6 +1197,8 @@ function renderSession() {
 async function login(nickname, password) {
 	const { data } = await call("POST", "/tokens", { nickname, password });
 	startSession(data.token, data.expiry, "");
+	showAccountError("");
+	$("account").close();
 
 	const { data: me } = await call("GET", "/me");
 	setSessionName(me.user.name);
@@ -978,9 +1213,18 @@ function currentTheme() {
 		?? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
 }
 
+// The glyph is the theme a click switches to, as the text label was. sun and moon are two of the
+// collection icons, so the sprite already holds them.
+function renderThemeButton(theme) {
+	const next = theme === "dark" ? "light" : "dark";
+	$("theme").replaceChildren(iconSvg(next === "light" ? "sun" : "moon", "icon"));
+	$("theme").title = `${next} theme`;
+	$("theme").setAttribute("aria-label", `switch to ${next} theme`);
+}
+
 function applyTheme(theme) {
 	document.documentElement.dataset.theme = theme;
-	$("theme").textContent = theme === "dark" ? "light" : "dark";
+	renderThemeButton(theme);
 	try {
 		// raw, not writeStored: the <head> script reads this one back without parsing it
 		localStorage.setItem("theme", theme);
@@ -989,10 +1233,29 @@ function applyTheme(theme) {
 	}
 }
 
-function applySwatchInfo(hidden) {
-	document.documentElement.classList.toggle("no-swatch-info", hidden);
-	$("swatch-info").textContent = hidden ? "show info" : "hide info";
-	writeStored(SWATCH_INFO_KEY, hidden);
+function applyZen(on) {
+	document.documentElement.classList.toggle("zen", on);
+	// the glyph names what a click does, as the two words it replaced did
+	$("zen").replaceChildren(spriteSvg(on ? "ui-eye" : "ui-eye-off", "icon"));
+	$("zen").title = "zen mode (z)";
+	$("zen").setAttribute("aria-pressed", String(on));
+	$("zen").setAttribute("aria-label", on ? "leave zen mode" : "zen mode");
+	writeStored(ZEN_KEY, on);
+}
+
+function zenOn() {
+	return document.documentElement.classList.contains("zen");
+}
+
+// The palette carries .dense in the markup, so only the saved grid is toggled here.
+function applyDense(on) {
+	$("saved").classList.toggle("dense", on);
+	$("saved-dense").setAttribute("aria-pressed", String(on));
+	writeStored(DENSE_KEY, on);
+}
+
+function denseOn() {
+	return $("saved").classList.contains("dense");
 }
 
 // Every listing control and the values the API accepts, mirroring the markup. Anything not listed
@@ -1090,24 +1353,86 @@ function initCollapsibleSections() {
 	}
 }
 
+// ---- about ----
+
+// Fetched on the first open and kept: the version cannot change under a running page.
+let versionLoaded = false;
+
+async function openAbout() {
+	$("about").showModal();
+	if (versionLoaded) {
+		return;
+	}
+	try {
+		const { data } = await call("GET", "/version");
+		$("about-version").textContent = data.version;
+		versionLoaded = true;
+	} catch (err) {
+		$("about-version").textContent = "unknown";
+		setStatus(err.message, true);
+	}
+}
+
 // ---- events ----
+
+// Delegated and in the capture phase, so a button built later carries the dip too and a handler
+// that stops the click cannot take it away. The class comes off at animationend, so it replays.
+document.addEventListener("click", (event) => {
+	const button = event.target.closest("button");
+	if (button === null) {
+		return;
+	}
+	button.addEventListener("animationend", () => button.classList.remove("pressed"), { once: true });
+	button.classList.add("pressed");
+}, true);
+
+$("about-open").addEventListener("click", openAbout);
 
 $("theme").addEventListener("click", () => {
 	applyTheme(currentTheme() === "dark" ? "light" : "dark");
 });
 
-$("swatch-info").addEventListener("click", () => {
-	applySwatchInfo(!document.documentElement.classList.contains("no-swatch-info"));
-});
-
-// a mark that no longer matches the field would name a color other than the one about to be added
-$("hex").addEventListener("input", () => {
-	if (selectedHex !== null && $("hex").value !== selectedHex) {
-		clearSelection();
+// detail > 0 is a pointer click. Blurred there, since a focused button takes a focus ring at the
+// next keypress, and the key this one is bound to is a keypress the page expects.
+$("zen").addEventListener("click", (event) => {
+	applyZen(!zenOn());
+	if (event.detail > 0) {
+		event.currentTarget.blur();
 	}
 });
 
-for (const mode of Object.keys(HARMONIES)) {
+/*
+	Z toggles it, the one key the page binds. Skipped while a field has the focus, so typing a hex
+	or a nickname is not a shortcut, and while a dialog is up, where the page behind the backdrop
+	is not what a key should reach. A modifier means the key belongs to the browser.
+*/
+document.addEventListener("keydown", (event) => {
+	if (event.key !== "z" && event.key !== "Z") {
+		return;
+	}
+	if (event.ctrlKey || event.metaKey || event.altKey) {
+		return;
+	}
+	if (event.target.closest("input, select, textarea, dialog") !== null) {
+		return;
+	}
+	applyZen(!zenOn());
+});
+
+// A complete hex, typed or pasted, is a selection. Anything else clears it: a mark that does not
+// match the field would name a color other than the one about to be added.
+$("hex").addEventListener("input", () => {
+	const hex = parseHex($("hex").value);
+	if (hex === null) {
+		if (selectedHex !== null) {
+			clearSelection();
+		}
+	} else if (hex !== selectedHex) {
+		selectTyped(hex);
+	}
+});
+
+for (const mode of HARMONIES) {
 	$(mode).addEventListener("click", () => showHarmony(mode));
 }
 
@@ -1122,10 +1447,6 @@ for (const tab of ACCOUNT_TABS) {
 	$(`tab-${tab}`).addEventListener("click", () => selectAccountTab(tab));
 }
 
-$("load").addEventListener("click", () => {
-	loadSaved();
-});
-
 $("load-more").addEventListener("click", () => {
 	loadSaved({ append: true });
 });
@@ -1137,12 +1458,19 @@ $("limit").addEventListener("change", () => {
 	loadSaved();
 });
 
+$("logged-out").addEventListener("click", openAccount);
+closeOnBackdrop($("account"));
+closeOnBackdrop($("about"));
+
+// The dialog closes on the token, not on the name: GET /me is a second request, and the header
+// chip renders nameless until it lands either way.
 $("login-form").addEventListener("submit", async (event) => {
 	event.preventDefault();
 	try {
 		await login($("login-nick").value, $("login-password").value);
 		$("login-password").value = ""; // the nickname is worth keeping in the field, this is not
 	} catch (err) {
+		showAccountError(err.message);
 		setStatus(err.message, true);
 	}
 });
@@ -1165,6 +1493,7 @@ $("signup-form").addEventListener("submit", async (event) => {
 		$("new-name").value = "";
 		$("new-password").value = "";
 	} catch (err) {
+		showAccountError(err.message);
 		setStatus(err.message, true);
 	}
 });
@@ -1195,10 +1524,34 @@ $("collection-form").addEventListener("submit", async (event) => {
 		await createCollection(
 			$("collection-name").value, selectedIcon, $("collection-accent").value);
 		$("collection-name").value = "";
+		openCollectionForm(false); // the new tab is showing, and a second create is rare
 	} catch (err) {
 		setStatus(err.message, true);
 	}
 });
+
+// aria-expanded is the record, same as the icon menu. Opening lands the focus in the name field,
+// since the button is the only reason the form is up.
+function openCollectionForm(open) {
+	$("collection-new").setAttribute("aria-expanded", String(open));
+	$("collection-form").hidden = !open;
+	if (open) {
+		$("collection-name").focus();
+	}
+}
+
+$("collection-new").addEventListener("click", () => {
+	openCollectionForm($("collection-new").getAttribute("aria-expanded") !== "true");
+});
+
+$("saved-dense").addEventListener("click", () => applyDense(!denseOn()));
+
+$("saved-fullscreen").addEventListener("click", showSavedFullscreen);
+$("ramp-add").addEventListener("click", addRamp);
+
+for (const scale of SCALES) {
+	$(`${scale}-fullscreen`).addEventListener("click", () => showScaleFullscreen(scale));
+}
 
 // No debounce, unlike the picker in the aside: this only writes a style property.
 $("collection-accent").addEventListener("input", renderIconChoice);
@@ -1239,8 +1592,9 @@ $("add-form").addEventListener("submit", async (event) => {
 // ---- start ----
 // The theme attribute is already stamped by the inline script, this only labels the button.
 
-$("theme").textContent = currentTheme() === "dark" ? "light" : "dark";
-applySwatchInfo(readStored(SWATCH_INFO_KEY, false) === true);
+renderThemeButton(currentTheme());
+applyZen(readStored(ZEN_KEY, false) === true);
+applyDense(readStored(DENSE_KEY, false) === true);
 initCollapsibleSections();
 loadSession(); // before renderSession and the first loadSaved, both of which read it
 initControls(); // before the cyclers below, which label themselves from data-value
@@ -1257,9 +1611,16 @@ for (const id of ["palette-sort", "palette-order"]) {
 	});
 }
 
-initPicker(); // labels the hex button from the input's own value in the markup
-renderDetail(); // the placeholder, until a swatch is clicked
-renderHarmonyPlaceholder(); // same, and the buttons stay disabled until then
+initPicker();
+initScratch(); // labels the hex button from the input's own value in the markup
+$("scales-section").addEventListener("toggle", () => {
+	if ($("scales-section").open && scalesStale) {
+		showScales();
+	}
+});
+renderHarmonyButtons(); // marks the starting mode, before there is a strip to show in it
+// fills the Selected panel, the harmony strip and both scales, three requests in all
+selectColor(DEF_SELECTION.hex, DEF_SELECTION.name);
 renderLog(); // same, until something happens
 renderIconPicker(); // reads the sprite once, before anything can select out of it
 renderCollections(); // the empty list, until the first response replaces it

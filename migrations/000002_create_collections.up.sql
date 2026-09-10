@@ -4,7 +4,7 @@ CREATE TABLE collections (
 	-- free form display name, not unique
     name        text NOT NULL,
 	-- an icon slug tinted with accent
-    icon_slug   text NOT NULL DEFAULT 'folder',
+    icon_slug   text NOT NULL DEFAULT 'square',
     icon_accent text NOT NULL DEFAULT '#808080',
     is_default  boolean NOT NULL DEFAULT false,
     created_at  timestamptz NOT NULL DEFAULT now()

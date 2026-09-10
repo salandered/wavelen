@@ -11,7 +11,7 @@ import (
 
 type Slug string
 
-const Default Slug = "folder"
+const Default Slug = "square"
 
 // Sorted and unique (covered by tests).
 var slugs = [...]Slug{
@@ -25,7 +25,6 @@ var slugs = [...]Slug{
 	"droplet",
 	"fish",
 	"flower",
-	"folder",
 	"gem",
 	"heart",
 	"image",
@@ -37,6 +36,7 @@ var slugs = [...]Slug{
 	"palette",
 	"pipette",
 	"snowflake",
+	"square",
 	"star",
 	"sun",
 	"tag",

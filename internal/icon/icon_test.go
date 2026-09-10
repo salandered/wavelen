@@ -27,7 +27,7 @@ func TestParseSlugAcceptsEveryEntry(t *testing.T) {
 }
 
 func TestParseSlugRejectsUnknownEntry(t *testing.T) {
-	for _, in := range []string{"", "fold", "folder-open", "i-folder", "<svg>", "  folder", "FOLDER"} {
+	for _, in := range []string{"", "squ", "square-dashed", "i-square", "<svg>", "  square", "SQUARE"} {
 		t.Run(in, func(t *testing.T) {
 			_, err := ParseSlug(in)
 			require.ErrorIs(t, err, ErrUnknownIcon)

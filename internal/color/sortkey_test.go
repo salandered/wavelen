@@ -7,12 +7,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const groupStep = 10_000_000
+// The sort key packs the hue group at the top, lightness in the middle and chroma at the bottom,
+// so all three are readable through the exported color.Feel without exporting anything else.
+// Chroma is in thousandths, capped at 999.
+const (
+	groupStep     = 10_000_000
+	lightnessStep = 1_000
+)
 
-func groupOf(h color.Hex) int { return int(color.Feel(h)) / groupStep }
+func groupOf(h color.Hex) int     { return int(color.Feel(h)) / groupStep }
+func lightnessOf(h color.Hex) int { return int(color.Feel(h)) % groupStep / lightnessStep }
+func chromaOf(h color.Hex) int    { return int(color.Feel(h)) % lightnessStep }
 
 func TestSortKeyPutsNeutralsInTheirOwnGroup(t *testing.T) {
-	for _, h := range []color.Hex{"#000000", "#696969", "#808080", "#d3d3d3", "#ffffff"} {
+	for _, h := range neutrals {
 		t.Run(string(h), func(t *testing.T) {
 			require.Equal(t, 0, groupOf(h))
 		})

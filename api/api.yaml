@@ -479,18 +479,17 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /api/v1/colors/{hex}/complement:
+  /api/v1/colors/{hex}/{harmony}:
     parameters:
       - $ref: "#/components/parameters/ColorHex"
+      - $ref: "#/components/parameters/Harmony"
     get:
       tags: [Harmony]
-      summary: The opposite color
-      description: >-
-        The hue turned half a circle in OkLCh, chroma kept and lightness moved only as far as
-        sRGB forces.
+      summary: Returns colors that are calculated from the incoming hex (path value) using a specified harmony (path value)
+      description: What we call "harmony" in the app is usually described as a color "scheme".
       responses:
         "200":
-          description: The complement
+          description: The derived harmony colors
           headers:
             X-Request-Id:
               $ref: "#/components/headers/XRequestId"
@@ -499,33 +498,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ComplementResponse"
+                $ref: "#/components/schemas/HarmonyResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
-
-  /api/v1/colors/{hex}/triad:
-    parameters:
-      - $ref: "#/components/parameters/ColorHex"
-    get:
-      tags: [Harmony]
-      summary: The two colors evenly spaced from this one
-      description: >-
-        The hue turned a third and two thirds of a circle in OkLCh, chroma kept and lightness
-        moved only as far as sRGB forces.
-      responses:
-        "200":
-          description: The other two corners of the triangle
-          headers:
-            X-Request-Id:
-              $ref: "#/components/headers/XRequestId"
-            Cache-Control:
-              $ref: "#/components/headers/HarmonyCacheControl"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/TriadResponse"
-        "400":
-          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFoundHarmony"
 
 components:
   securitySchemes:
@@ -577,7 +554,28 @@ components:
         pattern: "^[0-9a-fA-F]{6}$"
       example: "ff00aa"
 
+    Harmony:
+      name: harmony
+      in: path
+      required: true
+      description: The harmony name.
+      schema:
+        $ref: "#/components/schemas/HarmonyName"
+
   schemas:
+    HarmonyName:
+      type: string
+      description: Supported harmonies.
+      enum:
+        - complement
+        - analogous
+        - triad
+        - split-complement
+        - square
+        - ramp
+        - tones
+      example: triad
+
     HexStored:
       type: string
       description: A color code as stored and returned, lowercase with a leading '#'.
@@ -692,7 +690,6 @@ components:
         - droplet
         - fish
         - flower
-        - folder
         - gem
         - heart
         - image
@@ -704,6 +701,7 @@ components:
         - palette
         - pipette
         - snowflake
+        - square
         - star
         - sun
         - tag
@@ -831,29 +829,27 @@ components:
           items:
             $ref: "#/components/schemas/CommonColor"
 
-    ComplementResponse:
+    HarmonyResponse:
       type: object
-      required: [hex, complement]
-      description: Echoes the normalized incoming hex and its complement.
-      properties:
-        hex:
-          $ref: "#/components/schemas/HexStored"
-        complement:
-          $ref: "#/components/schemas/HexStored"
-
-    TriadResponse:
-      type: object
-      required: [hex, triad]
+      required: [hex, harmony, colors]
       description: >-
-        Echoes the normalized incoming hex and other two colors of the triad in hue
-        order.
+        Echoes the normalized incoming hex 'hex', the harmony name 'harmony'
+        and the derived colors 'colors'.
+        Incoming hex is not included in 'colors'.
+        'colors' length fixed per harmony: 
+        1 for complement,
+        2 for analogous, triad and split-complement, 
+        3 for square, 
+        7 for ramp and tones.
       properties:
         hex:
           $ref: "#/components/schemas/HexStored"
-        triad:
+        harmony:
+          $ref: "#/components/schemas/HarmonyName"
+        colors:
           type: array
-          minItems: 2
-          maxItems: 2
+          minItems: 1
+          maxItems: 7
           items:
             $ref: "#/components/schemas/HexStored"
 
@@ -930,6 +926,17 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
           example:
             error: not found
+
+    NotFoundHarmony:
+      description: No harmony by that name
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: >-
+              unknown harmony "tetrad": one of complement, analogous, triad, split-complement,
+              square, ramp, tones
 
     NotFoundUser:
       description: No such user

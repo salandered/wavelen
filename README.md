@@ -119,6 +119,7 @@ Public:
 curl localhost:8080/api/v1/version
 curl localhost:8080/api/v1/colors
 curl 'localhost:8080/api/v1/colors?sort=hex&order=desc'
+# harmonies: complement, triad, ramp, etc
 curl localhost:8080/api/v1/colors/ff00aa/complement
 curl localhost:8080/api/v1/colors/ff00aa/triad
 ```

@@ -33,6 +33,10 @@
 			--muted: light-dark(#6b6357, #9b9184);
 			--line: light-dark(#d6cfc2, #403a32);
 			--error: light-dark(#9b2f1c, #ee967d);
+			/* a caution rather than a failure: the same warm family, a step over toward orange */
+			--warn: light-dark(#a8560f, #e8a05e);
+			/* the fill of a submit button: a step down from --fg, so it doesn't glare */
+			--primary: light-dark(#4a4540, #c9c2b5);
 		}
 
 		/* overriding color-scheme re-resolves every light-dark() above in one repaint */
@@ -45,16 +49,39 @@
 		}
 
 		/*
-			visibility, not display: the labels keep their box, so hiding them doesn't resize a
-			swatch. With display:none the grid rows collapse to the min-height below.
+			Zen mode: every hex the page writes over a color, the header, and the accent on a
+			collection tab.
+
+			visibility, not display, for the labels: they keep their box, so hiding them doesn't
+			resize a swatch or a band. With display:none the grid rows collapse to the min-height
+			below and the strips lose their captions' room.
 		*/
-		:root.no-swatch-info .swatch span {
+		:root.zen .swatch span,
+		:root.zen .detail-hex,
+		:root.zen .detail-label,
+		:root.zen .band-hex,
+		:root.zen #scratch-hex {
 			visibility: hidden;
+		}
+
+		/* visibility here too: the header keeps its box, so nothing below it moves */
+		:root.zen header {
+			visibility: hidden;
+		}
+
+		/* !important: app.js paints the accent as an inline style, which a selector cannot outrank */
+		:root.zen .collection-icon {
+			color: var(--muted) !important;
 		}
 
 		html {
 			/* reserve the scrollbar track, so a short list does not shift the centered body */
 			scrollbar-gutter: stable;
+		}
+
+		/* the reserved track survives into full screen as an empty strip at the right edge */
+		html:has(:fullscreen) {
+			scrollbar-gutter: auto;
 		}
 
 		body {
@@ -67,8 +94,8 @@
 
 		header {
 			display: flex;
-			align-items: baseline;
-			gap: 0.5rem;
+			align-items: center;
+			gap: 0.75rem;
 			margin-bottom: 1.5rem;
 		}
 
@@ -76,6 +103,108 @@
 			font-size: 1.25rem;
 			margin: 0;
 			margin-right: auto;
+		}
+
+		/* words beside the title, not buttons among the controls */
+		.header-word {
+			border-color: transparent;
+			color: var(--muted);
+		}
+
+		.header-word:hover {
+			color: var(--fg);
+		}
+
+		/* the name and its log out in one tinted box, the one filled thing in the header */
+		.account {
+			display: flex;
+			align-items: center;
+			gap: 0.7rem;
+			padding: 0.2rem 0.35rem 0.2rem 0.85rem;
+			border-radius: 3px;
+			background: light-dark(rgba(0, 0, 0, 0.08), rgba(255, 255, 255, 0.1));
+		}
+
+		.who {
+			font-size: 0.85rem;
+		}
+
+		#logout {
+			color: var(--muted);
+		}
+
+		#logout:hover {
+			color: var(--fg);
+		}
+
+		dialog {
+			min-width: 16rem;
+			padding: 1rem 1.25rem;
+			border: 1px solid var(--line);
+			border-radius: 3px;
+			/* Canvas for the same reason a select does: the page fill is transparent */
+			background: Canvas;
+			color: CanvasText;
+		}
+
+		dialog::backdrop {
+			background: rgba(0, 0, 0, 0.4);
+		}
+
+		dialog h2 {
+			margin: 0 0 0.75rem;
+			line-height: 0;
+		}
+
+		dialog p {
+			margin: 0 0 0.5rem;
+			font-size: 0.85rem;
+		}
+
+		dialog hr {
+			margin: 0.75rem 0;
+			border: 0;
+			border-top: 1px solid var(--line);
+		}
+
+		dialog a {
+			color: inherit;
+		}
+
+		.about-note {
+			color: var(--muted);
+		}
+
+		.about-warn {
+			color: var(--warn);
+		}
+
+		#about form {
+			margin-top: 1rem;
+			text-align: right;
+		}
+
+		/* the account forms: fields stacked and full width, the dialog is narrow */
+		.stack {
+			display: flex;
+			flex-direction: column;
+			gap: 0.5rem;
+		}
+
+		.stack input {
+			box-sizing: border-box;
+			width: 100%;
+		}
+
+		/* only there while it has text, so a clean form doesn't hold an empty line */
+		.dialog-error {
+			margin: 0.75rem 0 0;
+			color: var(--error);
+			font-size: 0.85rem;
+		}
+
+		.dialog-error:empty {
+			display: none;
 		}
 
 		summary,
@@ -128,17 +257,23 @@
 				flex-direction: column;
 			}
 
+			/* stacked, the cross axis is horizontal, so the flex-start above shrinks a column to
+			   its content: main came out 147px wide inside a 388px page */
+			main,
+			aside {
+				align-self: stretch;
+			}
+
 			aside {
 				flex: none;
 				position: static;
-				align-self: stretch;
 			}
 		}
 
 		/*
 		   The UA stylesheet hides [hidden] with display:none, which any display declared here
-		   outranks - #logged-in is a .row, so it stayed on screen logged out. Four elements are
-		   toggled through el.hidden, so the rule has to win outright.
+		   outranks - #logged-in is a flex row, so it stayed on screen logged out. Several elements
+		   are toggled through el.hidden, so the rule has to win outright.
 		*/
 		[hidden] {
 			display: none !important;
@@ -150,6 +285,22 @@
 			gap: 0.5rem;
 			flex-wrap: wrap;
 			margin-bottom: 0.5rem;
+		}
+		/* two rows on one line while there is room, the listing controls against the right edge */
+		.toolbar {
+			display: flex;
+			align-items: center;
+			flex-wrap: wrap;
+			gap: 0.5rem 1rem;
+			margin-bottom: 0.75rem;
+		}
+
+		.toolbar .row {
+			margin-bottom: 0;
+		}
+
+		.toolbar .row:last-child {
+			margin-left: auto;
 		}
 
 		label {
@@ -185,9 +336,37 @@
 			cursor: pointer;
 		}
 
-		#login-password,
-		#new-password {
-			width: 8rem;
+		/*
+			Controls of one kind share one look, so a row of them reads as groups rather than as
+			a line of identical buttons: a submit is filled, a helper is outlined, a setting is
+			text with a dotted underline, a collection is a tab.
+		*/
+		#collection-form button:not([type="button"]),
+		#add-form button:not([type="button"]) {
+			background: var(--primary);
+			border-color: var(--primary);
+			color: Canvas;
+			font-weight: 600;
+		}
+
+		#sort,
+		#order,
+		#limit,
+		#palette-sort,
+		#palette-order {
+			padding-left: 0.2rem;
+			padding-right: 0.2rem;
+			border-color: transparent;
+			text-decoration: underline dotted;
+			text-underline-offset: 0.25em;
+		}
+
+		#sort:hover,
+		#order:hover,
+		#limit:hover,
+		#palette-sort:hover,
+		#palette-order:hover {
+			border-color: var(--line);
 		}
 
 		.tabs {
@@ -218,66 +397,62 @@
 			font-weight: 600;
 		}
 
-		.who {
-			font-size: 0.85rem;
-			margin-right: auto;
-		}
-
 		/*
 			A cycler's label is its own value, so it needs a floor or stepping it shifts whatever
-			sits beside it. Each width is the widest label in its set. #theme is last in its row
-			and needs none of this.
+			sits beside it. Each width is the widest label in its set, and the text is centered
+			in it, so a shorter label leaves the box where it is. #theme is last in its row and
+			needs none of this.
 		*/
 		#sort,
 		#palette-sort {
-			min-width: 4rem;
+			min-width: 3rem;
 		}
 
 		#order,
 		#palette-order {
-			min-width: 4.5rem;
-		}
-
-		#swatch-info {
-			min-width: 5.5rem;
+			min-width: 3.5rem;
 		}
 
 		#load-more {
 			margin-top: 0.75rem;
 		}
 
+		/* seven monospace characters and room for a caret, so the toolbar keeps to one line */
 		#hex {
-			width: 8rem;
+			width: 6.5rem;
 			font-family: ui-monospace, monospace;
 		}
 
-		/* a value inside a heading, so it undoes the summary's own casing and spacing */
-		#saved-in {
-			text-transform: none;
-			letter-spacing: 0;
-			font-weight: 400;
-		}
-
-		#saved-in:not(:empty)::before {
-			content: "- ";
+		/*
+			A tab strip, the same shape as the account tabs: the collections choose what the grid
+			below shows. The summary already draws a line, so the strip is pulled up toward it.
+		*/
+		.collection-bar {
+			display: flex;
+			align-items: center;
+			flex-wrap: wrap;
+			margin: -0.5rem 0 0.9rem;
+			border-bottom: 1px solid var(--line);
 		}
 
 		.collections {
 			display: flex;
 			flex-wrap: wrap;
-			gap: 0.4rem;
+			gap: 0.25rem;
 		}
 
-		/* the chip carries the border, the two buttons inside it are bare */
+		/* the tab carries the mark, the two buttons inside it are bare */
 		.collection {
 			display: flex;
 			align-items: center;
-			border: 1px solid var(--line);
-			border-radius: 3px;
+			margin-bottom: -1px;
+			border-bottom: 2px solid transparent;
+			color: var(--muted);
 		}
 
 		.collection.active {
-			border-color: var(--fg);
+			border-bottom-color: var(--fg);
+			color: var(--fg);
 		}
 
 		.collection-name,
@@ -287,9 +462,25 @@
 			background: none;
 		}
 
-		/* a name is up to collection.MaxNameLen runes, and a chip is not the place to show them */
+		/*
+			The glyph, the name and the marker in one button, so a click anywhere on the tab
+			selects. Baseline, so the small marker sits on the name's line; the glyph has no
+			baseline and centers on its own.
+		*/
 		.collection-name {
+			display: flex;
+			align-items: baseline;
+			gap: 0.5rem;
 			max-width: 12rem;
+			padding: 0.3rem 0.5rem;
+		}
+
+		.collection-icon {
+			align-self: center;
+		}
+
+		/* a name is up to collection.MaxNameLen runes, and a tab is not the place to show them */
+		.collection-name .name {
 			overflow: hidden;
 			text-overflow: ellipsis;
 			white-space: nowrap;
@@ -300,7 +491,6 @@
 		}
 
 		.collection .tag {
-			padding-right: 0.5rem;
 			color: var(--muted);
 			font-size: 0.7rem;
 		}
@@ -311,6 +501,19 @@
 			color: var(--muted);
 			font-size: 0.9rem;
 			line-height: 1.2;
+		}
+
+		/* a tab-shaped trigger for the create form, at the end of the strip */
+		#collection-new {
+			margin-left: 0.25rem;
+			padding: 0.15rem 0.5rem;
+			border-color: transparent;
+			color: var(--muted);
+		}
+
+		#collection-new:hover,
+		#collection-new[aria-expanded="true"] {
+			color: var(--fg);
 		}
 
 		/*
@@ -330,7 +533,6 @@
 		}
 
 		.collection-icon {
-			margin-left: 0.5rem;
 			font-size: 1.1rem;
 		}
 
@@ -356,7 +558,7 @@
 		}
 
 		/*
-			Absolutely positioned, so opening it doesn't push the collection chips down the page.
+			Absolutely positioned, so opening it doesn't push the toolbar and the grid down the page.
 		*/
 		.icon-picker {
 			position: absolute;
@@ -369,7 +571,7 @@
 			padding: 0.3rem;
 			border: 1px solid var(--line);
 			border-radius: 3px;
-			/* opaque, or the chips behind show through. Canvas for the same reason a select does */
+			/* opaque, or the toolbar behind shows through. Canvas for the same reason a select does */
 			background: Canvas;
 		}
 
@@ -413,19 +615,59 @@
 			margin-bottom: 0;
 		}
 
-		#pick {
+		#pick,
+		#scratch {
 			width: 3.5rem;
 			height: 1.9rem;
 		}
 
-		#pick-hex {
+		.detail-adjust {
+			margin: 0.5rem 0 0;
+		}
+
+		#scratch-hex {
 			font-family: ui-monospace, monospace;
 		}
 
-		/* capped: a few long failures would push the panel past the viewport, sticky aside and all */
-		#log {
-			max-height: 14rem;
-			overflow-y: auto;
+		/* names the strip under it, at the weight a label carries */
+		.scale-name {
+			color: var(--muted);
+			font-size: 0.85rem;
+		}
+
+		.scale-gap {
+			margin-top: 1rem;
+		}
+
+		/* a glyph alone, sized like the icon trigger */
+		.icon-button {
+			display: flex;
+			align-items: center;
+			padding: 0.2rem 0.4rem;
+			font-size: 1.1rem;
+			line-height: 1;
+		}
+
+		#saved-dense[aria-pressed="true"] {
+			background: light-dark(rgba(0, 0, 0, 0.14), rgba(255, 255, 255, 0.18));
+		}
+
+		/* the two harmony modes: a pair of pills, the one on show filled darker */
+		.pill {
+			padding: 0.25rem 0.7rem;
+			border-color: transparent;
+			border-radius: 999px;
+			background: light-dark(rgba(0, 0, 0, 0.06), rgba(255, 255, 255, 0.08));
+		}
+
+		.pill[aria-pressed="true"] {
+			background: light-dark(rgba(0, 0, 0, 0.14), rgba(255, 255, 255, 0.18));
+			font-weight: 600;
+		}
+
+		.pill:disabled {
+			cursor: default;
+			opacity: 0.5;
 		}
 
 		#log p {
@@ -462,6 +704,53 @@
 			text-align: left;
 			font-family: ui-monospace, monospace;
 			font-size: 0.75rem;
+		}
+
+		/*
+			A dense grid: ten cells to a row and no gap, the whole set as one block. A name wider
+			than its cell is cut, and the Selected panel spells out whichever one was clicked. The
+			palette is always this, Saved colors takes it from a toggle.
+		*/
+		.dense {
+			grid-template-columns: repeat(10, minmax(0, 1fr));
+			gap: 0;
+		}
+
+		.dense .swatch {
+			/* border-box for the same reason .detail-color needs it */
+			box-sizing: border-box;
+			/* a fifth shorter than wide: two lines of text want less room than a square gives */
+			aspect-ratio: 5 / 4;
+			min-height: 0;
+			padding: 0.35rem 0.4rem;
+			/* the border goes with the gap, or two 1px edges meet as a lattice over the colors */
+			border: none;
+			/* the shared control radius too: four rounded corners meet as a notch of page */
+			border-radius: 0;
+		}
+
+		#saved.dense .label {
+			display: none;
+		}
+
+		/* positioned, so the ring paints over the neighbours it now overlaps */
+		.dense .swatch.selected {
+			position: relative;
+		}
+
+		/* a saved cell is positioned too, and a later one paints over the ring without the lift */
+		#saved.dense .cell:has(.swatch.selected) {
+			z-index: 1;
+		}
+
+		/*
+			Ten to a row is a 32px square once the columns stack. Here and not in the layout query
+			at the top of the file: same specificity, so the rule that comes later wins.
+		*/
+		@media (max-width: 38rem) {
+			.dense {
+				grid-template-columns: repeat(5, minmax(0, 1fr));
+			}
 		}
 
 		/*
@@ -622,10 +911,47 @@
 			gap: 0;
 		}
 
+		/* the radius goes too, or the corners meet as notches between bands */
 		.harmony:fullscreen .band-color {
 			height: 100%;
 			aspect-ratio: auto;
 			border: none;
+			border-radius: 0;
+		}
+
+		/*
+			The saved strip is in <body> only to go full screen, so it takes no room there. The
+			UA's :fullscreen rules size the element themselves, with !important, so this is
+			only what it is while it is not.
+		*/
+		.offstage {
+			position: fixed;
+			width: 0;
+			height: 0;
+			overflow: hidden;
+		}
+
+		/*
+			Every strip on the page is the same builder at a different width: three bands in a
+			15rem panel, eight in the main column, forty full screen. So the band measures itself
+			and drops its label when a hex would be clipped by its neighbours, rather than the
+			builder guessing from a count or from screen.width.
+		*/
+		.harmony .band {
+			container-type: inline-size;
+		}
+
+		@container (max-width: 4rem) {
+			.band-hex {
+				display: none;
+			}
+		}
+
+		/* the fullscreen label is 1.25rem, so it wants more of the band */
+		@container (max-width: 6rem) {
+			.harmony:fullscreen .band-hex {
+				display: none;
+			}
 		}
 
 		.harmony:fullscreen .band-hex {
@@ -633,7 +959,23 @@
 			font-size: 1.25rem;
 		}
 
+		/* the answer to a press, on the button itself: a dip and back */
+		.pressed {
+			animation: press 0.5s ease-out;
+		}
+
+		@keyframes press {
+			from {
+				opacity: 0.25;
+			}
+			to {
+				opacity: 1;
+			}
+		}
+
 		.empty {
+			/* a grid parent would otherwise squeeze the line into the first column */
+			grid-column: 1 / -1;
 			color: var(--muted);
 			font-size: 0.85rem;
 			margin: 0;
@@ -643,15 +985,18 @@
 
 <body>
 	<!--
-		The collection icons, and the only place the set is written down for the page: app.js
-		builds the picker by reading these ids back out. Adding one is a <symbol> here and a slug
-		in internal/icon.
+		Every glyph the page draws. An i- symbol is a collection icon, and this is the only place
+		that set is written down for the page: app.js builds the picker by reading these ids back
+		out. Adding one is a <symbol> here, a slug in internal/icon and a value in the api.yaml
+		enum. A ui- symbol is one the page uses for itself, which the picker skips and the API has
+		never heard of.
 
 		Lucide 1.43.0, https://github.com/lucide-icons/lucide
 
-		ISC License, Copyright (c) 2026 Lucide Icons and Contributors, for every icon below
-		except moon and music. Those two are derived from Feather and carry the MIT License,
-		Copyright (c) 2013-present Cole Bemis.
+		ISC License, Copyright (c) 2026 Lucide Icons and Contributors, for every icon below except
+		monitor, moon, music, square and circle-plus, which Lucide renamed from the plus-circle the
+		notice lists. Those five are derived from Feather and carry the MIT License, Copyright (c)
+		2013-present Cole Bemis. The derived list is in the notice itself.
 
 		Both notices in full: web/LICENSE-lucide.txt in the source repo.
 	-->
@@ -714,8 +1059,35 @@
 				<path d="m8 16 1.88-1.88"/>
 				<path d="M14.12 14.12 16 16"/>
 			</symbol>
-			<symbol id="i-folder" viewBox="0 0 24 24">
-				<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>
+			<!--
+				ui- rather than i-: the picker builds itself out of the i- symbols, and a slug
+				outside internal/icon comes back a 400. The theme toggle needs no such pair, since
+				a sun and a moon are collection icons in their own right.
+			-->
+			<symbol id="ui-monitor" viewBox="0 0 24 24">
+				<rect width="20" height="14" x="2" y="3" rx="2"/>
+				<line x1="8" x2="16" y1="21" y2="21"/>
+				<line x1="12" x2="12" y1="17" y2="21"/>
+			</symbol>
+			<symbol id="ui-eye" viewBox="0 0 24 24">
+				<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>
+				<circle cx="12" cy="12" r="3"/>
+			</symbol>
+			<symbol id="ui-circle-plus" viewBox="0 0 24 24">
+				<circle cx="12" cy="12" r="10"/>
+				<path d="M8 12h8"/>
+				<path d="M12 8v8"/>
+			</symbol>
+			<symbol id="ui-grid" viewBox="0 0 24 24">
+				<rect width="18" height="18" x="3" y="3" rx="2"/>
+				<path d="M3 12h18"/>
+				<path d="M12 3v18"/>
+			</symbol>
+			<symbol id="ui-eye-off" viewBox="0 0 24 24">
+				<path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575a1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/>
+				<path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/>
+				<path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/>
+				<path d="m2 2 20 20"/>
 			</symbol>
 			<symbol id="i-gem" viewBox="0 0 24 24">
 				<path d="M10.5 3 8 9l4 13 4-13-2.5-6"/>
@@ -776,6 +1148,9 @@
 				<path d="m7 21 3-6-1.5-3"/>
 				<path d="m7 3 3 6h4"/>
 			</symbol>
+			<symbol id="i-square" viewBox="0 0 24 24">
+				<rect width="18" height="18" x="3" y="3" rx="2"/>
+			</symbol>
 			<symbol id="i-star" viewBox="0 0 24 24">
 				<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>
 			</symbol>
@@ -799,56 +1174,80 @@
 
 	<header>
 		<h1>wavelen</h1>
+		<!-- Both states are in the markup and app.js hides one: the header is the first thing
+		     painted, so building either from script would flash the wrong one. -->
+		<button type="button" class="header-word" id="logged-out">log in</button>
+		<span class="account" id="logged-in" hidden>
+			<!-- filled from GET /me, not from the typed nickname, which is unnormalized -->
+			<span class="who" id="who"></span>
+			<button type="button" id="logout">log out</button>
+		</span>
+		<button type="button" class="header-word" id="about-open">about</button>
 	</header>
+
+	<!-- The two account forms, in a dialog: logging in is a header affair, not a section of the
+	     page. Errors go to the line under the form, since the log panel is behind the backdrop.
+	     log in is selected here, not by script, for the same reason as the header above. -->
+	<dialog id="account" aria-label="account">
+		<div class="tabs" role="tablist">
+			<button type="button" class="tab" id="tab-login" role="tab"
+				aria-controls="login-form" aria-selected="true">log in</button>
+			<button type="button" class="tab" id="tab-signup" role="tab"
+				aria-controls="signup-form" aria-selected="false">sign up</button>
+		</div>
+
+		<!-- The tab names the panel, so each field carries its own aria-label. -->
+		<form class="stack" id="login-form" role="tabpanel" aria-labelledby="tab-login">
+			<input id="login-nick" placeholder="nickname" aria-label="nickname"
+				autocomplete="username">
+			<input id="login-password" type="password" placeholder="password"
+				aria-label="password" autocomplete="current-password">
+			<button>log in</button>
+		</form>
+		<form class="stack" id="signup-form" role="tabpanel" aria-labelledby="tab-signup" hidden>
+			<input id="new-nick" placeholder="nickname" aria-label="nickname"
+				autocomplete="username">
+			<input id="new-name" placeholder="name" aria-label="name">
+			<input id="new-password" type="password" placeholder="password"
+				aria-label="password" autocomplete="new-password">
+			<button>create user</button>
+		</form>
+		<p class="dialog-error" id="account-error" role="alert"></p>
+	</dialog>
+
+	<!-- The browser's own modal: Escape closes it, the backdrop is its own. app.js fills the
+	     version on the first open. -->
+	<dialog id="about" aria-labelledby="about-title">
+		<!-- the wordmark, with its size in the markup so the box is right before the file lands -->
+		<h2 id="about-title">
+			<img src="images/logo.png" alt="wavelen" width="358" height="70">
+		</h2>
+		<p>version <span id="about-version">-</span></p>
+		<p><a href="https://github.com/salandered/wavelen">github.com/salandered/wavelen</a></p>
+		<p class="about-warn">This project is a work in progress. Your data may be lost!</p>
+		<p class="about-note">contact me: <a href="mailto:salandered@pm.me">salandered@pm.me</a></p>
+		<hr>
+		<!-- the full notices are in the comment above the sprite and in the repo -->
+		<p class="about-note">Icons: <a href="https://lucide.dev">Lucide</a>, ISC and MIT.</p>
+		<!-- method=dialog: the submit closes it, no script -->
+		<form method="dialog">
+			<button>close</button>
+		</form>
+	</dialog>
 
 	<div class="split">
 		<main>
-		<details data-collapse-key="account" open>
-			<summary>Account</summary>
-
-			<!-- Both states live in the markup and app.js hides one. The panel is the first thing
-			     rendered, so building either from script would flash the wrong state. Same for
-			     the two tabs below: log in is selected here, not by script. -->
-			<div id="logged-out">
-				<div class="tabs" role="tablist">
-					<button type="button" class="tab" id="tab-login" role="tab"
-						aria-controls="login-form" aria-selected="true">log in</button>
-					<button type="button" class="tab" id="tab-signup" role="tab"
-						aria-controls="signup-form" aria-selected="false">sign up</button>
-				</div>
-
-				<!-- The tab names the panel, so each field carries its own aria-label. -->
-				<form class="row" id="login-form" role="tabpanel" aria-labelledby="tab-login">
-					<input id="login-nick" placeholder="nickname" aria-label="nickname"
-						autocomplete="username">
-					<input id="login-password" type="password" placeholder="password"
-						aria-label="password" autocomplete="current-password">
-					<button>log in</button>
-				</form>
-				<form class="row" id="signup-form" role="tabpanel" aria-labelledby="tab-signup"
-					hidden>
-					<input id="new-nick" placeholder="nickname" aria-label="nickname"
-						autocomplete="username">
-					<input id="new-name" placeholder="name" aria-label="name">
-					<input id="new-password" type="password" placeholder="password"
-						aria-label="password" autocomplete="new-password">
-					<button>create user</button>
-				</form>
+		<!-- Needs a token, so app.js hides it logged out. -->
+		<details data-collapse-key="saved" id="saved-section" open>
+			<summary>Saved colors</summary>
+			<!-- app.js fills #collections with one tab per collection; the button beside it stays -->
+			<div class="collection-bar">
+				<div class="collections" id="collections"></div>
+				<button type="button" id="collection-new" aria-expanded="false"
+					aria-controls="collection-form">+ new</button>
 			</div>
-
-			<div class="row" id="logged-in" hidden>
-				<!-- filled from GET /me, not from the typed nickname, which is unnormalized -->
-				<span class="who" id="who"></span>
-				<button type="button" id="logout">log out</button>
-				<button type="button" id="load">reload colors</button>
-			</div>
-		</details>
-
-		<!-- Needs a token, same as the saved list, so app.js hides it logged out. -->
-		<details data-collapse-key="collections" id="collections-section" open>
-			<summary>Collections</summary>
 			<!-- maxlength is collection.MaxNameLen: the API answers 400 past it either way -->
-			<form id="collection-form">
+			<form id="collection-form" hidden>
 				<div class="row">
 					<label for="collection-name">new</label>
 					<input id="collection-name" placeholder="name" maxlength="60">
@@ -870,50 +1269,98 @@
 					<button>create</button>
 				</div>
 			</form>
-			<div class="collections" id="collections"></div>
-		</details>
-
-		<details data-collapse-key="saved" id="saved-section" open>
-			<!-- the grid is one collection's colors, so the heading says which -->
-			<summary>Saved colors <span id="saved-in"></span></summary>
-			<form class="row" id="add-form">
-				<input id="hex" placeholder="#ff00aa" aria-label="hex color">
-				<button>add</button>
-				<!-- type=button, or it would submit the form instead of filling the field -->
-				<button type="button" id="random-hex">random</button>
-				<button type="button" id="bulk-add" title="dev only: 20 separate POSTs">
-					add 20 random
-				</button>
-			</form>
-			<!-- order says descending/ascending rather than newest/oldest: it applies to hex too -->
-			<div class="row">
-				<!-- a button is labelable, so for= works and a click on the words steps the sort -->
-				<label for="sort">sort by</label>
-				<!-- cyclers: app.js writes the labels, the value stays in data-value -->
-				<button type="button" id="sort" data-value="created_at"></button>
-				<button type="button" id="order" data-value="desc"></button>
-				<label for="limit">per page</label>
-				<select id="limit">
-					<option value="10">10</option>
-					<option value="20" selected>20</option>
-					<option value="50">50</option>
-					<option value="100">100</option>
-				</select>
+			<!-- the add row and the listing controls on one line, see .toolbar -->
+			<div class="toolbar">
+				<form class="row" id="add-form">
+					<input id="hex" placeholder="#ff00aa" aria-label="hex color">
+					<button>add</button>
+					<!-- type=button, or it would submit the form instead of filling the field -->
+					<button type="button" id="random-hex">random</button>
+					<button type="button" id="bulk-add" title="dev only: 10 separate POSTs">
+						add 10 random
+					</button>
+				</form>
+				<!-- order says descending/ascending rather than newest/oldest: it applies to hex too -->
+				<!-- No labels: a cycler's value names it well enough, and the words cost the room
+				     the toolbar needs. The title carries the name. -->
+				<div class="row">
+					<!-- cyclers: app.js writes the labels, the value stays in data-value -->
+					<button type="button" id="sort" data-value="created_at" title="sort by"></button>
+					<button type="button" id="order" data-value="desc" title="order"></button>
+					<select id="limit" title="per page">
+						<option value="10">10</option>
+						<option value="20" selected>20</option>
+						<option value="50">50</option>
+						<option value="100">100</option>
+					</select>
+					<!-- the shape the palette is always in, see .dense -->
+					<button type="button" class="icon-button" id="saved-dense" title="dense grid"
+						aria-label="dense grid" aria-pressed="false">
+						<svg class="icon" aria-hidden="true"><use href="#ui-grid"/></svg>
+					</button>
+					<!-- the grid as one strip of bands, the shape the harmony panel goes full screen in -->
+					<button type="button" class="icon-button" id="saved-fullscreen" title="the colors below, full screen"
+						aria-label="the colors below, full screen">
+						<svg class="icon" aria-hidden="true"><use href="#ui-monitor"/></svg>
+					</button>
+				</div>
 			</div>
 			<div class="grid" id="saved"></div>
 			<!-- hidden until a response carries a next_cursor, which is the end-of-list signal -->
 			<button type="button" id="load-more" hidden>load more</button>
 		</details>
 
-		<details data-collapse-key="palette" open>
-			<summary>Palette</summary>
-			<!-- the palette is 100 fixed rows, so it sorts but never pages -->
-			<div class="row">
-				<label for="palette-sort">sort by</label>
-				<button type="button" id="palette-sort" data-value="name"></button>
-				<button type="button" id="palette-order" data-value="asc"></button>
+		<!-- The two scales of the selected color, in the main column: seven bands need the width,
+		     and a scale is not what the rotations in the aside produce. A row per scale, naming it
+		     and carrying its own full screen at the right edge, see .toolbar. -->
+		<details data-collapse-key="scales" id="scales-section" open>
+			<summary>Scales</summary>
+			<div class="toolbar">
+				<div class="row">
+					<span class="scale-name" title="lightness, dark to light">ramp</span>
+				</div>
+				<div class="row">
+					<!-- the seven steps into Saved colors, see the scales section -->
+					<button type="button" class="icon-button" id="ramp-add" title="add the ramp to this collection"
+						aria-label="add the ramp to this collection">
+						<svg class="icon" aria-hidden="true"><use href="#ui-circle-plus"/></svg>
+					</button>
+					<button type="button" class="icon-button" id="ramp-fullscreen" title="the ramp below, full screen"
+						aria-label="the ramp below, full screen">
+						<svg class="icon" aria-hidden="true"><use href="#ui-monitor"/></svg>
+					</button>
+				</div>
 			</div>
-			<div class="grid" id="palette"></div>
+			<div id="ramp"></div>
+			<div class="toolbar scale-gap">
+				<div class="row">
+					<span class="scale-name" title="chroma, the gray of this lightness to the full color">
+						tones
+					</span>
+				</div>
+				<div class="row">
+					<button type="button" class="icon-button" id="tones-fullscreen" title="the tones below, full screen"
+						aria-label="the tones below, full screen">
+						<svg class="icon" aria-hidden="true"><use href="#ui-monitor"/></svg>
+					</button>
+				</div>
+			</div>
+			<div id="tones"></div>
+		</details>
+
+		<details data-collapse-key="palette" open>
+			<!-- the name the CSS Color spec uses, and what internal/palette holds: the 100 named
+			     colors -->
+			<summary>CSS named colors</summary>
+			<!-- the palette is 100 fixed rows, so it sorts but never pages. The toolbar puts the
+			     one row on the right, where the saved section keeps its listing controls. -->
+			<div class="toolbar">
+				<div class="row">
+					<button type="button" id="palette-sort" data-value="name" title="sort by"></button>
+					<button type="button" id="palette-order" data-value="asc" title="order"></button>
+				</div>
+			</div>
+			<div class="grid dense" id="palette"></div>
 		</details>
 		</main>
 
@@ -921,8 +1368,10 @@
 			<section class="panel">
 				<h2 class="panel-title">View</h2>
 				<div class="row">
-					<button type="button" id="swatch-info"></button>
-					<button type="button" id="theme"></button>
+					<!-- an eye or an eye-off out of the sprite, filled by app.js -->
+					<button type="button" class="icon-button" id="zen"></button>
+					<!-- a sun or a moon out of the sprite, filled by app.js -->
+					<button type="button" class="icon-button" id="theme"></button>
 				</div>
 			</section>
 
@@ -931,25 +1380,38 @@
 			<details class="panel" data-collapse-key="selected" open>
 				<summary>Selected</summary>
 				<div id="detail"></div>
+				<!-- Mirrors the selection and nudges it. Static rather than built by renderDetail:
+				     a rebuilt input would drop the dialog that is open on it. Under the color, so
+				     the dialog covers the panels below rather than the color being adjusted. -->
+				<div class="row detail-adjust">
+					<input type="color" id="pick" value="#808080" aria-label="adjust the selected color"
+						disabled>
+					<label for="pick">adjust</label>
+				</div>
 			</details>
 
-			<!-- Under Selected, not above it: the browser anchors the dialog below the swatch,
-			     so what it covers is the harmony and the log rather than the color being picked. -->
+			<!-- A scratch pad: not wired to the selection, so trying a color here resets nothing
+			     else on the page. -->
 			<section class="panel">
 				<h2 class="panel-title">Picker</h2>
 				<div class="row">
 					<!-- neutral: the value only says where the dialog opens -->
-					<input type="color" id="pick" value="#808080" aria-label="pick a color">
-					<button type="button" id="pick-hex" title="copy"></button>
+					<input type="color" id="scratch" value="#808080" aria-label="pick a color">
+					<button type="button" id="scratch-hex" title="copy"></button>
 				</div>
 			</section>
 
 			<details class="panel" data-collapse-key="harmony" open>
 				<summary>Harmony</summary>
-				<!-- disabled until there is a selection -->
+				<!-- One pill per harmony the API serves, in the server's own order; HARMONIES in
+				     app.js is the same list. Disabled until there is a selection, and aria-pressed
+				     marks the mode on show. -->
 				<div class="row">
-					<button type="button" id="complement" disabled>complement</button>
-					<button type="button" id="triad" disabled>triad</button>
+					<button type="button" class="pill" id="complement" aria-pressed="false" disabled>complement</button>
+					<button type="button" class="pill" id="analogous" aria-pressed="false" disabled>analogous</button>
+					<button type="button" class="pill" id="triad" aria-pressed="false" disabled>triad</button>
+					<button type="button" class="pill" id="split-complement" aria-pressed="false" disabled>split-complement</button>
+					<button type="button" class="pill" id="square" aria-pressed="false" disabled>square</button>
 				</div>
 				<div id="harmony"></div>
 			</details>

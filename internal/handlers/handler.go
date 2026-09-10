@@ -19,6 +19,7 @@ import (
 
 const (
 	hexPathValue          = "hex"
+	harmonyPathValue      = "harmony"
 	collectionIDPathValue = "id"
 )
 

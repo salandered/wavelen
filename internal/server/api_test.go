@@ -797,21 +797,48 @@ func (s *APISuite) TestListCommonColorsRejectsInvalidQueryParams() {
 
 // Harmony
 
-func (s *APISuite) TestComplement() {
-	var out handlers.ComplementResp
+func (s *APISuite) TestHarmonyEchoesInputAndNamesTheHarmony() {
+	var out handlers.HarmonyResp
 	s.decode(s.get("/api/v1/colors/FF0000/complement"), &out)
 
+	want := color.Complement.Colors("#ff0000")
 	s.Require().Equal("#ff0000", out.Hex)
-	s.Require().Equal(string(color.Complement("#ff0000")), out.Complement)
+	s.Require().Equal("complement", out.Harmony)
+	s.Require().Equal([]string{string(want[0])}, out.Colors)
+}
+
+// Every harmony answers the same shape, so a client renders the list without knowing the name.
+func (s *APISuite) TestEveryHarmonyAnswersTheSameShape() {
+	for _, name := range color.HarmonyNames() {
+		s.Run(string(name), func() {
+			var out handlers.HarmonyResp
+			s.decode(s.get("/api/v1/colors/ff0000/"+string(name)), &out)
+
+			want := name.Colors("#ff0000")
+			s.Require().Equal("#ff0000", out.Hex)
+			s.Require().Equal(string(name), out.Harmony)
+			s.Require().Len(out.Colors, len(want))
+			for i, hex := range want {
+				s.Require().Equal(string(hex), out.Colors[i])
+			}
+		})
+	}
 }
 
 func (s *APISuite) TestTriadAnswersOtherTwoColorsInHueOrder() {
-	var out handlers.TriadResp
+	var out handlers.HarmonyResp
 	s.decode(s.get("/api/v1/colors/ff0000/triad"), &out)
 
-	second, third := color.Triad("#ff0000")
-	s.Require().Equal("#ff0000", out.Hex)
-	s.Require().Equal([]string{string(second), string(third)}, out.Triad)
+	want := color.Triad.Colors("#ff0000")
+	s.Require().Len(out.Colors, 2)
+	s.Require().Equal([]string{string(want[0]), string(want[1])}, out.Colors)
+}
+
+func (s *APISuite) TestRampAnswersSevenSteps() {
+	var out handlers.HarmonyResp
+	s.decode(s.get("/api/v1/colors/ff6b35/ramp"), &out)
+
+	s.Require().Len(out.Colors, 7)
 }
 
 func (s *APISuite) TestHarmonyIsCacheableForever() {
@@ -822,22 +849,41 @@ func (s *APISuite) TestHarmonyIsCacheableForever() {
 
 // A gray has no hue to turn, so it answers with itself rather than with an invented color.
 func (s *APISuite) TestHarmonyOfAGrayAnswersWithThatGray() {
-	var complement handlers.ComplementResp
-	s.decode(s.get("/api/v1/colors/808080/complement"), &complement)
-	s.Require().Equal("#808080", complement.Complement)
+	for _, name := range []string{"complement", "triad", "analogous", "square"} {
+		s.Run(name, func() {
+			var out handlers.HarmonyResp
+			s.decode(s.get("/api/v1/colors/808080/"+name), &out)
 
-	var triad handlers.TriadResp
-	s.decode(s.get("/api/v1/colors/808080/triad"), &triad)
-	s.Require().Equal([]string{"#808080", "#808080"}, triad.Triad)
+			s.Require().NotEmpty(out.Colors)
+			for _, hex := range out.Colors {
+				s.Require().Equal("#808080", hex)
+			}
+		})
+	}
 }
 
-// Same path rule as DELETE
+// An unknown harmony is a JSON 404 rather than the static handler's plain text one, and the body
+// says what the caller could have asked for.
+func (s *APISuite) TestUnknownHarmonyIsNotFoundAndListsThem() {
+	resp := s.get("/api/v1/colors/ff0000/tetrad")
+
+	s.Require().Equal(http.StatusNotFound, resp.StatusCode)
+	msg := s.errorMessage(resp)
+	s.Require().Contains(msg, `unknown harmony "tetrad"`)
+	for _, name := range color.HarmonyNames() {
+		s.Require().Contains(msg, string(name))
+	}
+}
+
+// Same path rule as DELETE. The hex is read before the harmony, so a bad one answers 400 even
+// where the harmony is unknown too.
 func (s *APISuite) TestHarmonyRejectsAMalformedHexInThePath() {
 	for _, path := range []string{
 		"/api/v1/colors/%23ff0000/complement",
 		"/api/v1/colors/%23ff0000/triad",
 		"/api/v1/colors/fff/complement",
 		"/api/v1/colors/ff00gg/triad",
+		"/api/v1/colors/ff00gg/tetrad",
 	} {
 		s.Run(path, func() {
 			resp := s.get(path)
