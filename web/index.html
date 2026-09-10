@@ -5,14 +5,12 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>wavelen</title>
-	<link rel="icon" type="image/png" href="logo-mini.png">
+	<link rel="icon" type="image/png" href="images/logo-mini.png">
 
 	<!--
-		Deliberately NOT deferred, and deliberately not in app.js: this has to stamp the
-		attribute before the first paint, otherwise a stored theme that disagrees with the
-		system one flashes on every load. It also runs before <body> exists, which is why the
-		attribute goes on <html>. The swatch-info class needs none of this: swatches are
-		rendered by app.js long after the first paint.
+		Not deferred and not in app.js: the attribute has to be stamped before the first paint,
+		or a stored theme that disagrees with the system one flashes on every load. It runs
+		before <body> exists, so the attribute goes on <html>.
 	-->
 	<script>
 		try {
@@ -47,9 +45,8 @@
 		}
 
 		/*
-			visibility, not display: the labels keep their box, so hiding them does not resize
-			a single swatch. With display:none the grid rows collapse to the min-height below
-			and every swatch visibly shrinks.
+			visibility, not display: the labels keep their box, so hiding them doesn't resize a
+			swatch. With display:none the grid rows collapse to the min-height below.
 		*/
 		:root.no-swatch-info .swatch span {
 			visibility: hidden;
@@ -106,7 +103,6 @@
 			margin-bottom: 2rem;
 		}
 
-		/* the grids on the left, the clicked color on the right */
 		.split {
 			display: flex;
 			align-items: flex-start;
@@ -140,9 +136,9 @@
 		}
 
 		/*
-		   The browser hides [hidden] with display:none from its own stylesheet, which any
-		   display declared here outranks - #logged-in is a .row, so it stayed on screen logged
-		   out. Four elements are toggled by setting el.hidden, so the rule has to win outright.
+		   The UA stylesheet hides [hidden] with display:none, which any display declared here
+		   outranks - #logged-in is a .row, so it stayed on screen logged out. Four elements are
+		   toggled through el.hidden, so the rule has to win outright.
 		*/
 		[hidden] {
 			display: none !important;
@@ -174,11 +170,10 @@
 		}
 
 		/*
-			The rule above is wrong for a select and only for a select: the popup is painted by the
-			browser, which cannot paint it transparent, so it came out light while the inherited
-			color stayed light - unreadable in the dark theme. Canvas and CanvasText resolve
-			against color-scheme, which the theme button already flips, so naming them here follows
-			the toggle for free. Same mechanism .swatch.selected uses for its inner ring.
+			The transparent background above is wrong for a select: the browser paints the popup
+			and cannot paint it transparent, so it came out light while the inherited color stayed
+			light. Canvas and CanvasText resolve against color-scheme, which the theme button
+			flips.
 		*/
 		select,
 		option {
@@ -195,15 +190,56 @@
 			width: 8rem;
 		}
 
+		.tabs {
+			display: flex;
+			gap: 0.25rem;
+			margin-bottom: 0.75rem;
+			border-bottom: 1px solid var(--line);
+		}
+
+		/*
+			The selected mark is 2px and the strip's own line is 1px, so the tab is pulled down
+			over it. Without the negative margin the mark sits above the line instead of
+			replacing it.
+		*/
+		.tab {
+			padding: 0.25rem 0.6rem;
+			margin-bottom: -1px;
+			border: none;
+			border-bottom: 2px solid transparent;
+			border-radius: 0;
+			color: var(--muted);
+		}
+
+		/* aria-selected is the only place the choice is recorded, so the style reads it */
+		.tab[aria-selected="true"] {
+			border-bottom-color: var(--fg);
+			color: var(--fg);
+			font-weight: 600;
+		}
+
 		.who {
 			font-size: 0.85rem;
 			margin-right: auto;
 		}
 
-		/* fixed, so flipping the label does not shift the controls beside it */
+		/*
+			A cycler's label is its own value, so it needs a floor or stepping it shifts whatever
+			sits beside it. Each width is the widest label in its set. #theme is last in its row
+			and needs none of this.
+		*/
+		#sort,
+		#palette-sort {
+			min-width: 4rem;
+		}
+
 		#order,
 		#palette-order {
 			min-width: 4.5rem;
+		}
+
+		#swatch-info {
+			min-width: 5.5rem;
 		}
 
 		#load-more {
@@ -215,7 +251,160 @@
 			font-family: ui-monospace, monospace;
 		}
 
-		/* the aside's panels: the same heading and spacing a details section gets on the left */
+		/* a value inside a heading, so it undoes the summary's own casing and spacing */
+		#saved-in {
+			text-transform: none;
+			letter-spacing: 0;
+			font-weight: 400;
+		}
+
+		#saved-in:not(:empty)::before {
+			content: "- ";
+		}
+
+		.collections {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.4rem;
+		}
+
+		/* the chip carries the border, the two buttons inside it are bare */
+		.collection {
+			display: flex;
+			align-items: center;
+			border: 1px solid var(--line);
+			border-radius: 3px;
+		}
+
+		.collection.active {
+			border-color: var(--fg);
+		}
+
+		.collection-name,
+		.collection-delete {
+			border: none;
+			border-radius: 0;
+			background: none;
+		}
+
+		/* a name is up to collection.MaxNameLen runes, and a chip is not the place to show them */
+		.collection-name {
+			max-width: 12rem;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.collection.active .collection-name {
+			font-weight: 600;
+		}
+
+		.collection .tag {
+			padding-right: 0.5rem;
+			color: var(--muted);
+			font-size: 0.7rem;
+		}
+
+		/* always visible, unlike a swatch's delete: it doesn't sit on a color */
+		.collection-delete {
+			padding: 0 0.4rem;
+			color: var(--muted);
+			font-size: 0.9rem;
+			line-height: 1.2;
+		}
+
+		/*
+			The stroke settings are the same for every glyph in the sprite, so they sit here
+			rather than on 27 <symbol>s. currentColor is what lets a parent tint a whole icon:
+			the chip sets its color to the collection's accent.
+		*/
+		.icon {
+			width: 1em;
+			height: 1em;
+			flex: none;
+			fill: none;
+			stroke: currentColor;
+			stroke-width: 2;
+			stroke-linecap: round;
+			stroke-linejoin: round;
+		}
+
+		.collection-icon {
+			margin-left: 0.5rem;
+			font-size: 1.1rem;
+		}
+
+		/* the anchor .icon-picker is positioned against */
+		.icon-menu {
+			position: relative;
+			display: flex;
+		}
+
+		.icon-trigger {
+			display: flex;
+			align-items: center;
+			gap: 0.25rem;
+			padding: 0.15rem 0.35rem;
+			font-size: 1.1rem;
+			line-height: 1;
+		}
+
+		/* not part of the preview, so muted rather than the accent */
+		.icon-trigger .caret {
+			font-size: 0.7rem;
+			color: var(--muted);
+		}
+
+		/*
+			Absolutely positioned, so opening it doesn't push the collection chips down the page.
+		*/
+		.icon-picker {
+			position: absolute;
+			top: calc(100% + 0.25rem);
+			left: 0;
+			z-index: 1;
+			display: grid;
+			grid-template-columns: repeat(5, auto);
+			gap: 0.15rem;
+			padding: 0.3rem;
+			border: 1px solid var(--line);
+			border-radius: 3px;
+			/* opaque, or the chips behind show through. Canvas for the same reason a select does */
+			background: Canvas;
+		}
+
+		.icon-option {
+			padding: 0.25rem;
+			border: 1px solid transparent;
+			border-radius: 3px;
+			background: none;
+			font-size: 1.1rem;
+			line-height: 0;
+		}
+
+		.icon-option:hover {
+			border-color: var(--line);
+		}
+
+		.icon-option[aria-checked="true"] {
+			border-color: var(--fg);
+		}
+
+		/*
+			The browser draws the swatch in a box that ignores the padding the other fields get,
+			so #collection-accent and #pick below take an explicit height instead of inheriting
+			one. The padding left here keeps the border visible around the color.
+		*/
+		input[type="color"] {
+			padding: 0.15rem;
+			cursor: pointer;
+		}
+
+		#collection-accent {
+			width: 2.5rem;
+			height: 1.7rem;
+		}
+
 		.panel {
 			margin-bottom: 2rem;
 		}
@@ -224,10 +413,16 @@
 			margin-bottom: 0;
 		}
 
-		/*
-			Capped rather than free-growing: ten entries of one line each fit, but a couple of long
-			failures would push the panel past the viewport and take the sticky aside with it.
-		*/
+		#pick {
+			width: 3.5rem;
+			height: 1.9rem;
+		}
+
+		#pick-hex {
+			font-family: ui-monospace, monospace;
+		}
+
+		/* capped: a few long failures would push the panel past the viewport, sticky aside and all */
 		#log {
 			max-height: 14rem;
 			overflow-y: auto;
@@ -246,9 +441,9 @@
 		}
 
 		/*
-			Five across. There is no border-box reset, so max-width is body's content box: the grids
-			get 60rem less the aside and the gap, which is 43.5rem. Five of these need 41.6rem and a
-			sixth would need 50rem, so auto-fill settles on five and stretches them to 8.4rem.
+			Five across. There is no border-box reset, so max-width is body's content box: the
+			grids get 60rem less the aside and the gap, which is 43.5rem. Five of these need
+			41.6rem and a sixth would need 50rem, so auto-fill settles on five.
 		*/
 		.grid {
 			display: grid;
@@ -270,9 +465,8 @@
 		}
 
 		/*
-			A box-shadow rather than an outline: the swatch keeps its own focus ring, and the
-			inner Canvas ring separates the marker from the swatch color, so it reads on any
-			of them.
+			box-shadow, not outline: the swatch keeps its focus ring. The inner Canvas ring
+			separates the marker from the swatch color, so it reads on any of them.
 		*/
 		.swatch.selected {
 			box-shadow: 0 0 0 2px Canvas, 0 0 0 4px var(--fg);
@@ -288,15 +482,12 @@
 		}
 
 		/*
-			Same shape as .detail-stack below and for the same reason: a button cannot contain a
-			button, so the delete control is a sibling stacked on the swatch rather than inside it.
-			The grid sizes this cell, and the swatch stretches to fill it in both directions, which
-			is what keeps a row of swatches one height.
+			The swatch and its delete control stacked as siblings. The outer grid sizes this cell
+			and the swatch stretches to fill it, which keeps a row of swatches one height.
 
 			minmax(0, 1fr), not the default auto track: an auto track grows toward the swatch's
 			max-content width, which is its label on one line. The swatch would then be wider than
-			the cell the outer grid sized, overflow to the right and paint over the gap - the
-			saved list showing it first only because a timestamp is longer than a color name.
+			the cell, overflow to the right and paint over the gap.
 		*/
 		.cell {
 			position: relative;
@@ -306,9 +497,7 @@
 
 		/*
 			Hidden until the pointer or the keyboard reaches the cell. visibility, not display, for
-			the same reason as the labels above: the button keeps its box, so nothing reflows when
-			it appears. Deleting is the one destructive thing this page does, which is why it does
-			not sit in the tab order of a grid that is otherwise all navigation.
+			the same reason as the labels above: nothing reflows when it appears.
 		*/
 		.cell .remove {
 			position: absolute;
@@ -327,33 +516,31 @@
 			visibility: visible;
 		}
 
-		/* a touch screen never hovers, so there the control has nothing to come out of */
+		/* a touch screen doesn't hover, so the control has nothing to come out of */
 		@media (hover: none) {
 			.cell .remove {
 				visibility: visible;
 			}
 		}
 
-		/* the hex sits on the color rather than inside it, so the two clicks stay separate */
+		/* the color and the hex stacked as siblings, same as .cell */
 		.detail-stack {
 			position: relative;
 		}
 
 		.detail-color {
-			/* the one border-box on the page: aspect-ratio squares the content box, not this one */
+			/* aspect-ratio squares the content box, so a border would make it taller than wide */
 			box-sizing: border-box;
 			display: block;
 			width: 100%;
-			/* square, and wider than a swatch: this is the one meant to be looked at */
 			aspect-ratio: 1;
 			padding: 0;
 			border: 1px solid var(--line);
 		}
 
 		/*
-			The UA stylesheet sizes the fullscreen element, but this file's own square, border and
-			radius all survive it: the first letterboxes the color, the second draws a hairline along
-			the screen edge, and the third rounds the corners and shows the backdrop through them.
+			The UA stylesheet sizes the fullscreen element, but the square, the border and the
+			radius survive it: the color comes out letterboxed, hairlined and round-cornered.
 		*/
 		.detail-color:fullscreen {
 			aspect-ratio: auto;
@@ -373,10 +560,7 @@
 			font-family: ui-monospace, monospace;
 		}
 
-		/*
-			The only sign it is clickable: it sits on the color with no chrome of its own, and an
-			underline is the one mark that reads against every background.
-		*/
+		/* the only affordance: it has no chrome, and an underline reads on any background */
 		.detail-hex:hover {
 			text-decoration: underline;
 		}
@@ -389,26 +573,21 @@
 			overflow-wrap: break-word;
 		}
 
-		/*
-			A plain element, not a button: each band is its own stack of two controls and a button
-			cannot contain a button. This is what requestFullscreen is called on, so the whole
-			strip goes at once however many bands it has.
-		*/
+		/* requestFullscreen is called on the strip, so it goes at once however many bands it has */
 		.harmony {
 			display: flex;
 			gap: 0.25rem;
 			width: 100%;
 		}
 
-		/* the same shape as .detail-stack: the color is the control, the hex sits on it */
+		/* the same shape as .detail-stack, per band */
 		.harmony .band {
 			position: relative;
 			flex: 1;
 		}
 
 		.harmony .band-color {
-			/* border-box for the same reason .detail-color needs it: aspect-ratio squares the
-			   content box, and a border would make the square taller than it is wide */
+			/* border-box for the same reason .detail-color needs it */
 			box-sizing: border-box;
 			display: block;
 			width: 100%;
@@ -418,11 +597,7 @@
 			border: 1px solid var(--line);
 		}
 
-		/*
-			Full width and centered rather than sized to its text: the whole bottom of a band is
-			the copy target, which at three bands is the difference between an easy click and a
-			careful one.
-		*/
+		/* full width, so the whole bottom of a band is the copy target */
 		.harmony .band-hex {
 			position: absolute;
 			left: 0;
@@ -436,15 +611,12 @@
 			text-align: center;
 		}
 
-		/* same single affordance .detail-hex uses, and for the same reason */
+		/* same affordance as .detail-hex */
 		.harmony .band-hex:hover {
 			text-decoration: underline;
 		}
 
-		/*
-			The gap goes with it: the UA paints the fullscreen element on black, which would
-			otherwise show through as lines down the screen.
-		*/
+		/* the gap goes too: the UA paints on black, which shows through it as lines */
 		.harmony:fullscreen {
 			height: 100%;
 			gap: 0;
@@ -470,6 +642,161 @@
 </head>
 
 <body>
+	<!--
+		The collection icons, and the only place the set is written down for the page: app.js
+		builds the picker by reading these ids back out. Adding one is a <symbol> here and a slug
+		in internal/icon.
+
+		Lucide 1.43.0, https://github.com/lucide-icons/lucide
+
+		ISC License, Copyright (c) 2026 Lucide Icons and Contributors, for every icon below
+		except moon and music. Those two are derived from Feather and carry the MIT License,
+		Copyright (c) 2013-present Cole Bemis.
+
+		Both notices in full: web/LICENSE-lucide.txt in the source repo.
+	-->
+	<svg id="icon-sprite" aria-hidden="true" hidden>
+		<defs>
+			<symbol id="i-anchor" viewBox="0 0 24 24">
+				<path d="M12 6v16"/>
+				<path d="m19 13 2-1a9 9 0 0 1-18 0l2 1"/>
+				<path d="M9 11h6"/>
+				<circle cx="12" cy="4" r="2"/>
+			</symbol>
+			<symbol id="i-brush" viewBox="0 0 24 24">
+				<path d="m11 10 3 3"/>
+				<path d="M6.5 21A3.5 3.5 0 1 0 3 17.5a2.62 2.62 0 0 1-.708 1.792A1 1 0 0 0 3 21z"/>
+				<path d="M9.969 17.031 21.378 5.624a1 1 0 0 0-3.002-3.002L6.967 14.031"/>
+			</symbol>
+			<symbol id="i-camera" viewBox="0 0 24 24">
+				<path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"/>
+				<circle cx="12" cy="13" r="3"/>
+			</symbol>
+			<symbol id="i-cat" viewBox="0 0 24 24">
+				<path d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"/>
+				<path d="M8 14v.5"/>
+				<path d="M16 14v.5"/>
+				<path d="M11.25 16.25h1.5L12 17l-.75-.75Z"/>
+			</symbol>
+			<symbol id="i-cloud" viewBox="0 0 24 24">
+				<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
+			</symbol>
+			<symbol id="i-coffee" viewBox="0 0 24 24">
+				<path d="M10 2v2"/>
+				<path d="M14 2v2"/>
+				<path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/>
+				<path d="M6 2v2"/>
+			</symbol>
+			<symbol id="i-crown" viewBox="0 0 24 24">
+				<path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/>
+				<path d="M5 21h14"/>
+			</symbol>
+			<symbol id="i-droplet" viewBox="0 0 24 24">
+				<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>
+			</symbol>
+			<symbol id="i-fish" viewBox="0 0 24 24">
+				<path d="M6.5 12c.94-3.46 4.94-6 8.5-6 3.56 0 6.06 2.54 7 6-.94 3.47-3.44 6-7 6s-7.56-2.53-8.5-6Z"/>
+				<path d="M18 12v.5"/>
+				<path d="M16 17.93a9.77 9.77 0 0 1 0-11.86"/>
+				<path d="M7 10.67C7 8 5.58 5.97 2.73 5.5c-1 1.5-1 5 .23 6.5-1.24 1.5-1.24 5-.23 6.5C5.58 18.03 7 16 7 13.33"/>
+				<path d="M10.46 7.26C10.2 5.88 9.17 4.24 8 3h5.8a2 2 0 0 1 1.98 1.67l.23 1.4"/>
+				<path d="m16.01 17.93-.23 1.4A2 2 0 0 1 13.8 21H9.5a5.96 5.96 0 0 0 1.49-3.98"/>
+			</symbol>
+			<symbol id="i-flower" viewBox="0 0 24 24">
+				<circle cx="12" cy="12" r="3"/>
+				<path d="M12 16.5A4.5 4.5 0 1 1 7.5 12 4.5 4.5 0 1 1 12 7.5a4.5 4.5 0 1 1 4.5 4.5 4.5 4.5 0 1 1-4.5 4.5"/>
+				<path d="M12 7.5V9"/>
+				<path d="M7.5 12H9"/>
+				<path d="M16.5 12H15"/>
+				<path d="M12 16.5V15"/>
+				<path d="m8 8 1.88 1.88"/>
+				<path d="M14.12 9.88 16 8"/>
+				<path d="m8 16 1.88-1.88"/>
+				<path d="M14.12 14.12 16 16"/>
+			</symbol>
+			<symbol id="i-folder" viewBox="0 0 24 24">
+				<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>
+			</symbol>
+			<symbol id="i-gem" viewBox="0 0 24 24">
+				<path d="M10.5 3 8 9l4 13 4-13-2.5-6"/>
+				<path d="M17 3a2 2 0 0 1 1.6.8l3 4a2 2 0 0 1 .013 2.382l-7.99 10.986a2 2 0 0 1-3.247 0l-7.99-10.986A2 2 0 0 1 2.4 7.8l2.998-3.997A2 2 0 0 1 7 3z"/>
+				<path d="M2 9h20"/>
+			</symbol>
+			<symbol id="i-heart" viewBox="0 0 24 24">
+				<path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"/>
+			</symbol>
+			<symbol id="i-image" viewBox="0 0 24 24">
+				<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+				<circle cx="9" cy="9" r="2"/>
+				<path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+			</symbol>
+			<symbol id="i-layers" viewBox="0 0 24 24">
+				<path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/>
+				<path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/>
+				<path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/>
+			</symbol>
+			<symbol id="i-leaf" viewBox="0 0 24 24">
+				<path d="M11 20a10 10 0 0010-10 25.9 25.9 0 00-1.04-7.281 1 1 0 00-1.755-.325C15.833 5.5 13 5.5 9.8 6.1A7 7 0 0011 20"/>
+				<path d="M2 21a5 5 0 012.911-4.544C7.613 15.212 8.351 15.24 11 13"/>
+			</symbol>
+			<symbol id="i-moon" viewBox="0 0 24 24">
+				<path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/>
+			</symbol>
+			<symbol id="i-mountain" viewBox="0 0 24 24">
+				<path d="m8 3 4 8 5-5 5 15H2L8 3z"/>
+			</symbol>
+			<symbol id="i-music" viewBox="0 0 24 24">
+				<path d="M9 18V5l12-2v13"/>
+				<circle cx="6" cy="18" r="3"/>
+				<circle cx="18" cy="16" r="3"/>
+			</symbol>
+			<symbol id="i-palette" viewBox="0 0 24 24">
+				<path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"/>
+				<circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/>
+				<circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/>
+				<circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/>
+				<circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/>
+			</symbol>
+			<symbol id="i-pipette" viewBox="0 0 24 24">
+				<path d="m12 9-8.414 8.414A2 2 0 0 0 3 18.828v1.344a2 2 0 0 1-.586 1.414A2 2 0 0 1 3.828 21h1.344a2 2 0 0 0 1.414-.586L15 12"/>
+				<path d="m18 9 .4.4a1 1 0 1 1-3 3l-3.8-3.8a1 1 0 1 1 3-3l.4.4 3.4-3.4a1 1 0 1 1 3 3z"/>
+				<path d="m2 22 .414-.414"/>
+			</symbol>
+			<symbol id="i-snowflake" viewBox="0 0 24 24">
+				<path d="m10 20-1.25-2.5L6 18"/>
+				<path d="M10 4 8.75 6.5 6 6"/>
+				<path d="m14 20 1.25-2.5L18 18"/>
+				<path d="m14 4 1.25 2.5L18 6"/>
+				<path d="m17 21-3-6h-4"/>
+				<path d="m17 3-3 6 1.5 3"/>
+				<path d="M2 12h6.5L10 9"/>
+				<path d="m20 10-1.5 2 1.5 2"/>
+				<path d="M22 12h-6.5L14 15"/>
+				<path d="m4 10 1.5 2L4 14"/>
+				<path d="m7 21 3-6-1.5-3"/>
+				<path d="m7 3 3 6h4"/>
+			</symbol>
+			<symbol id="i-star" viewBox="0 0 24 24">
+				<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>
+			</symbol>
+			<symbol id="i-sun" viewBox="0 0 24 24">
+				<circle cx="12" cy="12" r="4"/>
+				<path d="M12 2v2"/>
+				<path d="M12 20v2"/>
+				<path d="m4.93 4.93 1.41 1.41"/>
+				<path d="m17.66 17.66 1.41 1.41"/>
+				<path d="M2 12h2"/>
+				<path d="M20 12h2"/>
+				<path d="m6.34 17.66-1.41 1.41"/>
+				<path d="m19.07 4.93-1.41 1.41"/>
+			</symbol>
+			<symbol id="i-tag" viewBox="0 0 24 24">
+				<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/>
+				<circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>
+			</symbol>
+		</defs>
+	</svg>
+
 	<header>
 		<h1>wavelen</h1>
 	</header>
@@ -480,37 +807,75 @@
 			<summary>Account</summary>
 
 			<!-- Both states live in the markup and app.js hides one. The panel is the first thing
-			     rendered, so building either one from script would flash the wrong state. -->
+			     rendered, so building either from script would flash the wrong state. Same for
+			     the two tabs below: log in is selected here, not by script. -->
 			<div id="logged-out">
-				<form class="row" id="login-form">
-					<label for="login-nick">log in</label>
-					<input id="login-nick" placeholder="nickname" autocomplete="username">
+				<div class="tabs" role="tablist">
+					<button type="button" class="tab" id="tab-login" role="tab"
+						aria-controls="login-form" aria-selected="true">log in</button>
+					<button type="button" class="tab" id="tab-signup" role="tab"
+						aria-controls="signup-form" aria-selected="false">sign up</button>
+				</div>
+
+				<!-- The tab names the panel, so each field carries its own aria-label. -->
+				<form class="row" id="login-form" role="tabpanel" aria-labelledby="tab-login">
+					<input id="login-nick" placeholder="nickname" aria-label="nickname"
+						autocomplete="username">
 					<input id="login-password" type="password" placeholder="password"
-						autocomplete="current-password">
+						aria-label="password" autocomplete="current-password">
 					<button>log in</button>
 				</form>
-				<form class="row" id="signup-form">
-					<label for="new-nick">sign up</label>
-					<input id="new-nick" placeholder="nickname" autocomplete="username">
-					<input id="new-name" placeholder="name">
+				<form class="row" id="signup-form" role="tabpanel" aria-labelledby="tab-signup"
+					hidden>
+					<input id="new-nick" placeholder="nickname" aria-label="nickname"
+						autocomplete="username">
+					<input id="new-name" placeholder="name" aria-label="name">
 					<input id="new-password" type="password" placeholder="password"
-						autocomplete="new-password">
+						aria-label="password" autocomplete="new-password">
 					<button>create user</button>
-					<button type="button" id="random-user">random</button>
 				</form>
 			</div>
 
 			<div class="row" id="logged-in" hidden>
-				<!-- the login response answers with an id and nothing else, so the id is what this
-				     names. Showing the typed nickname instead would show it unnormalized. -->
+				<!-- filled from GET /me, not from the typed nickname, which is unnormalized -->
 				<span class="who" id="who"></span>
 				<button type="button" id="logout">log out</button>
 				<button type="button" id="load">reload colors</button>
 			</div>
 		</details>
 
+		<!-- Needs a token, same as the saved list, so app.js hides it logged out. -->
+		<details data-collapse-key="collections" id="collections-section" open>
+			<summary>Collections</summary>
+			<!-- maxlength is collection.MaxNameLen: the API answers 400 past it either way -->
+			<form id="collection-form">
+				<div class="row">
+					<label for="collection-name">new</label>
+					<input id="collection-name" placeholder="name" maxlength="60">
+					<!-- both are optional in the API, and these two defaults are the API's own -->
+					<input type="color" id="collection-accent" value="#808080"
+					       aria-label="collection accent">
+
+					<!-- type=button, or the trigger submits the form instead of opening the
+					     grid. aria-expanded is the only record of whether it is open. Both
+					     are filled by app.js out of the sprite above. -->
+					<div class="icon-menu">
+						<button type="button" class="icon-trigger" id="icon-trigger"
+							aria-haspopup="true" aria-expanded="false"
+							aria-controls="icon-picker"></button>
+						<div class="icon-picker" id="icon-picker" role="radiogroup"
+						     aria-label="collection icon" hidden></div>
+					</div>
+
+					<button>create</button>
+				</div>
+			</form>
+			<div class="collections" id="collections"></div>
+		</details>
+
 		<details data-collapse-key="saved" id="saved-section" open>
-			<summary>Saved colors</summary>
+			<!-- the grid is one collection's colors, so the heading says which -->
+			<summary>Saved colors <span id="saved-in"></span></summary>
 			<form class="row" id="add-form">
 				<input id="hex" placeholder="#ff00aa" aria-label="hex color">
 				<button>add</button>
@@ -520,16 +885,13 @@
 					add 20 random
 				</button>
 			</form>
-			<!-- order reads as descending/ascending rather than newest/oldest, it applies to hex too -->
+			<!-- order says descending/ascending rather than newest/oldest: it applies to hex too -->
 			<div class="row">
+				<!-- a button is labelable, so for= works and a click on the words steps the sort -->
 				<label for="sort">sort by</label>
-				<select id="sort">
-					<option value="created_at">date</option>
-					<option value="hex">hex</option>
-					<option value="color">color</option>
-				</select>
-				<!-- the label is the current order and is written by app.js, the title is the action -->
-				<button type="button" id="order" data-order="desc"></button>
+				<!-- cyclers: app.js writes the labels, the value stays in data-value -->
+				<button type="button" id="sort" data-value="created_at"></button>
+				<button type="button" id="order" data-value="desc"></button>
 				<label for="limit">per page</label>
 				<select id="limit">
 					<option value="10">10</option>
@@ -548,12 +910,8 @@
 			<!-- the palette is 100 fixed rows, so it sorts but never pages -->
 			<div class="row">
 				<label for="palette-sort">sort by</label>
-				<select id="palette-sort">
-					<option value="name">name</option>
-					<option value="hex">hex</option>
-					<option value="color">color</option>
-				</select>
-				<button type="button" id="palette-order" data-order="asc"></button>
+				<button type="button" id="palette-sort" data-value="name"></button>
+				<button type="button" id="palette-order" data-value="asc"></button>
 			</div>
 			<div class="grid" id="palette"></div>
 		</details>
@@ -568,28 +926,39 @@
 				</div>
 			</section>
 
-			<section class="panel">
-				<h2 class="panel-title">Selected</h2>
-				<!-- filled by app.js: the empty state is a placeholder, not a blank panel -->
+			<!-- Collapsible through the same data-collapse-key as the sections on the left.
+			     View and Picker are one row each and stay fixed. -->
+			<details class="panel" data-collapse-key="selected" open>
+				<summary>Selected</summary>
 				<div id="detail"></div>
+			</details>
+
+			<!-- Under Selected, not above it: the browser anchors the dialog below the swatch,
+			     so what it covers is the harmony and the log rather than the color being picked. -->
+			<section class="panel">
+				<h2 class="panel-title">Picker</h2>
+				<div class="row">
+					<!-- neutral: the value only says where the dialog opens -->
+					<input type="color" id="pick" value="#808080" aria-label="pick a color">
+					<button type="button" id="pick-hex" title="copy"></button>
+				</div>
 			</section>
 
-			<section class="panel">
-				<h2 class="panel-title">Harmony</h2>
-				<!-- disabled until a swatch is clicked: both are about the selected color -->
+			<details class="panel" data-collapse-key="harmony" open>
+				<summary>Harmony</summary>
+				<!-- disabled until there is a selection -->
 				<div class="row">
 					<button type="button" id="complement" disabled>complement</button>
 					<button type="button" id="triad" disabled>triad</button>
 				</div>
-				<!-- filled by app.js, same as the panel above -->
 				<div id="harmony"></div>
-			</section>
+			</details>
 
-			<section class="panel">
-				<h2 class="panel-title">Log</h2>
-				<!-- role=log, not status: entries are added, and only the new one is worth reading out -->
+			<details class="panel" data-collapse-key="log" open>
+				<summary>Log</summary>
+				<!-- role=log, not status: entries are added, and only the new one is read out -->
 				<div id="log" role="log"></div>
-			</section>
+			</details>
 		</aside>
 	</div>
 </body>

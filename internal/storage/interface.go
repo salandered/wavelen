@@ -24,7 +24,7 @@ type TokenRepo interface {
 
 type CollectionRepo interface {
 	CreateCollection(
-		ctx context.Context, userID user.ID, name string, isDefault bool,
+		ctx context.Context, userID user.ID, p collection.CreateParams,
 	) (*collection.Collection, error)
 	ListCollections(ctx context.Context, userID user.ID) ([]collection.Collection, error)
 	CountCollections(ctx context.Context, userID user.ID) (int, error)

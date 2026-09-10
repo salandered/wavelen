@@ -25,6 +25,14 @@ import (
 var unknownCollection = collection.ID(
 	uuid.MustParse("00000000-0000-7000-8000-00000000dead"))
 
+func newCollection(name string) collection.CreateParams {
+	return collection.CreateParams{
+		Name:   name,
+		Icon:   collection.DefIconSlug,
+		Accent: collection.DefIconAccent,
+	}
+}
+
 func TestCollectionSuite(t *testing.T) {
 	suite.Run(t, new(CollectionSuite))
 }
@@ -49,7 +57,11 @@ func (s *CollectionSuite) SetupTest() {
 func (s *CollectionSuite) TestCreateCollectionIsNotDefault() {
 	userID := s.createUser("olya")
 
-	col, err := collectionsvc.New(s.store, 10).CreateCollection(s.ctx(), userID, "Sunset")
+	col, err := collectionsvc.New(s.store, 10).CreateCollection(
+		s.ctx(),
+		userID,
+		newCollection("Sunset"),
+	)
 
 	s.Require().NoError(err)
 	s.Require().False(col.IsDefault)
@@ -60,16 +72,20 @@ func (s *CollectionSuite) TestCreateCollectionAllowsRepeatedName() {
 	userID := s.createUser("olya")
 	svc := collectionsvc.New(s.store, 10)
 
-	first, err := svc.CreateCollection(s.ctx(), userID, "Sunset")
+	first, err := svc.CreateCollection(s.ctx(), userID, newCollection("Sunset"))
 	s.Require().NoError(err)
-	second, err := svc.CreateCollection(s.ctx(), userID, "Sunset")
+	second, err := svc.CreateCollection(s.ctx(), userID, newCollection("Sunset"))
 
 	s.Require().NoError(err)
 	s.Require().NotEqual(first.ID, second.ID)
 }
 
 func (s *CollectionSuite) TestCreateCollectionUnknownUser() {
-	_, err := collectionsvc.New(s.store, 10).CreateCollection(s.ctx(), 999, "Sunset")
+	_, err := collectionsvc.New(s.store, 10).CreateCollection(
+		s.ctx(),
+		999,
+		newCollection("Sunset"),
+	)
 
 	s.Require().ErrorIs(err, storage.ErrUserNotFound)
 }
@@ -83,11 +99,11 @@ func (s *CollectionSuite) TestCreateCollectionExceedQuota() {
 	svc := collectionsvc.New(s.store, quota)
 
 	// second
-	_, err := svc.CreateCollection(s.ctx(), userID, "Sunset")
+	_, err := svc.CreateCollection(s.ctx(), userID, newCollection("Sunset"))
 	s.Require().NoError(err)
 
 	// third
-	_, err = svc.CreateCollection(s.ctx(), userID, "Ocean")
+	_, err = svc.CreateCollection(s.ctx(), userID, newCollection("Ocean"))
 
 	s.Require().ErrorIs(err, collectionsvc.ErrQuotaFull)
 	s.Require().Equal(quota, s.countCollections(userID))
@@ -112,7 +128,7 @@ func (s *CollectionSuite) TestConcurrentCreatesRespectQuota() {
 	var wg sync.WaitGroup
 	for i := range attempts {
 		wg.Go(func() {
-			_, err := svc.CreateCollection(ctx, userID, fmt.Sprintf("Palette %d", i))
+			_, err := svc.CreateCollection(ctx, userID, newCollection(fmt.Sprintf("Palette %d", i)))
 			outcomes[i] = outcome{created: err == nil, err: err}
 		})
 	}
@@ -144,7 +160,7 @@ func (s *CollectionSuite) TestCollectionByIDAnotherUserOwns() {
 	graceID := s.createUser("grace")
 	svc := collectionsvc.New(s.store, 10)
 
-	graceCollection, err := svc.CreateCollection(s.ctx(), graceID, "Sunset")
+	graceCollection, err := svc.CreateCollection(s.ctx(), graceID, newCollection("Sunset"))
 	s.Require().NoError(err)
 
 	// when
@@ -159,7 +175,7 @@ func (s *CollectionSuite) TestListCollectionsReturnsOnlyTheCallers() {
 	graceID := s.createUser("grace")
 	svc := collectionsvc.New(s.store, 10)
 
-	_, err := svc.CreateCollection(s.ctx(), graceID, "Grace only")
+	_, err := svc.CreateCollection(s.ctx(), graceID, newCollection("Grace only"))
 	s.Require().NoError(err)
 
 	got, err := svc.ListCollections(s.ctx(), olyaID)
@@ -189,7 +205,7 @@ func (s *CollectionSuite) TestDeleteCollectionRemovesItAndItsColors() {
 	userID := s.createUser("olya")
 	svc := collectionsvc.New(s.store, 10)
 
-	col, err := svc.CreateCollection(s.ctx(), userID, "Sunset")
+	col, err := svc.CreateCollection(s.ctx(), userID, newCollection("Sunset"))
 	s.Require().NoError(err)
 	_, err = s.store.AddColor(s.ctx(), col.ID, color.Hex("#ff0000"))
 	s.Require().NoError(err)

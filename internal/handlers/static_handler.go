@@ -24,7 +24,8 @@ match it against the build ver, and auto respond with 304 Not Modified.
 func NewStaticHandler(files fs.FS) http.Handler {
 	fileServer := readOnly(http.FileServerFS(files))
 	if version.Get() == version.Dev {
-		return fileServer // Assets can be changed in dev environment
+		// Assets can change - a rebuild, or WEB_DIR serving them off disk.
+		return fileServer
 	}
 
 	etag := strconv.Quote(version.Get())

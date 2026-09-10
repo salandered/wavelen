@@ -8,8 +8,10 @@
 Dockerfile
 docker-compose.yml
 
-# web ui: the binary embeds web/
+# web ui: files that are not embeded in embed.go
 web/README.md
+web/LICENSE-lucide.txt
+web/images/logo.png
 
 # credentials
 .env

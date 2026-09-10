@@ -138,7 +138,12 @@ func (s *QuotaSuite) createUser() (user.ID, collection.ID) {
 	u := user.User{Nickname: "olya", Name: "Olya", PasswordHash: []byte("stub")}
 	s.Require().NoError(s.store.CreateUser(ctx, &u))
 
-	col, err := s.store.CreateCollection(ctx, u.ID, "My colors", true)
+	col, err := s.store.CreateCollection(ctx, u.ID, collection.CreateParams{
+		Name:      "My colors",
+		Icon:      collection.DefIconSlug,
+		Accent:    collection.DefIconAccent,
+		IsDefault: true,
+	})
 	s.Require().NoError(err)
 	return u.ID, col.ID
 }

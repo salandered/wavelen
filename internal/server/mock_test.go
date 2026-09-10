@@ -35,10 +35,10 @@ type mockStorage struct {
 	collections     []collection.Collection
 	collectionsErr  error
 	collectionCount int
-	collCountErr    error
+	cltCountErr     error
 	byID            *collection.Collection
-	collIsDefault   bool
-	deleteCollErr   error
+	cltIsDefault    bool
+	deleteCltErr    error
 	// user
 	assignID    user.ID
 	lockUserErr error
@@ -63,7 +63,7 @@ type mockStorage struct {
 	deletedTokenHash []byte
 	gotUserID        user.ID
 	gotCollectionID  collection.ID
-	gotCollName      string
+	gotCltParams     collection.CreateParams
 	gotHex           color.Hex
 	gotParams        storage.ListColorsParams
 	pingCalls        int
@@ -146,14 +146,16 @@ func (s *mockStorage) InTx(_ context.Context, fn func(storage.Storage) error) er
 // Collections
 
 func (s *mockStorage) CreateCollection(
-	_ context.Context, userID user.ID, name string, isDefault bool,
+	_ context.Context, userID user.ID, p collection.CreateParams,
 ) (*collection.Collection, error) {
-	s.gotUserID, s.gotCollName = userID, name
+	s.gotUserID, s.gotCltParams = userID, p
 	return &collection.Collection{
-		ID:        s.assignCltID,
-		Name:      name,
-		IsDefault: isDefault,
-		CreatedAt: stubTime,
+		ID:         s.assignCltID,
+		Name:       p.Name,
+		IconSlug:   p.Icon,
+		IconAccent: p.Accent,
+		IsDefault:  p.IsDefault,
+		CreatedAt:  stubTime,
 	}, nil
 }
 
@@ -166,7 +168,7 @@ func (s *mockStorage) ListCollections(
 
 func (s *mockStorage) CountCollections(_ context.Context, userID user.ID) (int, error) {
 	s.gotUserID = userID
-	return s.collectionCount, s.collCountErr
+	return s.collectionCount, s.cltCountErr
 }
 
 func (s *mockStorage) CollectionByID(
@@ -180,10 +182,12 @@ func (s *mockStorage) CollectionByID(
 		return s.byID, nil
 	}
 	return &collection.Collection{
-		ID:        id,
-		Name:      stubCollectionName,
-		IsDefault: s.collIsDefault,
-		CreatedAt: stubTime,
+		ID:         id,
+		Name:       stubCollectionName,
+		IconSlug:   collection.DefIconSlug,
+		IconAccent: collection.DefIconAccent,
+		IsDefault:  s.cltIsDefault,
+		CreatedAt:  stubTime,
 	}, nil
 }
 
@@ -191,7 +195,7 @@ func (s *mockStorage) DeleteCollection(
 	_ context.Context, userID user.ID, id collection.ID,
 ) error {
 	s.gotUserID, s.gotCollectionID = userID, id
-	return s.deleteCollErr
+	return s.deleteCltErr
 }
 
 func (s *mockStorage) ResolveCollection(

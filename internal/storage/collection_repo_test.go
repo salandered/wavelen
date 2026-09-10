@@ -13,7 +13,7 @@ import (
 func (s *StorageSuite) TestCreateCollectionReturnsGeneratedIDAndCreatedAt() {
 	userID := s.createUser("olya", "Olya")
 
-	col, err := s.storage.CreateCollection(s.ctx(), userID, "Sunset", false)
+	col, err := s.storage.CreateCollection(s.ctx(), userID, newCollection("Sunset", false))
 
 	s.Require().NoError(err)
 	s.Require().NotEqual(collection.ID{}, col.ID)
@@ -23,7 +23,7 @@ func (s *StorageSuite) TestCreateCollectionReturnsGeneratedIDAndCreatedAt() {
 }
 
 func (s *StorageSuite) TestCreateCollectionForUnknownUser() {
-	_, err := s.storage.CreateCollection(s.ctx(), 999, "Sunset", false)
+	_, err := s.storage.CreateCollection(s.ctx(), 999, newCollection("Sunset", false))
 
 	s.Require().ErrorIs(err, storage.ErrUserNotFound)
 }
@@ -32,7 +32,7 @@ func (s *StorageSuite) TestCreateCollectionForUnknownUser() {
 func (s *StorageSuite) TestCreateSecondDefaultForOneUser() {
 	userID, _ := s.createUserAndCollection("olya", "Olya")
 
-	_, err := s.storage.CreateCollection(s.ctx(), userID, "Another", true)
+	_, err := s.storage.CreateCollection(s.ctx(), userID, newCollection("Another", true))
 
 	s.Require().Error(err)
 }
@@ -48,9 +48,9 @@ func (s *StorageSuite) TestTwoUsersHaveDefaultClt() {
 
 func (s *StorageSuite) TestListCollectionsReturnsOldestFirstStartingWithDefaultClt() {
 	userID, defaultID := s.createUserAndCollection("olya", "Olya")
-	sunset, err := s.storage.CreateCollection(s.ctx(), userID, "Sunset", false)
+	sunset, err := s.storage.CreateCollection(s.ctx(), userID, newCollection("Sunset", false))
 	s.Require().NoError(err)
-	ocean, err := s.storage.CreateCollection(s.ctx(), userID, "Ocean", false)
+	ocean, err := s.storage.CreateCollection(s.ctx(), userID, newCollection("Ocean", false))
 	s.Require().NoError(err)
 
 	// when
@@ -83,7 +83,7 @@ func (s *StorageSuite) TestListCollectionsForUnknownUserIsEmpty() {
 
 func (s *StorageSuite) TestCountCollectionsCountsTheDefault() {
 	userID, _ := s.createUserAndCollection("olya", "Olya")
-	_, err := s.storage.CreateCollection(s.ctx(), userID, "Sunset", false)
+	_, err := s.storage.CreateCollection(s.ctx(), userID, newCollection("Sunset", false))
 	s.Require().NoError(err)
 
 	n, err := s.storage.CountCollections(s.ctx(), userID)

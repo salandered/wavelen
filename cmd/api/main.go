@@ -81,10 +81,9 @@ func run() error {
 		return err
 	}
 
-	// fs.Sub strips the "web/" prefix: the file server sees index.html at its root
-	handlerCfg.WebFS, err = fs.Sub(wavelen.WebFS, "web")
+	handlerCfg.WebFS, err = webFS()
 	if err != nil {
-		return fmt.Errorf("web assets: %w", err)
+		return err
 	}
 
 	// Startup does not wait for the database
@@ -223,6 +222,31 @@ func handlerConfig() (server.HandlerConfig, error) {
 		AuthConcurLimit:     authLimit,
 		AuthConcurWait:      authWait,
 	}, nil
+}
+
+func webFS() (fs.FS, error) {
+	dir := os.Getenv("WEB_DIR")
+	if dir == "" {
+		// fs.Sub strips the "web/" prefix: the file server sees index.html at its root
+		assets, err := fs.Sub(wavelen.WebFS, "web")
+		if err != nil {
+			return nil, fmt.Errorf("web assets: %w", err)
+		}
+		return assets, nil
+	}
+
+	if version.Get() != version.Dev {
+		return nil, fmt.Errorf("%w: WEB_DIR is dev only, this build is %q",
+			ErrConfig, version.Get())
+	}
+
+	assets := os.DirFS(dir)
+	if _, err := fs.Stat(assets, "index.html"); err != nil {
+		return nil, fmt.Errorf("%w: WEB_DIR=%q: %w", ErrConfig, dir, err)
+	}
+
+	slog.Warn("serving web assets from disk, not from the binary", "dir", dir)
+	return assets, nil
 }
 
 func intFromEnv(name string, def int) (int, error) {

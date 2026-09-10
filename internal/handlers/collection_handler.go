@@ -7,12 +7,14 @@ import (
 
 	"github.com/salandered/httputils/httputils"
 	"github.com/salandered/wavelen/internal/collection"
+	"github.com/salandered/wavelen/internal/color"
+	"github.com/salandered/wavelen/internal/icon"
 	"github.com/salandered/wavelen/internal/user"
 )
 
 type CollectionService interface {
 	CreateCollection(
-		ctx context.Context, userID user.ID, name string,
+		ctx context.Context, userID user.ID, p collection.CreateParams,
 	) (*collection.Collection, error)
 	ListCollections(ctx context.Context, userID user.ID) ([]collection.Collection, error)
 	CollectionByID(
@@ -26,12 +28,16 @@ type CollectionHandler struct {
 }
 
 type CreateCollectionReq struct {
-	Name string `json:"name"`
+	Name   string `json:"name"`
+	Icon   string `json:"icon"`
+	Accent string `json:"accent"`
 }
 
 type CollectionResp struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
+	Icon      string    `json:"icon"`
+	Accent    string    `json:"accent"`
 	IsDefault bool      `json:"is_default"`
 	CreatedAt time.Time `json:"created_at"`
 }
@@ -55,13 +61,13 @@ func (h *CollectionHandler) HandleCreateCollection(
 		return
 	}
 
-	name, err := collection.NormalizeName(data.Name)
+	params, err := createCollectionParams(data)
 	if err != nil {
 		writeRequestError(ctx, w, err)
 		return
 	}
 
-	created, err := h.CollectionSvc.CreateCollection(ctx, userID, name)
+	created, err := h.CollectionSvc.CreateCollection(ctx, userID, params)
 	if err != nil {
 		writeStorageError(ctx, w, err)
 		return
@@ -127,10 +133,36 @@ func (h *CollectionHandler) HandleDeleteCollection(
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func createCollectionParams(data CreateCollectionReq) (collection.CreateParams, error) {
+	name, err := collection.NormalizeName(data.Name)
+	if err != nil {
+		return collection.CreateParams{}, err
+	}
+
+	// not required
+	slug := collection.DefIconSlug
+	if data.Icon != "" {
+		if slug, err = icon.ParseSlug(data.Icon); err != nil {
+			return collection.CreateParams{}, err
+		}
+	}
+
+	// not required
+	accent := collection.DefIconAccent
+	if data.Accent != "" {
+		if accent, err = color.ParseHex(data.Accent); err != nil {
+			return collection.CreateParams{}, err
+		}
+	}
+	return collection.CreateParams{Name: name, Icon: slug, Accent: accent}, nil
+}
+
 func collectionToResp(c *collection.Collection) CollectionResp {
 	return CollectionResp{
 		ID:        c.ID.String(),
 		Name:      c.Name,
+		Icon:      string(c.IconSlug),
+		Accent:    string(c.IconAccent),
 		IsDefault: c.IsDefault,
 		CreatedAt: c.CreatedAt.UTC(),
 	}

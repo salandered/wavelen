@@ -1,4 +1,4 @@
-<img src="web/logo.png" alt="alt text" width="358">
+<img src="web/images/logo.png" alt="alt text" width="358">
 
 [![CI](https://github.com/salandered/wavelen/actions/workflows/ci.yml/badge.svg)](https://github.com/salandered/wavelen/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/salandered/wavelen/branch/main/graph/badge.svg)](https://codecov.io/gh/salandered/wavelen)

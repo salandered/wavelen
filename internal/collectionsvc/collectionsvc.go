@@ -25,8 +25,10 @@ func New(store storage.Storage, quota int) *CollectionSvc {
 
 // A user already at the quota -> ErrQuotaFull.
 func (c *CollectionSvc) CreateCollection(
-	ctx context.Context, userID user.ID, name string,
+	ctx context.Context, userID user.ID, p collection.CreateParams,
 ) (*collection.Collection, error) {
+	p.IsDefault = false // the default one is written at signup only
+
 	var created *collection.Collection
 
 	err := c.storage.InTx(
@@ -45,7 +47,7 @@ func (c *CollectionSvc) CreateCollection(
 				return ErrQuotaFull
 			}
 
-			created, err = s.CreateCollection(ctx, userID, name, false)
+			created, err = s.CreateCollection(ctx, userID, p)
 			return err
 		},
 	)

@@ -23,6 +23,7 @@ import (
 	"github.com/salandered/wavelen/internal/collection"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/handlers"
+	"github.com/salandered/wavelen/internal/icon"
 	"github.com/salandered/wavelen/internal/requestid"
 	"github.com/salandered/wavelen/internal/server"
 	"github.com/salandered/wavelen/internal/storage"
@@ -217,7 +218,9 @@ func (s *APISuite) TestCreateUserAlsoCreatesTheDefaultCollection() {
 	})
 	s.Require().Equal(http.StatusCreated, resp.StatusCode)
 
-	s.Require().Equal(usersvc.DefCollectionName, s.storage.gotCollName)
+	s.Require().Equal(usersvc.DefCollectionName, s.storage.gotCltParams.Name)
+	s.Require().Equal(collection.DefIconSlug, s.storage.gotCltParams.Icon)
+	s.Require().Equal(collection.DefIconAccent, s.storage.gotCltParams.Accent)
 }
 
 func (s *APISuite) TestCreateUserDuplicateNicknameReturnsConflict() {
@@ -382,24 +385,52 @@ func (s *APISuite) TestCreateCollectionPassesTrimmedNameToStorage() {
 	resp := s.post(collectionsPath, handlers.CreateCollectionReq{Name: "  Sunset  "})
 	s.Require().Equal(http.StatusCreated, resp.StatusCode)
 
-	s.Require().Equal("Sunset", s.storage.gotCollName)
+	s.Require().Equal("Sunset", s.storage.gotCltParams.Name)
+}
+
+func (s *APISuite) TestCreateCollectionDefaultIconAndAccentWhenOmitted() {
+	resp := s.post(collectionsPath, handlers.CreateCollectionReq{Name: "Sunset"})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+
+	var out handlers.OneCollectionResp
+	s.decode(resp, &out)
+	s.Require().Equal(string(collection.DefIconSlug), out.Collection.Icon)
+	s.Require().Equal(string(collection.DefIconAccent), out.Collection.Accent)
+}
+
+func (s *APISuite) TestCreateCollectionPassesVerbatimIconAndNormalizedAccentToStorage() {
+	resp := s.post(collectionsPath, handlers.CreateCollectionReq{
+		Name:   "Sunset",
+		Icon:   "star",
+		Accent: "FF00AA",
+	})
+	s.Require().Equal(http.StatusCreated, resp.StatusCode)
+
+	s.Require().Equal(icon.Slug("star"), s.storage.gotCltParams.Icon)
+	s.Require().Equal(color.Hex("#ff00aa"), s.storage.gotCltParams.Accent)
 }
 
 func (s *APISuite) TestCreateCollectionRejectsBadInput() {
 	tests := map[string]string{
-		"empty name":    `{"name":""}`,
-		"blank name":    `{"name":"   "}`,
-		"overlong name": `{"name":"` + strings.Repeat("a", collection.MaxNameLen+1) + `"}`,
-		"missing name":  `{}`,
-		"unknown field": `{"name":"Sunset","is_default":true}`,
-		"empty body":    ``,
-		"not an object": `["Sunset"]`,
+		"empty name":     `{"name":""}`,
+		"blank name":     `{"name":"   "}`,
+		"overlong name":  `{"name":"` + strings.Repeat("a", collection.MaxNameLen+1) + `"}`,
+		"missing name":   `{}`,
+		"unknown field":  `{"name":"Sunset","is_default":true}`,
+		"unknown icon":   `{"name":"Sunset","icon":"folder-open"}`,
+		"uppercase icon": `{"name":"Sunset","icon":"STAR"}`,
+		"padded icon":    `{"name":"Sunset","icon":" star "}`,
+		"icon markup":    `{"name":"Sunset","icon":"<svg/>"}`,
+		"bad accent":     `{"name":"Sunset","accent":"zzzzzz"}`,
+		"blank accent":   `{"name":"Sunset","accent":"   "}`,
+		"empty body":     ``,
+		"not an object":  `["Sunset"]`,
 	}
 	for name, body := range tests {
 		s.Run(name, func() {
 			resp := s.postRaw(collectionsPath, body)
 			s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
-			s.Require().Empty(s.storage.gotCollName)
+			s.Require().Empty(s.storage.gotCltParams)
 		})
 	}
 }
@@ -432,8 +463,21 @@ func (s *APISuite) TestListCollectionsRendersEmptyArrayNotNull() {
 
 func (s *APISuite) TestListCollectionsKeepsOrderAndNormalizesTimeToUTC() {
 	s.storage.collections = []collection.Collection{
-		{ID: stubCollectionID, Name: "Main", IsDefault: true, CreatedAt: stubTime},
-		{ID: otherCollectionID, Name: "Sunset", CreatedAt: stubTime.Add(time.Hour)},
+		{
+			ID:         stubCollectionID,
+			Name:       "Main",
+			IconSlug:   collection.DefIconSlug,
+			IconAccent: collection.DefIconAccent,
+			IsDefault:  true,
+			CreatedAt:  stubTime,
+		},
+		{
+			ID:         otherCollectionID,
+			Name:       "Sunset",
+			IconSlug:   "star",
+			IconAccent: "#ff00aa",
+			CreatedAt:  stubTime.Add(time.Hour),
+		},
 	}
 
 	var out handlers.ListCollectionsResp
@@ -496,7 +540,7 @@ func (s *APISuite) TestDeleteCollectionReturnsNoContent() {
 }
 
 func (s *APISuite) TestDeleteDefaultCollectionReturnsConflict() {
-	s.storage.collIsDefault = true
+	s.storage.cltIsDefault = true
 
 	resp := s.del(collectionPath)
 

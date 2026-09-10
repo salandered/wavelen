@@ -50,6 +50,15 @@ var stubPasswordHash = []byte("stub")
 
 const testCollectionName = "Main"
 
+func newCollection(name string, isDefault bool) collection.CreateParams {
+	return collection.CreateParams{
+		Name:      name,
+		Icon:      collection.DefIconSlug,
+		Accent:    collection.DefIconAccent,
+		IsDefault: isDefault,
+	}
+}
+
 func (s *StorageSuite) createUser(nickname, name string) user.ID {
 	userID, _ := s.createUserAndCollection(nickname, name)
 	return userID
@@ -62,7 +71,11 @@ func (s *StorageSuite) createUserAndCollection(
 	u := user.User{Nickname: nickname, Name: name, PasswordHash: stubPasswordHash}
 	s.Require().NoError(s.storage.CreateUser(s.ctx(), &u))
 
-	col, err := s.storage.CreateCollection(s.ctx(), u.ID, testCollectionName, true)
+	col, err := s.storage.CreateCollection(
+		s.ctx(),
+		u.ID,
+		newCollection(testCollectionName, true),
+	)
 	s.Require().NoError(err)
 	return u.ID, col.ID
 }

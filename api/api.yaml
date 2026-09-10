@@ -678,6 +678,37 @@ components:
         Free form, display only. Length is counted in runes, after trimming. Not unique.
       example: Sunset palette
 
+    CollectionIcon:
+      type: string
+      description: A slug out of the icon set the UI ships.
+      enum:
+        - anchor
+        - brush
+        - camera
+        - cat
+        - cloud
+        - coffee
+        - crown
+        - droplet
+        - fish
+        - flower
+        - folder
+        - gem
+        - heart
+        - image
+        - layers
+        - leaf
+        - moon
+        - mountain
+        - music
+        - palette
+        - pipette
+        - snowflake
+        - star
+        - sun
+        - tag
+      example: star
+
     CreateCollectionRequest:
       type: object
       required: [name]
@@ -685,10 +716,14 @@ components:
       properties:
         name:
           $ref: "#/components/schemas/CollectionName"
+        icon:
+          $ref: "#/components/schemas/CollectionIcon"
+        accent:
+          $ref: "#/components/schemas/HexInput"
 
     Collection:
       type: object
-      required: [id, name, is_default, created_at]
+      required: [id, name, icon, accent, is_default, created_at]
       properties:
         id:
           type: string
@@ -697,6 +732,10 @@ components:
           example: "01a083f4-5c2f-71d9-9757-5d6635ded04d"
         name:
           $ref: "#/components/schemas/CollectionName"
+        icon:
+          $ref: "#/components/schemas/CollectionIcon"
+        accent:
+          $ref: "#/components/schemas/HexStored"
         is_default:
           type: boolean
           description: The default collection. One per user, cannot be deleted.

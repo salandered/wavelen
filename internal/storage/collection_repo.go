@@ -14,16 +14,16 @@ import (
 // An unknown user yields ErrUserNotFound.
 // A second default for the same user violates collections_one_default_per_user.
 func (s *Postgres) CreateCollection(
-	ctx context.Context, userID user.ID, name string, isDefault bool,
+	ctx context.Context, userID user.ID, p collection.CreateParams,
 ) (*collection.Collection, error) {
 	const query = `
-		INSERT INTO collections (user_id, name, is_default)
-		VALUES ($1, $2, $3)
-		RETURNING id, name, is_default, created_at`
+		INSERT INTO collections (user_id, name, icon_slug, icon_accent, is_default)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, name, icon_slug, icon_accent, is_default, created_at`
 
 	var c collection.Collection
-	err := s.db.QueryRow(ctx, query, userID, name, isDefault).
-		Scan(&c.ID, &c.Name, &c.IsDefault, &c.CreatedAt)
+	err := s.db.QueryRow(ctx, query, userID, p.Name, p.Icon, p.Accent, p.IsDefault).
+		Scan(&c.ID, &c.Name, &c.IconSlug, &c.IconAccent, &c.IsDefault, &c.CreatedAt)
 	if err != nil {
 		if pgErrCode(err) == foreignKeyViolation {
 			return nil, ErrUserNotFound
@@ -38,7 +38,7 @@ func (s *Postgres) ListCollections(
 	ctx context.Context, userID user.ID,
 ) ([]collection.Collection, error) {
 	const query = `
-		SELECT id, name, is_default, created_at
+		SELECT id, name, icon_slug, icon_accent, is_default, created_at
 		FROM collections
 		WHERE user_id = $1
 		ORDER BY created_at, id`
@@ -69,13 +69,13 @@ func (s *Postgres) CollectionByID(
 	ctx context.Context, userID user.ID, id collection.ID,
 ) (*collection.Collection, error) {
 	const query = `
-		SELECT id, name, is_default, created_at
+		SELECT id, name, icon_slug, icon_accent, is_default, created_at
 		FROM collections
 		WHERE id = $1 AND user_id = $2`
 
 	var c collection.Collection
 	err := s.db.QueryRow(ctx, query, id, userID).
-		Scan(&c.ID, &c.Name, &c.IsDefault, &c.CreatedAt)
+		Scan(&c.ID, &c.Name, &c.IconSlug, &c.IconAccent, &c.IsDefault, &c.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
