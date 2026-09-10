@@ -1,13 +1,12 @@
-# Release cases
+# Deployment
 
 ## Validation
 
 ```sh
 # chart structure, yaml parsing of every rendered doc
-helm lint deploy/wavelen -f deploy/values-vps.yaml
-helm lint deploy/wavelen -f deploy/values-k3d-mac.yaml   
+helm lint deploy/wavelen -f deploy/values-vps.yaml # -f deploy/values-k3d-mac.yaml   
 helm lint deploy/wavelen --strict                     
-# full render to stdout. Catches template errors, bad indentation, missing required values
+# full render to stdout. Template errors, bad indentation, missing required values
 helm template wavelen deploy/wavelen -f deploy/values-vps.yaml
 # hooks are excluded from a release manifest but included in a render
 helm template wavelen deploy/wavelen -f deploy/values-vps.yaml --no-hooks

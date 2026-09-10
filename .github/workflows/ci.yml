@@ -56,7 +56,9 @@ jobs:
         run: go mod verify
 
       - name: Run tests
-        run: go test -covermode=atomic -coverprofile=cover.out ./...
+        run: >
+          go test -covermode=atomic -coverpkg=./...
+          -coverprofile=cover.out ./...
 
       # https://github.com/marketplace/actions/codecov#arguments
       - name: Upload coverage to Codecov
@@ -84,9 +86,8 @@ jobs:
 
       - name: Run integration tests
         run: >
-          go test -tags=integration -run TestStorageSuite
-          -covermode=atomic -coverpkg=./internal/storage/...
-          -coverprofile=cover.out ./internal/storage/
+          go test -tags=integration -covermode=atomic -coverpkg=./...
+          -coverprofile=cover.out ./...
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
