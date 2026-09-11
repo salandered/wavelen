@@ -13,6 +13,7 @@ import (
 type UserService interface {
 	CreateUser(ctx context.Context, u *user.User) error
 	UserByID(ctx context.Context, id user.ID) (*user.User, error)
+	DeleteUser(ctx context.Context, id user.ID) error
 }
 
 type UserHandler struct {
@@ -85,6 +86,19 @@ func (h *UserHandler) HandleGetMe(w http.ResponseWriter, req *http.Request, user
 		return
 	}
 	httputils.WriteJSON(ctx, w, http.StatusOK, MeResp{User: userToResp(u)})
+}
+
+// Deletes the userID account and all the data assosiated with it.
+// userID is derived from the auth token.
+// All the user tokens will also be deleted, so a repeat answers 401.
+func (h *UserHandler) HandleDeleteMe(w http.ResponseWriter, req *http.Request, userID user.ID) {
+	ctx := req.Context()
+
+	if err := h.UserSvc.DeleteUser(ctx, userID); err != nil {
+		writeStorageError(ctx, w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func userToResp(u *user.User) UserResp {

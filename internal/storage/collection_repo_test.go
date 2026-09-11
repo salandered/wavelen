@@ -5,7 +5,6 @@ package storage_test
 import (
 	"github.com/salandered/wavelen/internal/collection"
 	"github.com/salandered/wavelen/internal/storage"
-	"github.com/salandered/wavelen/internal/user"
 )
 
 // Create
@@ -215,13 +214,6 @@ func (s *StorageSuite) TestDeleteCollectionUnknownCollection() {
 }
 
 // Utils
-
-func (s *StorageSuite) countCollections(userID user.ID) int {
-	var n int
-	s.Require().NoError(s.pool.QueryRow(s.ctx(),
-		`SELECT count(*) FROM collections WHERE user_id = $1`, userID).Scan(&n))
-	return n
-}
 
 func idsOf(collections []collection.Collection) []collection.ID {
 	ids := make([]collection.ID, 0, len(collections))

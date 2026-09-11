@@ -57,8 +57,10 @@ func newMux(s storage.Storage, cfg HandlerConfig) *http.ServeMux {
 	mux.Handle("POST /api/v1/tokens", bcryptLimited(tokens.HandleCreateToken))
 	// logout
 	mux.Handle("DELETE /api/v1/tokens", authed(tokens.HandleDeleteToken))
-	// account behind the token
+	// the account behind the token
 	mux.Handle("GET /api/v1/me", authed(users.HandleGetMe))
+	// delete the accoubt
+	mux.Handle("DELETE /api/v1/me", authed(users.HandleDeleteMe))
 
 	//// user's data
 	mux.Handle("GET /api/v1/me/collections", authed(collections.HandleListCollections))

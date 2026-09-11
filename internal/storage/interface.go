@@ -13,6 +13,7 @@ type UserRepo interface {
 	CreateUser(ctx context.Context, u *user.User) error
 	UserByNickname(ctx context.Context, nickname string) (*user.User, error)
 	UserByID(ctx context.Context, id user.ID) (*user.User, error)
+	DeleteUser(ctx context.Context, id user.ID) error
 	LockUser(ctx context.Context, id user.ID) error
 }
 

@@ -41,3 +41,8 @@ func (u *Users) CreateUser(ctx context.Context, user *user.User) error {
 func (u *Users) UserByID(ctx context.Context, id user.ID) (*user.User, error) {
 	return u.storage.UserByID(ctx, id)
 }
+
+// Deletes the account.
+func (u *Users) DeleteUser(ctx context.Context, id user.ID) error {
+	return u.storage.DeleteUser(ctx, id)
+}

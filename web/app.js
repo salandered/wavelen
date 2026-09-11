@@ -43,10 +43,11 @@ function writeStored(key, value) {
 }
 
 // ---- session ----
-// Four fields: the token and its expiry from POST /tokens, the name from GET /me, and the id of
-// the collection the saved grid is showing. Both of the last two are stored rather than re-fetched
-// so a reload renders without a request, and both are safe stale - the name is a caption, and the
-// id is checked against the list before it is used.
+// Five fields: the token and its expiry from POST /tokens, the name and the nickname from GET /me,
+// and the id of the collection the saved grid is showing. The last three are stored rather than
+// re-fetched so a reload renders without a request, and all three are safe stale - the name is a
+// caption, the id is checked against the list before it is used, and the nickname is compared
+// against what was typed into a field the account's owner is looking at.
 //
 // See web-wavelen-context.md, "Storage", for why the token is in localStorage.
 
@@ -79,11 +80,23 @@ function startSession(token, expiry, name) {
 	renderSession();
 }
 
-// The name arrives one request after the token, see login().
-function setSessionName(name) {
-	session = { ...session, name };
+// Both arrive one request after the token, see login(). The nickname is not a caption: the
+// delete dialog compares what was typed against it, and GET /me is where it can be had.
+function setSessionUser(name, nickname) {
+	session = { ...session, name, nickname };
 	writeStored(SESSION_KEY, session);
 	renderSession();
+}
+
+// A session stored before the nickname was kept has a token and no nickname, and stays usable,
+// so the one caller that needs it asks for it. Nothing else on the page does.
+async function sessionNickname() {
+	if (typeof session?.nickname === "string" && session.nickname !== "") {
+		return session.nickname;
+	}
+	const { data } = await call("GET", "/me");
+	setSessionUser(data.user.name, data.user.nickname);
+	return data.user.nickname;
 }
 
 // Local only. Revoking is the caller's business: logout does it, an expiry or a 401 means it is
@@ -354,9 +367,14 @@ function iconMenuOpen() {
 	return $("icon-trigger").getAttribute("aria-expanded") === "true";
 }
 
-// One tab per collection: the name selects it, the "x" deletes it. The default tab carries the
-// marker instead, because the server refuses that delete with a 409.
+// One tab per collection, and the tab only selects: the delete is the trash in the listing row,
+// beside the eraser, and both act on the active one. The default is not marked on its tab; its
+// title says so, and the trash is disabled while it is the active one, since the server refuses
+// that delete with a 409.
 function renderCollections() {
+	const active = collections.find((c) => c.id === activeCollection);
+	$("collection-delete").disabled = active === undefined || active.is_default;
+
 	if (collections.length === 0) {
 		renderEmpty($("collections"), "none");
 		return;
@@ -366,12 +384,11 @@ function renderCollections() {
 		row.className = "collection";
 		row.classList.toggle("active", col.id === activeCollection);
 
-		// The glyph, the name and the marker are one button, so the whole tab selects. Only
-		// the delete stays outside it.
 		const name = document.createElement("button");
 		name.type = "button";
 		name.className = "collection-name";
-		name.title = col.id === activeCollection ? "showing this one" : `show ${col.name}`;
+		const showing = col.is_default ? "showing this one, the default" : "showing this one";
+		name.title = col.id === activeCollection ? showing : `show ${col.name}`;
 		name.addEventListener("click", () => selectCollection(col.id));
 
 		// an account made before the icon existed has neither field, so both fall back
@@ -381,40 +398,23 @@ function renderCollections() {
 		text.className = "name";
 		text.textContent = col.name;
 		name.append(glyph, text);
-		if (col.is_default) {
-			name.append(defaultTag());
-		}
 		row.append(name);
-
-		if (!col.is_default) {
-			row.append(collectionRemove(col));
-		}
 		return row;
 	}));
 }
 
-function defaultTag() {
-	const tag = document.createElement("span");
-	tag.className = "tag";
-	tag.textContent = "default";
-	tag.title = "written at signup, and the one collection that cannot be deleted";
-	return tag;
-}
-
-function collectionRemove(col) {
-	const remove = document.createElement("button");
-	remove.type = "button";
-	remove.className = "collection-delete";
-	remove.textContent = "×";
-	remove.title = `delete ${col.name} and its colors`;
-	remove.setAttribute("aria-label", `delete ${col.name}`);
-	remove.addEventListener("click", () => deleteCollection(col));
-	return remove;
-}
-
 // One of the two controls that destroy rows the page is not showing: the delete cascades to the
 // colors and there is no account recovery. Hence the confirm, which deleting a swatch does not get.
-async function deleteCollection(col) {
+// It takes the active collection, the one the grid is showing, so what goes is on screen.
+async function deleteCollection() {
+	if (!requireSession()) {
+		return;
+	}
+	await ensureCollections();
+	const col = collections.find((c) => c.id === activeCollection);
+	if (col === undefined || col.is_default) {
+		return; // the button is disabled in both cases, see renderCollections
+	}
 	if (!confirm(`delete ${col.name} and every color in it?`)) {
 		return;
 	}
@@ -422,11 +422,6 @@ async function deleteCollection(col) {
 		await call("DELETE", `/me/collections/${col.id}`);
 		collections = collections.filter((c) => c.id !== col.id);
 		setStatus(`deleted ${col.name}`);
-
-		if (col.id !== activeCollection) {
-			renderCollections();
-			return;
-		}
 		// the grid is showing a collection that no longer exists
 		setActiveCollection(pickCollection(null));
 		await loadSaved();
@@ -500,9 +495,10 @@ function savedLabel(at) {
 let selectedHex = null;
 let selectedLabel = "";
 
-// What the page opens on. The hex and the name are the palette's own row for gray, see
-// internal/palette, so the grid marks the swatch the panels are showing.
-const DEF_SELECTION = { hex: "#808080", name: "gray" };
+// What the page opens on: the title's first tint, see the h1[data-tint="1"] rule. Not a palette
+// row, so no swatch carries the mark until the first click. The label names the source, the way
+// "picked" and "random" do.
+const DEF_SELECTION = { hex: "#b7159c", name: "title" };
 
 // Perceived brightness (the YIQ weights) picks between a black and a white label. Not a contrast
 // ratio, but one line and enough to keep every swatch readable.
@@ -805,7 +801,8 @@ function renderStrips() {
 
 function stripBlock(name) {
 	const block = document.createElement("div");
-	block.className = "strip-block";
+	// a rotation is two to four bands and shares a row, a scale is seven and takes one
+	block.className = LEADING.has(name) ? "strip-block rotation" : "strip-block scale";
 
 	const toolbar = document.createElement("div");
 	toolbar.className = "toolbar";
@@ -1273,7 +1270,7 @@ async function login(nickname, password) {
 	$("account").close();
 
 	const { data: me } = await call("GET", "/me");
-	setSessionName(me.user.name);
+	setSessionUser(me.user.name, me.user.nickname);
 	setStatus(`logged in as ${me.user.name}`);
 	await loadSaved();
 }
@@ -1522,6 +1519,10 @@ for (const name of DERIVED) {
 	$(`pin-${name}`).addEventListener("click", () => togglePin(name));
 }
 
+// the whole row at once, through the same path a single pin takes
+$("pins-all").addEventListener("click", () => applyPinned(DERIVED));
+$("pins-none").addEventListener("click", () => applyPinned([]));
+
 $("bulk-add").addEventListener("click", addRandomColors);
 
 // a selection like any other, so the panels show what the button produced
@@ -1547,6 +1548,7 @@ $("limit").addEventListener("change", () => {
 $("logged-out").addEventListener("click", openAccount);
 closeOnBackdrop($("account"));
 closeOnBackdrop($("about"));
+closeOnBackdrop($("account-delete"));
 
 // The dialog closes on the token, not on the name: GET /me is a second request, and the header
 // chip renders nameless until it lands either way.
@@ -1599,6 +1601,69 @@ $("logout").addEventListener("click", async () => {
 	}
 });
 
+// The nickname has to be in hand before the dialog opens, since it is what the field is checked
+// against, so a session stored before the nickname was kept spends a GET /me here.
+async function openDeleteAccount() {
+	if (!requireSession()) {
+		return;
+	}
+	let nickname;
+	try {
+		nickname = await sessionNickname();
+	} catch (err) {
+		setStatus(err.message, true);
+		return;
+	}
+	$("account-delete-nick-echo").textContent = nickname;
+	$("account-delete-nick").value = "";
+	showDeleteError("");
+	renderDeleteMatch();
+	$("account-delete").showModal();
+	$("account-delete-nick").focus();
+}
+
+// The server trims and lowercases a nickname before it stores one, so the typed copy gets the
+// same treatment before the compare. An empty field matches nothing.
+function renderDeleteMatch() {
+	const typed = $("account-delete-nick").value.trim().toLowerCase();
+	$("account-delete-submit").disabled =
+		typed === "" || typed !== $("account-delete-nick-echo").textContent;
+}
+
+function showDeleteError(message) {
+	$("account-delete-error").textContent = message;
+}
+
+// endSession() is last and nothing authed follows it: a request after it answers 401 and logs a
+// second line over the first. There is no token to revoke either, that row went with the account.
+async function deleteAccount() {
+	try {
+		await call("DELETE", "/me");
+	} catch (err) {
+		// on a 401 call() has already ended the session, and the dialog would be standing over a
+		// logged out page
+		if (session === null) {
+			$("account-delete").close();
+		} else {
+			showDeleteError(err.message);
+		}
+		setStatus(err.message, true);
+		return;
+	}
+	$("account-delete").close();
+	endSession();
+	setStatus("account deleted");
+}
+
+$("account-delete-open").addEventListener("click", openDeleteAccount);
+$("account-delete-nick").addEventListener("input", renderDeleteMatch);
+$("account-delete-cancel").addEventListener("click", () => $("account-delete").close());
+
+$("account-delete-form").addEventListener("submit", (event) => {
+	event.preventDefault();
+	deleteAccount();
+});
+
 // Over USER_COLLECTION_QUOTA this answers 409, same as the color quota. The field keeps its value
 // on a failure, so the name can be retried once a collection has been freed.
 $("collection-form").addEventListener("submit", async (event) => {
@@ -1631,6 +1696,7 @@ $("collection-new").addEventListener("click", () => {
 });
 
 $("collection-empty").addEventListener("click", emptyCollection);
+$("collection-delete").addEventListener("click", deleteCollection);
 
 $("saved-dense").addEventListener("click", () => applyDense(!denseOn()));
 

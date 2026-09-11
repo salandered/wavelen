@@ -189,6 +189,27 @@ paths:
           $ref: "#/components/responses/NotFoundUser"
         "500":
           $ref: "#/components/responses/InternalServerError"
+    delete:
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      summary: Deletes the account assosiated with an incoming token
+      description: >-
+        Removes the account an all its data: collections, colors, tokens.
+        There is no undo. The nickname will become available for a sign up.
+        The token this request carries is also deleted, so a repeat is 401, not 404.
+      responses:
+        "204":
+          description: The account is deleted
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/XRequestId"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFoundUser"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   /api/v1/me/collections:
     get:

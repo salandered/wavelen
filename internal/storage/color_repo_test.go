@@ -256,28 +256,11 @@ func (s *StorageSuite) TestDeletingAUserCascadesToTheirColors() {
 	s.Require().NoError(err)
 
 	// then
-	var colors, collections int
-	err = s.pool.QueryRow(s.ctx(),
-		`SELECT count(*) FROM collection_colors WHERE collection_id = $1`,
-		collectionID).Scan(&colors)
-	s.Require().NoError(err)
-	s.Require().Zero(colors)
-
-	err = s.pool.QueryRow(s.ctx(),
-		`SELECT count(*) FROM collections WHERE user_id = $1`, userID).Scan(&collections)
-	s.Require().NoError(err)
-	s.Require().Zero(collections)
+	s.Require().Zero(s.countColorsIn(collectionID))
+	s.Require().Zero(s.countCollections(userID))
 }
 
 // Utils
-
-func (s *StorageSuite) addColors(collectionID collection.ID, hexes ...color.Hex) {
-	for _, hex := range hexes {
-		// one statement per row, so now() differs and no two rows share a created_at
-		_, err := s.storage.AddColor(s.ctx(), collectionID, hex)
-		s.Require().NoError(err)
-	}
-}
 
 // Traverse the listing with p.Limit per page and returns every hex, ordered.
 func (s *StorageSuite) pageThrough(

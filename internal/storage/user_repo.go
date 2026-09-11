@@ -66,6 +66,22 @@ func (s *Postgres) UserByID(ctx context.Context, id user.ID) (*user.User, error)
 	return &u, nil
 }
 
+// Deletes the account and all the data it holds:
+// - collections and tokens cascade with the user row (000002, 000005)
+// - colors cascade with the collections (000003).
+func (s *Postgres) DeleteUser(ctx context.Context, id user.ID) error {
+	const query = `DELETE FROM users WHERE id = $1`
+
+	tag, err := s.db.Exec(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("storage delete user: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrUserNotFound
+	}
+	return nil
+}
+
 // Row lock on the user row.
 func (s *Postgres) LockUser(ctx context.Context, id user.ID) error {
 	const query = `SELECT 1 FROM users WHERE id = $1 FOR UPDATE`

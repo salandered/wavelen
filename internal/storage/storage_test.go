@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/salandered/wavelen/internal/collection"
+	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/storagetest"
 	"github.com/salandered/wavelen/internal/user"
@@ -33,51 +34,6 @@ func (s *StorageSuite) SetupSuite() {
 
 func (s *StorageSuite) SetupTest() {
 	storagetest.Truncate(s.T(), s.pool)
-}
-
-// utils
-
-func (s *StorageSuite) ctx() context.Context {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	s.T().Cleanup(cancel)
-	return ctx
-}
-
-// utils to mock db data
-
-// Not a valid bcrypt hash, nothing here verifies it.
-var stubPasswordHash = []byte("stub")
-
-const testCollectionName = "Main"
-
-func newCollection(name string, isDefault bool) collection.CreateParams {
-	return collection.CreateParams{
-		Name:      name,
-		Icon:      collection.DefIconSlug,
-		Accent:    collection.DefIconAccent,
-		IsDefault: isDefault,
-	}
-}
-
-func (s *StorageSuite) createUser(nickname, name string) user.ID {
-	userID, _ := s.createUserAndCollection(nickname, name)
-	return userID
-}
-
-// An account and its def collection
-func (s *StorageSuite) createUserAndCollection(
-	nickname, name string,
-) (user.ID, collection.ID) {
-	u := user.User{Nickname: nickname, Name: name, PasswordHash: stubPasswordHash}
-	s.Require().NoError(s.storage.CreateUser(s.ctx(), &u))
-
-	col, err := s.storage.CreateCollection(
-		s.ctx(),
-		u.ID,
-		newCollection(testCollectionName, true),
-	)
-	s.Require().NoError(err)
-	return u.ID, col.ID
 }
 
 // Tx tests
@@ -126,4 +82,77 @@ func (s *StorageSuite) TestInTxRefusesNesting() {
 	})
 
 	s.Require().ErrorIs(err, storage.ErrNestedTx)
+}
+
+// utils
+
+func (s *StorageSuite) ctx() context.Context {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	s.T().Cleanup(cancel)
+	return ctx
+}
+
+// Not a valid bcrypt hash, nothing here verifies it.
+var stubPasswordHash = []byte("stub")
+
+const testCollectionName = "Main"
+
+func newCollection(name string, isDefault bool) collection.CreateParams {
+	return collection.CreateParams{
+		Name:      name,
+		Icon:      collection.DefIconSlug,
+		Accent:    collection.DefIconAccent,
+		IsDefault: isDefault,
+	}
+}
+
+func (s *StorageSuite) createUser(nickname, name string) user.ID {
+	userID, _ := s.createUserAndCollection(nickname, name)
+	return userID
+}
+
+// An account and its def collection
+func (s *StorageSuite) createUserAndCollection(
+	nickname, name string,
+) (user.ID, collection.ID) {
+	u := user.User{Nickname: nickname, Name: name, PasswordHash: stubPasswordHash}
+	s.Require().NoError(s.storage.CreateUser(s.ctx(), &u))
+
+	col, err := s.storage.CreateCollection(
+		s.ctx(),
+		u.ID,
+		newCollection(testCollectionName, true),
+	)
+	s.Require().NoError(err)
+	return u.ID, col.ID
+}
+
+func (s *StorageSuite) addColors(collectionID collection.ID, hexes ...color.Hex) {
+	for _, hex := range hexes {
+		// one statement per row, so now() differs and no two rows share a created_at
+		_, err := s.storage.AddColor(s.ctx(), collectionID, hex)
+		s.Require().NoError(err)
+	}
+}
+
+func (s *StorageSuite) countUsers(userID user.ID) int {
+	return s.count(`SELECT count(*) FROM users WHERE id = $1`, userID)
+}
+
+func (s *StorageSuite) countCollections(userID user.ID) int {
+	return s.count(`SELECT count(*) FROM collections WHERE user_id = $1`, userID)
+}
+
+func (s *StorageSuite) countColorsIn(collectionID collection.ID) int {
+	return s.count(`SELECT count(*) FROM collection_colors WHERE collection_id = $1`, collectionID)
+}
+
+func (s *StorageSuite) countTokens(userID user.ID) int {
+	return s.count(`SELECT count(*) FROM tokens WHERE user_id = $1`, userID)
+}
+
+func (s *StorageSuite) count(query string, arg any) int {
+	var n int
+	s.Require().NoError(s.pool.QueryRow(s.ctx(), query, arg).Scan(&n))
+	return n
 }

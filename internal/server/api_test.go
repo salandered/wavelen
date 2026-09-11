@@ -269,6 +269,40 @@ func (s *APISuite) TestGetMeUnknownUserReturnsNotFound() {
 	s.Require().Equal("user not found", s.errorMessage(resp))
 }
 
+func (s *APISuite) TestDeleteMe() {
+	s.del("/api/v1/me")
+
+	s.Require().Equal(1, s.storage.deleteUserCalls)
+	s.Require().Zero(s.storage.inTxCalls)
+}
+
+func (s *APISuite) TestDeleteMeClosesTheAccountBehindTheToken() {
+	s.storage.tokenUser = 7
+
+	resp := s.del("/api/v1/me")
+
+	s.Require().Equal(http.StatusNoContent, resp.StatusCode)
+	// the id came from the token
+	s.Require().Equal(user.ID(7), s.storage.gotUserID)
+}
+
+func (s *APISuite) TestDeleteMeWithoutCredentialsDeletesNothing() {
+	resp := s.sendAs(http.MethodDelete, "/api/v1/me", nil, "")
+
+	s.Require().Equal(http.StatusUnauthorized, resp.StatusCode)
+	s.Require().Zero(s.storage.deleteUserCalls)
+}
+
+// Unreachable in production, the token proved the user row was there.
+func (s *APISuite) TestDeleteMeUnknownUserReturnsNotFound() {
+	s.storage.deleteErr = storage.ErrUserNotFound
+
+	resp := s.del("/api/v1/me")
+
+	s.Require().Equal(http.StatusNotFound, resp.StatusCode)
+	s.Require().Equal("user not found", s.errorMessage(resp))
+}
+
 func (s *APISuite) TestCreateTokenReturnsTokenAndStoresTheHash() {
 	hash, err := auth.HashPassword(testPassword)
 	s.Require().NoError(err)

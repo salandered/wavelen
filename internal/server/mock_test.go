@@ -48,6 +48,7 @@ type mockStorage struct {
 	nickErr     error
 	userByID    *user.User
 	idErr       error
+	deleteErr   error
 	// token
 	tokenUser      user.ID
 	tokenErr       error
@@ -68,6 +69,8 @@ type mockStorage struct {
 	gotHex           color.Hex
 	gotParams        storage.ListColorsParams
 	pingCalls        int
+	deleteUserCalls  int
+	inTxCalls        int
 }
 
 // not UTC, a response carrying Z proves the handler normalized it.
@@ -119,6 +122,12 @@ func (s *mockStorage) UserByID(_ context.Context, id user.ID) (*user.User, error
 	return s.userByID, s.idErr
 }
 
+func (s *mockStorage) DeleteUser(_ context.Context, id user.ID) error {
+	s.gotUserID = id
+	s.deleteUserCalls++
+	return s.deleteErr
+}
+
 func (s *mockStorage) LockUser(_ context.Context, id user.ID) error {
 	s.gotUserID = id
 	return s.lockUserErr
@@ -141,6 +150,7 @@ func (s *mockStorage) DeleteToken(_ context.Context, hash []byte) error {
 }
 
 func (s *mockStorage) InTx(_ context.Context, fn func(storage.Storage) error) error {
+	s.inTxCalls++
 	return fn(s)
 }
 
