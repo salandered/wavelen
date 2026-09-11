@@ -1,0 +1,1057 @@
+:root {
+	/* with no data-theme the browser decides, and light-dark() follows color-scheme */
+	color-scheme: light dark;
+	--fg: light-dark(#1c1a17, #ece7de);
+	--muted: light-dark(#6b6357, #9b9184);
+	--line: light-dark(#d6cfc2, #403a32);
+	--error: light-dark(#9b2f1c, #ee967d);
+	/* a caution rather than a failure: the same warm family, a step over toward orange */
+	--warn: light-dark(#a8560f, #e8a05e);
+	/* the fill of a submit button: a step down from --fg, so it doesn't glare */
+	--primary: light-dark(#4a4540, #c9c2b5);
+}
+
+/* overriding color-scheme re-resolves every light-dark() above in one repaint */
+:root[data-theme="light"] {
+	color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+	color-scheme: dark;
+}
+
+/*
+Zen mode: every hex the page writes over a color, the header, and the accent on a
+collection tab.
+
+visibility, not display, for the labels: they keep their box, so hiding them doesn't
+resize a swatch or a band. With display:none the grid rows collapse to the min-height
+below and the strips lose their captions' room.
+*/
+:root.zen .swatch span,
+:root.zen .detail-hex,
+:root.zen .detail-label,
+:root.zen .band-hex,
+:root.zen #scratch-hex {
+	visibility: hidden;
+}
+
+/* visibility here too: the header keeps its box, so nothing below it moves */
+:root.zen header {
+	visibility: hidden;
+}
+
+/* !important: app.js paints the accent as an inline style, which a selector cannot outrank */
+:root.zen .collection-icon {
+	color: var(--muted) !important;
+}
+
+html {
+	/* reserve the scrollbar track, so a short list does not shift the centered body */
+	scrollbar-gutter: stable;
+}
+
+/* the reserved track survives into full screen as an empty strip at the right edge */
+html:has(:fullscreen) {
+	scrollbar-gutter: auto;
+}
+
+body {
+	font-family: system-ui, sans-serif;
+	max-width: 60rem;
+	margin: 2rem auto;
+	padding: 0 1rem;
+	color: var(--fg);
+}
+
+header {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	margin-bottom: 1.5rem;
+}
+
+h1 {
+	font-size: 1.25rem;
+	margin: 0;
+	margin-right: auto;
+	cursor: pointer;
+	/* a second click inside the double-click window selects the word otherwise */
+	user-select: none;
+}
+
+/*
+Two tints and back, a click at a time. Bare values rather than tokens: they read on
+either ground and belong to nothing else on the page.
+*/
+h1[data-tint="1"] {
+	color: #b7159c;
+}
+
+h1[data-tint="2"] {
+	color: #358e5c;
+}
+
+/* words beside the title, not buttons among the controls */
+.header-word {
+	border-color: transparent;
+	color: var(--muted);
+}
+
+.header-word:hover {
+	color: var(--fg);
+}
+
+/* the name and its log out in one tinted box, the one filled thing in the header */
+.account {
+	display: flex;
+	align-items: center;
+	gap: 0.7rem;
+	padding: 0.2rem 0.35rem 0.2rem 0.85rem;
+	border-radius: 3px;
+	background: light-dark(rgba(0, 0, 0, 0.08), rgba(255, 255, 255, 0.1));
+}
+
+.who {
+	font-size: 0.85rem;
+}
+
+#logout {
+	color: var(--muted);
+}
+
+#logout:hover {
+	color: var(--fg);
+}
+
+/* same weight as the collection trash: muted in the row, --error once reached */
+#account-delete-open {
+	padding: 0.2rem;
+	font-size: 0.95rem;
+	color: var(--muted);
+}
+
+#account-delete-open:hover {
+	color: var(--error);
+}
+
+dialog {
+	min-width: 16rem;
+	padding: 1rem 1.25rem;
+	border: 1px solid var(--line);
+	border-radius: 3px;
+	/* Canvas for the same reason a select does: the page fill is transparent */
+	background: Canvas;
+	color: CanvasText;
+}
+
+dialog::backdrop {
+	background: rgba(0, 0, 0, 0.4);
+}
+
+dialog h2 {
+	margin: 0 0 0.75rem;
+	line-height: 0;
+}
+
+dialog p {
+	margin: 0 0 0.5rem;
+	font-size: 0.85rem;
+}
+
+dialog hr {
+	margin: 0.75rem 0;
+	border: 0;
+	border-top: 1px solid var(--line);
+}
+
+dialog a {
+	color: inherit;
+}
+
+.about-note {
+	color: var(--muted);
+}
+
+.about-warn {
+	color: var(--warn);
+}
+
+#about form {
+	margin-top: 1rem;
+	text-align: right;
+}
+
+/* the account forms: fields stacked and full width, the dialog is narrow */
+.stack {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.stack input {
+	box-sizing: border-box;
+	width: 100%;
+}
+
+/* only there while it has text, so a clean form doesn't hold an empty line */
+.dialog-error {
+	margin: 0.75rem 0 0;
+	color: var(--error);
+	font-size: 0.85rem;
+}
+
+.dialog-error:empty {
+	display: none;
+}
+
+/* cancel sits first, so the destructive one is not under the thumb by default */
+.dialog-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 0.5rem;
+	margin-top: 0.25rem;
+}
+
+/* the one filled --error control: a submit weight, since that is what it is */
+.danger {
+	border-color: var(--error);
+	background: var(--error);
+	color: Canvas;
+	font-weight: 600;
+}
+
+.danger:disabled {
+	border-color: var(--line);
+	background: transparent;
+	color: var(--muted);
+	font-weight: 400;
+	cursor: default;
+}
+
+#account-delete label {
+	font-size: 0.85rem;
+	color: var(--muted);
+}
+
+#account-delete h3 {
+	margin: 0 0 0.75rem;
+	font-size: 1rem;
+}
+
+summary,
+.panel-title {
+	font-size: 0.8rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--muted);
+	margin: 0 0 0.75rem;
+	padding-bottom: 0.35rem;
+	border-bottom: 1px solid var(--line);
+}
+
+summary {
+	cursor: pointer;
+	user-select: none;
+}
+
+details:not([open]) summary {
+	margin-bottom: 0;
+}
+
+details {
+	margin-bottom: 2rem;
+}
+
+.split {
+	display: flex;
+	align-items: flex-start;
+	gap: 1.5rem;
+}
+
+/* min-width, or a grid row sized by its content would push the aside past the edge */
+main {
+	flex: 1;
+	min-width: 0;
+}
+
+/* sticky, so the color stays in view while a long list scrolls beside it */
+aside {
+	flex: 0 0 15rem;
+	position: sticky;
+	top: 2rem;
+}
+
+/* below this the two columns are both too narrow to be worth keeping side by side */
+@media (max-width: 38rem) {
+	.split {
+		flex-direction: column;
+	}
+
+	/* stacked, the cross axis is horizontal, so the flex-start above shrinks a column to
+   its content: main came out 147px wide inside a 388px page */
+	main,
+	aside {
+		align-self: stretch;
+	}
+
+	aside {
+		flex: none;
+		position: static;
+	}
+}
+
+/*
+   The UA stylesheet hides [hidden] with display:none, which any display declared here
+   outranks - #logged-in is a flex row, so it stayed on screen logged out. Several elements
+   are toggled through el.hidden, so the rule has to win outright.
+*/
+[hidden] {
+	display: none !important;
+}
+
+.row {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+	margin-bottom: 0.5rem;
+}
+/* two rows on one line while there is room, the listing controls against the right edge */
+.toolbar {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 0.5rem 1rem;
+	margin-bottom: 0.75rem;
+}
+
+.toolbar .row {
+	margin-bottom: 0;
+}
+
+.toolbar .row:last-child {
+	margin-left: auto;
+}
+
+label {
+	color: var(--muted);
+	font-size: 0.85rem;
+}
+
+input,
+select,
+button {
+	font: inherit;
+	font-size: 0.85rem;
+	padding: 0.25rem 0.5rem;
+	border: 1px solid var(--line);
+	border-radius: 3px;
+	background: transparent;
+	color: inherit;
+}
+
+/*
+The transparent background above is wrong for a select: the browser paints the popup
+and cannot paint it transparent, so it came out light while the inherited color stayed
+light. Canvas and CanvasText resolve against color-scheme, which the theme button
+flips.
+*/
+select,
+option {
+	background: Canvas;
+	color: CanvasText;
+}
+
+button {
+	cursor: pointer;
+}
+
+/*
+Controls of one kind share one look, so a row of them reads as groups rather than as
+a line of identical buttons: a submit is filled, a helper is outlined, a setting is
+text with a dotted underline, a collection is a tab.
+*/
+#collection-form button:not([type="button"]),
+#add-form button:not([type="button"]) {
+	background: var(--primary);
+	border-color: var(--primary);
+	color: Canvas;
+	font-weight: 600;
+}
+
+#sort,
+#order,
+#limit,
+#palette-sort,
+#palette-order {
+	padding-left: 0.2rem;
+	padding-right: 0.2rem;
+	border-color: transparent;
+	text-decoration: underline dotted;
+	text-underline-offset: 0.25em;
+}
+
+#sort:hover,
+#order:hover,
+#limit:hover,
+#palette-sort:hover,
+#palette-order:hover {
+	border-color: var(--line);
+}
+
+#pins {
+	margin-bottom: 0.75rem;
+}
+
+/* the two bulk glyphs sit at the row's end, clear of the pills they act on */
+#pins-all {
+	margin-left: auto;
+}
+
+.tabs {
+	display: flex;
+	gap: 0.25rem;
+	margin-bottom: 0.75rem;
+	border-bottom: 1px solid var(--line);
+}
+
+/*
+The selected mark is 2px and the strip's own line is 1px, so the tab is pulled down
+over it. Without the negative margin the mark sits above the line instead of
+replacing it.
+*/
+.tab {
+	padding: 0.25rem 0.6rem;
+	margin-bottom: -1px;
+	border: none;
+	border-bottom: 2px solid transparent;
+	border-radius: 0;
+	color: var(--muted);
+}
+
+/* aria-selected is the only place the choice is recorded, so the style reads it */
+.tab[aria-selected="true"] {
+	border-bottom-color: var(--fg);
+	color: var(--fg);
+	font-weight: 600;
+}
+
+/*
+A cycler's label is its own value, so it needs a floor or stepping it shifts whatever
+sits beside it. Each width is the widest label in its set, and the text is centered
+in it, so a shorter label leaves the box where it is. #theme is last in its row and
+needs none of this.
+*/
+#sort,
+#palette-sort {
+	min-width: 3rem;
+}
+
+#order,
+#palette-order {
+	min-width: 3.5rem;
+}
+
+#load-more {
+	margin-top: 0.75rem;
+}
+
+/* seven monospace characters and room for a caret, so the toolbar keeps to one line */
+#hex {
+	width: 6.5rem;
+	font-family: ui-monospace, monospace;
+}
+
+/*
+A tab strip, the same shape as the account tabs: the collections choose what the grid
+below shows. The summary already draws a line, so the strip is pulled up toward it.
+*/
+.collection-bar {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	margin: -0.5rem 0 0.9rem;
+	border-bottom: 1px solid var(--line);
+}
+
+.collections {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25rem;
+}
+
+/* the tab carries the mark, the two buttons inside it are bare */
+.collection {
+	display: flex;
+	align-items: center;
+	margin-bottom: -1px;
+	border-bottom: 2px solid transparent;
+	color: var(--muted);
+}
+
+.collection.active {
+	border-bottom-color: var(--fg);
+	color: var(--fg);
+}
+
+.collection-name {
+	border: none;
+	border-radius: 0;
+	background: none;
+}
+
+/* the glyph and the name in one button, so a click anywhere on the tab selects */
+.collection-name {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	max-width: 12rem;
+	padding: 0.3rem 0.5rem;
+}
+
+/* a name is up to collection.MaxNameLen runes, and a tab is not the place to show them */
+.collection-name .name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.collection.active .collection-name {
+	font-weight: 600;
+}
+
+/* the trigger for the create form, a glyph at the end of the strip */
+#collection-new {
+	margin-left: 0.25rem;
+	border-color: transparent;
+}
+
+#collection-new:hover,
+#collection-new[aria-expanded="true"] {
+	color: var(--fg);
+}
+
+/* last in the listing row, framed like the view controls before them, muted until
+   reached: what they do is not undone */
+#collection-empty,
+#collection-delete {
+	color: var(--muted);
+}
+
+#collection-empty:hover,
+#collection-delete:enabled:hover {
+	color: var(--error);
+}
+
+/* the default collection: the control stays so the row keeps its shape, and says no */
+#collection-delete:disabled {
+	opacity: 0.4;
+	cursor: default;
+}
+
+/*
+The stroke settings are the same for every glyph in the sprite, so they sit here
+rather than on 27 <symbol>s. currentColor is what lets a parent tint a whole icon:
+the chip sets its color to the collection's accent.
+*/
+.icon {
+	width: 1em;
+	height: 1em;
+	flex: none;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.collection-icon {
+	font-size: 1.1rem;
+}
+
+/* the anchor .icon-picker is positioned against */
+.icon-menu {
+	position: relative;
+	display: flex;
+}
+
+.icon-trigger {
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+	padding: 0.15rem 0.35rem;
+	font-size: 1.1rem;
+	line-height: 1;
+}
+
+/* not part of the preview, so muted rather than the accent */
+.icon-trigger .caret {
+	font-size: 0.7rem;
+	color: var(--muted);
+}
+
+/*
+Absolutely positioned, so opening it doesn't push the toolbar and the grid down the page.
+*/
+.icon-picker {
+	position: absolute;
+	top: calc(100% + 0.25rem);
+	left: 0;
+	z-index: 1;
+	display: grid;
+	grid-template-columns: repeat(5, auto);
+	gap: 0.15rem;
+	padding: 0.3rem;
+	border: 1px solid var(--line);
+	border-radius: 3px;
+	/* opaque, or the toolbar behind shows through. Canvas for the same reason a select does */
+	background: Canvas;
+}
+
+.icon-option {
+	padding: 0.25rem;
+	border: 1px solid transparent;
+	border-radius: 3px;
+	background: none;
+	font-size: 1.1rem;
+	line-height: 0;
+}
+
+.icon-option:hover {
+	border-color: var(--line);
+}
+
+.icon-option[aria-checked="true"] {
+	border-color: var(--fg);
+}
+
+/*
+The browser draws the swatch in a box that ignores the padding the other fields get,
+so #collection-accent and #pick below take an explicit height instead of inheriting
+one. The padding left here keeps the border visible around the color.
+*/
+input[type="color"] {
+	padding: 0.15rem;
+	cursor: pointer;
+}
+
+#collection-accent {
+	width: 2.5rem;
+	height: 1.7rem;
+}
+
+.panel {
+	margin-bottom: 2rem;
+}
+
+.panel:last-child {
+	margin-bottom: 0;
+}
+
+#pick,
+#scratch {
+	width: 3.5rem;
+	height: 1.9rem;
+}
+
+.detail-adjust {
+	margin: 0.5rem 0 0;
+}
+
+#scratch-hex {
+	font-family: ui-monospace, monospace;
+}
+
+/* names the strip under it, at the weight a label carries */
+.strip-name {
+	color: var(--muted);
+	font-size: 0.85rem;
+}
+
+/*
+Blocks share rows by band count. A rotation is two to four bands, so two of them fit
+a row with bands still wider than the label cutoff below, and a lone one grows to
+fill its row. A scale is seven bands and keeps the column, as the markup says.
+*/
+#strips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.6rem 1rem;
+}
+
+.strip-block {
+	flex: 1 1 100%;
+}
+
+.strip-block.rotation {
+	flex-basis: 16rem;
+}
+
+/* a block is a label and a strip, so its toolbar needs less room than a section's */
+.strip-block .toolbar {
+	margin-bottom: 0.35rem;
+}
+
+.strip-block .icon-button,
+#pins .icon-button,
+#collection-new {
+	padding: 0.1rem 0.3rem;
+	font-size: 0.95rem;
+	/* a step back, like the label beside them: the colors are what the eye is here for */
+	color: var(--muted);
+}
+
+.strip-block .icon-button:hover,
+#pins .icon-button:hover {
+	color: var(--fg);
+}
+
+/* a glyph alone, sized like the icon trigger */
+.icon-button {
+	display: flex;
+	align-items: center;
+	padding: 0.2rem 0.4rem;
+	font-size: 1.1rem;
+	line-height: 1;
+}
+
+#saved-dense[aria-pressed="true"] {
+	background: light-dark(rgba(0, 0, 0, 0.14), rgba(255, 255, 255, 0.18));
+}
+
+/*
+A pin per derived strip: outlined and muted while off, filled while on. Two fills a
+step apart read as one row of buttons, so the off state keeps the border every other
+control has and the on state is the only filled thing in the row.
+*/
+.pill {
+	padding: 0.25rem 0.7rem;
+	border-radius: 999px;
+	background: light-dark(rgba(0, 0, 0, 0.02), rgba(255, 255, 255, 0.03));
+	color: var(--muted);
+}
+
+.pill:hover {
+	color: var(--fg);
+}
+
+.pill[aria-pressed="true"] {
+	border-color: transparent;
+	background: light-dark(rgba(0, 0, 0, 0.16), rgba(255, 255, 255, 0.2));
+	color: var(--fg);
+}
+
+#log p {
+	margin: 0 0 0.4rem;
+	font-size: 0.8rem;
+	color: var(--muted);
+	/* a hex or a proxy error has no spaces to break at, and the panel is 15rem */
+	overflow-wrap: anywhere;
+}
+
+#log p.failed {
+	color: var(--error);
+}
+
+/*
+Five across. There is no border-box reset, so max-width is body's content box: the
+grids get 60rem less the aside and the gap, which is 43.5rem. Five of these need
+41.6rem and a sixth would need 50rem, so auto-fill settles on five.
+*/
+.grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+	gap: 0.4rem;
+}
+
+.swatch {
+	display: flex;
+	flex-direction: column;
+	gap: 0.1rem;
+	/* a floor for the shortest labels, the two lines are taller than this anyway */
+	min-height: 3.2rem;
+	padding: 0.6rem 0.5rem;
+	border: 1px solid var(--line);
+	text-align: left;
+	font-family: ui-monospace, monospace;
+	font-size: 0.75rem;
+}
+
+/*
+A dense grid: ten cells to a row and no gap, the whole set as one block. A name wider
+than its cell is cut, and the Selected panel spells out whichever one was clicked. The
+palette is always this, Saved colors takes it from a toggle.
+*/
+.dense {
+	grid-template-columns: repeat(10, minmax(0, 1fr));
+	gap: 0;
+}
+
+.dense .swatch {
+	/* border-box for the same reason .detail-color needs it */
+	box-sizing: border-box;
+	/* a fifth shorter than wide: two lines of text want less room than a square gives */
+	aspect-ratio: 5 / 4;
+	min-height: 0;
+	padding: 0.35rem 0.4rem;
+	/* the border goes with the gap, or two 1px edges meet as a lattice over the colors */
+	border: none;
+	/* the shared control radius too: four rounded corners meet as a notch of page */
+	border-radius: 0;
+}
+
+#saved.dense .label {
+	display: none;
+}
+
+/* positioned, so the ring paints over the neighbours it now overlaps */
+.dense .swatch.selected {
+	position: relative;
+}
+
+/* a saved cell is positioned too, and a later one paints over the ring without the lift */
+#saved.dense .cell:has(.swatch.selected) {
+	z-index: 1;
+}
+
+/*
+Ten to a row is a 32px square once the columns stack. Here and not in the layout query
+at the top of the file: same specificity, so the rule that comes later wins.
+*/
+@media (max-width: 38rem) {
+	.dense {
+		grid-template-columns: repeat(5, minmax(0, 1fr));
+	}
+}
+
+/*
+box-shadow, not outline: the swatch keeps its focus ring. The inner Canvas ring
+separates the marker from the swatch color, so it reads on any of them.
+*/
+.swatch.selected {
+	box-shadow:
+		0 0 0 2px Canvas,
+		0 0 0 4px var(--fg);
+}
+
+.swatch .label {
+	font-family: system-ui, sans-serif;
+	opacity: 0.75;
+	/* names and timestamps are longer than the swatch, and wrapping breaks the grid */
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/*
+The swatch and its delete control stacked as siblings. The outer grid sizes this cell
+and the swatch stretches to fill it, which keeps a row of swatches one height.
+
+minmax(0, 1fr), not the default auto track: an auto track grows toward the swatch's
+max-content width, which is its label on one line. The swatch would then be wider than
+the cell, overflow to the right and paint over the gap.
+*/
+.cell {
+	position: relative;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+}
+
+/*
+Hidden until the pointer or the keyboard reaches the cell. visibility, not display, for
+the same reason as the labels above: nothing reflows when it appears.
+*/
+.cell .remove {
+	position: absolute;
+	top: 0.15rem;
+	right: 0.15rem;
+	padding: 0 0.25rem;
+	border: none;
+	background: none;
+	font-size: 0.9rem;
+	line-height: 1.2;
+	visibility: hidden;
+}
+
+.cell:hover .remove,
+.cell:focus-within .remove {
+	visibility: visible;
+}
+
+/* a touch screen doesn't hover, so the control has nothing to come out of */
+@media (hover: none) {
+	.cell .remove {
+		visibility: visible;
+	}
+}
+
+/* the color and the hex stacked as siblings, same as .cell */
+.detail-stack {
+	position: relative;
+}
+
+.detail-color {
+	/* aspect-ratio squares the content box, so a border would make it taller than wide */
+	box-sizing: border-box;
+	display: block;
+	width: 100%;
+	aspect-ratio: 1;
+	padding: 0;
+	border: 1px solid var(--line);
+}
+
+/*
+The UA stylesheet sizes the fullscreen element, but the square, the border and the
+radius survive it: the color comes out letterboxed, hairlined and round-cornered.
+*/
+.detail-color:fullscreen {
+	aspect-ratio: auto;
+	width: 100%;
+	height: 100%;
+	border: none;
+	border-radius: 0;
+}
+
+.detail-hex {
+	position: absolute;
+	left: 0.5rem;
+	bottom: 0.6rem;
+	padding: 0.1rem 0.25rem;
+	border: none;
+	background: transparent;
+	font-family: ui-monospace, monospace;
+}
+
+/* the only affordance: it has no chrome, and an underline reads on any background */
+.detail-hex:hover {
+	text-decoration: underline;
+}
+
+.detail-label {
+	margin: 0.4rem 0 0;
+	color: var(--muted);
+	font-size: 0.8rem;
+	/* a name or a timestamp is wider than the panel, and here there is room to wrap it */
+	overflow-wrap: break-word;
+}
+
+/* requestFullscreen is called on the strip, so it goes at once however many bands it has */
+.harmony {
+	display: flex;
+	gap: 0.25rem;
+	width: 100%;
+}
+
+/* the same shape as .detail-stack, per band */
+.harmony .band {
+	position: relative;
+	flex: 1;
+}
+
+.harmony .band-color {
+	/* border-box for the same reason .detail-color needs it */
+	box-sizing: border-box;
+	display: block;
+	width: 100%;
+	/* one height for every strip: a band's width is the column over its count, so a
+   square would make a two-band strip two blocks the size of the Selected panel */
+	height: 6rem;
+	padding: 0;
+	border: 1px solid var(--line);
+}
+
+/* full width, so the whole bottom of a band is the copy target */
+.harmony .band-hex {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0.3rem;
+	padding: 0;
+	border: none;
+	background: transparent;
+	font-family: ui-monospace, monospace;
+	font-size: 0.8rem;
+	text-align: center;
+}
+
+/* same affordance as .detail-hex */
+.harmony .band-hex:hover {
+	text-decoration: underline;
+}
+
+/* the gap goes too: the UA paints on black, which shows through it as lines */
+.harmony:fullscreen {
+	height: 100%;
+	gap: 0;
+}
+
+/* the radius goes too, or the corners meet as notches between bands */
+.harmony:fullscreen .band-color {
+	height: 100%;
+	border: none;
+	border-radius: 0;
+}
+
+/*
+The saved strip is in <body> only to go full screen, so it takes no room there. The
+UA's :fullscreen rules size the element themselves, with !important, so this is
+only what it is while it is not.
+*/
+.offstage {
+	position: fixed;
+	width: 0;
+	height: 0;
+	overflow: hidden;
+}
+
+/*
+Every strip on the page is the same builder at a different width: two bands in the
+main column, seven beside them, forty full screen. So the band measures itself
+and drops its label when a hex would be clipped by its neighbours, rather than the
+builder guessing from a count or from screen.width.
+*/
+.harmony .band {
+	container-type: inline-size;
+}
+
+@container (max-width: 4rem) {
+	.band-hex {
+		display: none;
+	}
+}
+
+/* the fullscreen label is 1.25rem, so it wants more of the band */
+@container (max-width: 6rem) {
+	.harmony:fullscreen .band-hex {
+		display: none;
+	}
+}
+
+.harmony:fullscreen .band-hex {
+	bottom: 1.5rem;
+	font-size: 1.25rem;
+}
+
+/* the answer to a press, on the button itself: a dip and back */
+.pressed {
+	animation: press 0.5s ease-out;
+}
+
+@keyframes press {
+	from {
+		opacity: 0.25;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+.empty {
+	/* a grid parent would otherwise squeeze the line into the first column */
+	grid-column: 1 / -1;
+	color: var(--muted);
+	font-size: 0.85rem;
+	margin: 0;
+}

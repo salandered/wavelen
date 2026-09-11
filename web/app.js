@@ -60,7 +60,8 @@ let session = null;
 // has, so anything else in the key falls through to the default.
 function loadSession() {
 	const stored = readStored(SESSION_KEY, null);
-	const usable = stored !== null
+	const usable =
+		stored !== null
 		&& typeof stored === "object"
 		&& typeof stored.token === "string"
 		&& typeof stored.expiry === "string"
@@ -172,12 +173,14 @@ function renderLog() {
 		renderEmpty($("log"), "nothing yet");
 		return;
 	}
-	$("log").replaceChildren(...logEntries.map((entry) => {
-		const line = document.createElement("p");
-		line.textContent = entry.message;
-		line.classList.toggle("failed", entry.failed);
-		return line;
-	}));
+	$("log").replaceChildren(
+		...logEntries.map((entry) => {
+			const line = document.createElement("p");
+			line.textContent = entry.message;
+			line.classList.toggle("failed", entry.failed);
+			return line;
+		}),
+	);
 }
 
 function setStatus(message, failed = false) {
@@ -228,7 +231,8 @@ async function loadCollections() {
 
 // The stored one if the account still has it, else the default, else the oldest, else null.
 function pickCollection(preferred) {
-	const found = collections.find((c) => c.id === preferred)
+	const found =
+		collections.find((c) => c.id === preferred)
 		?? collections.find((c) => c.is_default)
 		?? collections[0];
 	return found?.id ?? null;
@@ -288,8 +292,9 @@ let selectedIcon = DEF_ICON;
 // i- only: the sprite also holds ui- glyphs the page uses for itself, and internal/icon answers
 // 400 for a slug it does not have.
 function iconNames() {
-	return [...document.querySelectorAll("#icon-sprite symbol[id^='i-']")]
-		.map((symbol) => symbol.id.replace(/^i-/, ""));
+	return [...document.querySelectorAll("#icon-sprite symbol[id^='i-']")].map((symbol) =>
+		symbol.id.replace(/^i-/, ""),
+	);
 }
 
 // An <svg> is not an HTML element, so it and its <use> are created in the SVG namespace or the
@@ -314,20 +319,22 @@ function iconSvg(name, className) {
 
 // Built once: the sprite is static, and only the selected mark and the tint change afterwards.
 function renderIconPicker() {
-	$("icon-picker").replaceChildren(...iconNames().map((name) => {
-		const option = document.createElement("button");
-		option.type = "button";
-		option.className = "icon-option";
-		option.dataset.icon = name;
-		option.title = name;
-		option.setAttribute("role", "radio");
-		option.append(iconSvg(name, "icon"));
-		option.addEventListener("click", () => {
-			selectIcon(name);
-			openIconMenu(false);
-		});
-		return option;
-	}));
+	$("icon-picker").replaceChildren(
+		...iconNames().map((name) => {
+			const option = document.createElement("button");
+			option.type = "button";
+			option.className = "icon-option";
+			option.dataset.icon = name;
+			option.title = name;
+			option.setAttribute("role", "radio");
+			option.append(iconSvg(name, "icon"));
+			option.addEventListener("click", () => {
+				selectIcon(name);
+				openIconMenu(false);
+			});
+			return option;
+		}),
+	);
 	selectIcon(DEF_ICON);
 }
 
@@ -379,28 +386,30 @@ function renderCollections() {
 		renderEmpty($("collections"), "none");
 		return;
 	}
-	$("collections").replaceChildren(...collections.map((col) => {
-		const row = document.createElement("div");
-		row.className = "collection";
-		row.classList.toggle("active", col.id === activeCollection);
+	$("collections").replaceChildren(
+		...collections.map((col) => {
+			const row = document.createElement("div");
+			row.className = "collection";
+			row.classList.toggle("active", col.id === activeCollection);
 
-		const name = document.createElement("button");
-		name.type = "button";
-		name.className = "collection-name";
-		const showing = col.is_default ? "showing this one, the default" : "showing this one";
-		name.title = col.id === activeCollection ? showing : `show ${col.name}`;
-		name.addEventListener("click", () => selectCollection(col.id));
+			const name = document.createElement("button");
+			name.type = "button";
+			name.className = "collection-name";
+			const showing = col.is_default ? "showing this one, the default" : "showing this one";
+			name.title = col.id === activeCollection ? showing : `show ${col.name}`;
+			name.addEventListener("click", () => selectCollection(col.id));
 
-		// an account made before the icon existed has neither field, so both fall back
-		const glyph = iconSvg(col.icon ?? DEF_ICON, "icon collection-icon");
-		glyph.style.color = col.accent ?? DEF_ACCENT;
-		const text = document.createElement("span");
-		text.className = "name";
-		text.textContent = col.name;
-		name.append(glyph, text);
-		row.append(name);
-		return row;
-	}));
+			// an account made before the icon existed has neither field, so both fall back
+			const glyph = iconSvg(col.icon ?? DEF_ICON, "icon collection-icon");
+			glyph.style.color = col.accent ?? DEF_ACCENT;
+			const text = document.createElement("span");
+			text.className = "name";
+			text.textContent = col.name;
+			name.append(glyph, text);
+			row.append(name);
+			return row;
+		}),
+	);
 }
 
 // One of the two controls that destroy rows the page is not showing: the delete cascades to the
@@ -820,8 +829,9 @@ function stripBlock(name) {
 	const controls = document.createElement("div");
 	controls.className = "row";
 	controls.append(
-		iconButton("ui-circle-plus", `add the ${name} to this collection`,
-			(event) => addStrip(name, event.currentTarget)),
+		iconButton("ui-circle-plus", `add the ${name} to this collection`, (event) =>
+			addStrip(name, event.currentTarget),
+		),
 		iconButton("ui-monitor", `the ${name} below, full screen`, () => showStripFullscreen(name)),
 	);
 
@@ -1052,7 +1062,10 @@ async function loadPalette() {
 	});
 	try {
 		const { data } = await call("GET", `/colors?${params}`);
-		renderSwatches($("palette"), data.colors.map((c) => swatch(c.hex, c.name)));
+		renderSwatches(
+			$("palette"),
+			data.colors.map((c) => swatch(c.hex, c.name)),
+		);
 	} catch (err) {
 		renderEmpty($("palette"), err.message);
 	}
@@ -1101,8 +1114,7 @@ async function loadSaved({ append = false } = {}) {
 		if (generation !== savedGeneration) {
 			return; // a later load owns the grid now
 		}
-		const swatches = data.colors.map((c) =>
-			savedSwatch(c.hex, savedLabel(new Date(c.created_at))));
+		const swatches = data.colors.map((c) => savedSwatch(c.hex, savedLabel(new Date(c.created_at))));
 
 		if (append) {
 			appendSwatches($("saved"), swatches);
@@ -1133,7 +1145,9 @@ async function loadSaved({ append = false } = {}) {
 // For poking at the API by hand. Math.random is enough: nothing here is a secret, and a collision
 // is a color the account already saved, which answers 200 instead of 201.
 function randomDigits() {
-	return Math.floor(Math.random() * 0x1000000).toString(16).padStart(6, "0");
+	return Math.floor(Math.random() * 0x1000000)
+		.toString(16)
+		.padStart(6, "0");
 }
 
 // ---- bulk add ----
@@ -1278,8 +1292,10 @@ async function login(nickname, password) {
 // ---- preferences ----
 
 function currentTheme() {
-	return document.documentElement.dataset.theme
-		?? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+	return (
+		document.documentElement.dataset.theme
+		?? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+	);
 }
 
 // The glyph is the theme a click switches to, as the text label was. sun and moon are two of the
@@ -1331,9 +1347,9 @@ function denseOn() {
 // is dropped when a stored preference is read, so a stale key cannot produce a 400. The order here
 // is the order a cycler steps through.
 const CONTROL_VALUES = {
-	"sort": ["created_at", "hex", "color"],
-	"order": ["desc", "asc"],
-	"limit": ["10", "20", "50", "100"],
+	sort: ["created_at", "hex", "color"],
+	order: ["desc", "asc"],
+	limit: ["10", "20", "50", "100"],
 	"palette-sort": ["name", "hex", "color"],
 	"palette-order": ["asc", "desc"],
 };
@@ -1341,8 +1357,8 @@ const CONTROL_VALUES = {
 // A label per value for the controls that are buttons rather than menus. Being listed here is what
 // makes a control a cycler, see isCycle below.
 const CYCLE_LABELS = {
-	"sort": { created_at: "date", hex: "hex", color: "color" },
-	"order": { desc: "desc \u2193", asc: "asc \u2191" },
+	sort: { created_at: "date", hex: "hex", color: "color" },
+	order: { desc: "desc \u2193", asc: "asc \u2191" },
 	"palette-sort": { name: "name", hex: "hex", color: "color" },
 	"palette-order": { desc: "desc \u2193", asc: "asc \u2191" },
 };
@@ -1446,14 +1462,20 @@ async function openAbout() {
 
 // Delegated and in the capture phase, so a button built later carries the dip too and a handler
 // that stops the click cannot take it away. The class comes off at animationend, so it replays.
-document.addEventListener("click", (event) => {
-	const button = event.target.closest("button");
-	if (button === null) {
-		return;
-	}
-	button.addEventListener("animationend", () => button.classList.remove("pressed"), { once: true });
-	button.classList.add("pressed");
-}, true);
+document.addEventListener(
+	"click",
+	(event) => {
+		const button = event.target.closest("button");
+		if (button === null) {
+			return;
+		}
+		button.addEventListener("animationend", () => button.classList.remove("pressed"), {
+			once: true,
+		});
+		button.classList.add("pressed");
+	},
+	true,
+);
 
 // The title steps through the two tints and then its own color again. The attribute is the only
 // record, so a reload starts over.
@@ -1672,8 +1694,7 @@ $("collection-form").addEventListener("submit", async (event) => {
 		return;
 	}
 	try {
-		await createCollection(
-			$("collection-name").value, selectedIcon, $("collection-accent").value);
+		await createCollection($("collection-name").value, selectedIcon, $("collection-accent").value);
 		$("collection-name").value = "";
 		openCollectionForm(false); // the new tab is showing, and a second create is rare
 	} catch (err) {

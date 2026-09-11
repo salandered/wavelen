@@ -1,5 +1,37 @@
 Web component is mostly written by AI agents.
 
+## Formatting
+
+Prettier formats `index.html`, `style.css` and `app.js`.
+
+The pinned version and the config live in `web/package.json`.
+
+Install once:
+
+```sh
+cd web
+npm ci
+```
+
+Run:
+
+```sh
+cd web
+npm run format:check # reports
+npm run format       # rewrites
+```
+
+## Linting
+
+ESLint checks `app.js` against its `recommended` set.
+
+```sh
+npm run lint
+```
+
+The inline script in `index.html` is not covered. ESLint reads no HTML, and the config lists
+`app.js` by name.
+
 ## Icons
 
 The collection icons are the SVG sprite at the top of `web/index.html`.
@@ -15,11 +47,4 @@ All icons are from the Lucide toolkit.
 
 Lucide 1.43.0, https://github.com/lucide-icons/lucide
 
-Two licenses:
-
-- ISC, Copyright (c) 2026 Lucide Icons and Contributors, for every icon except for those below.
-- MIT, Copyright (c) 2013-present Cole Bemis, for `monitor`, `moon`, `music`, `plus`, `square`,
-  `trash-2` and `circle-plus`, which Lucide derives from Feather. `circle-plus` is the
-  `plus-circle` of the notice, renamed upstream.
-
-See `LICENSE-lucide.txt` for a verbatim LICENSE.
+See the included license file `LICENSE-lucide.txt` .

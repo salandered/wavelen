@@ -16,5 +16,5 @@ var APISpec []byte
 // WebFS is the static UI.
 // Embedding so an image also carries the UI its API serves.
 //
-//go:embed web/index.html web/app.js web/images/logo-mini.png web/images/logo.png
+//go:embed web/index.html web/style.css web/app.js web/images/logo-mini.png web/images/logo.png
 var WebFS embed.FS

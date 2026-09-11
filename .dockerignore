@@ -13,6 +13,11 @@ web/README.md
 web/LICENSE-lucide.txt
 web/images/logo.png
 
+# web ui: the prettier setup
+web/node_modules/
+web/package.json
+web/package-lock.json
+
 # credentials
 .env
 .env.template

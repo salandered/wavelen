@@ -1,1091 +1,34 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>wavelen</title>
+		<link rel="icon" type="image/png" href="images/logo-mini.png" />
 
-<head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>wavelen</title>
-	<link rel="icon" type="image/png" href="images/logo-mini.png">
-
-	<!--
+		<!--
 		Not deferred and not in app.js: the attribute has to be stamped before the first paint,
 		or a stored theme that disagrees with the system one flashes on every load. It runs
 		before <body> exists, so the attribute goes on <html>.
 	-->
-	<script>
-		try {
-			const stored = localStorage.getItem("theme");
-			if (stored) {
-				document.documentElement.dataset.theme = stored;
+		<script>
+			try {
+				const stored = localStorage.getItem("theme");
+				if (stored) {
+					document.documentElement.dataset.theme = stored;
+				}
+			} catch {
+				// no storage, the system preference is used
 			}
-		} catch {
-			// no storage, the system preference is used
-		}
-	</script>
-
-	<!-- defer, so the document exists when the script runs and it needs no load listener -->
-	<script defer src="/app.js"></script>
-	<style>
-		:root {
-			/* with no data-theme the browser decides, and light-dark() follows color-scheme */
-			color-scheme: light dark;
-			--fg: light-dark(#1c1a17, #ece7de);
-			--muted: light-dark(#6b6357, #9b9184);
-			--line: light-dark(#d6cfc2, #403a32);
-			--error: light-dark(#9b2f1c, #ee967d);
-			/* a caution rather than a failure: the same warm family, a step over toward orange */
-			--warn: light-dark(#a8560f, #e8a05e);
-			/* the fill of a submit button: a step down from --fg, so it doesn't glare */
-			--primary: light-dark(#4a4540, #c9c2b5);
-		}
-
-		/* overriding color-scheme re-resolves every light-dark() above in one repaint */
-		:root[data-theme="light"] {
-			color-scheme: light;
-		}
-
-		:root[data-theme="dark"] {
-			color-scheme: dark;
-		}
-
-		/*
-			Zen mode: every hex the page writes over a color, the header, and the accent on a
-			collection tab.
-
-			visibility, not display, for the labels: they keep their box, so hiding them doesn't
-			resize a swatch or a band. With display:none the grid rows collapse to the min-height
-			below and the strips lose their captions' room.
-		*/
-		:root.zen .swatch span,
-		:root.zen .detail-hex,
-		:root.zen .detail-label,
-		:root.zen .band-hex,
-		:root.zen #scratch-hex {
-			visibility: hidden;
-		}
-
-		/* visibility here too: the header keeps its box, so nothing below it moves */
-		:root.zen header {
-			visibility: hidden;
-		}
-
-		/* !important: app.js paints the accent as an inline style, which a selector cannot outrank */
-		:root.zen .collection-icon {
-			color: var(--muted) !important;
-		}
-
-		html {
-			/* reserve the scrollbar track, so a short list does not shift the centered body */
-			scrollbar-gutter: stable;
-		}
-
-		/* the reserved track survives into full screen as an empty strip at the right edge */
-		html:has(:fullscreen) {
-			scrollbar-gutter: auto;
-		}
-
-		body {
-			font-family: system-ui, sans-serif;
-			max-width: 60rem;
-			margin: 2rem auto;
-			padding: 0 1rem;
-			color: var(--fg);
-		}
-
-		header {
-			display: flex;
-			align-items: center;
-			gap: 0.75rem;
-			margin-bottom: 1.5rem;
-		}
-
-		h1 {
-			font-size: 1.25rem;
-			margin: 0;
-			margin-right: auto;
-			cursor: pointer;
-			/* a second click inside the double-click window selects the word otherwise */
-			user-select: none;
-		}
-
-		/*
-			Two tints and back, a click at a time. Bare values rather than tokens: they read on
-			either ground and belong to nothing else on the page.
-		*/
-		h1[data-tint="1"] {
-			color: #b7159c;
-		}
-
-		h1[data-tint="2"] {
-			color: #358e5c;
-		}
-
-		/* words beside the title, not buttons among the controls */
-		.header-word {
-			border-color: transparent;
-			color: var(--muted);
-		}
-
-		.header-word:hover {
-			color: var(--fg);
-		}
-
-		/* the name and its log out in one tinted box, the one filled thing in the header */
-		.account {
-			display: flex;
-			align-items: center;
-			gap: 0.7rem;
-			padding: 0.2rem 0.35rem 0.2rem 0.85rem;
-			border-radius: 3px;
-			background: light-dark(rgba(0, 0, 0, 0.08), rgba(255, 255, 255, 0.1));
-		}
-
-		.who {
-			font-size: 0.85rem;
-		}
-
-		#logout {
-			color: var(--muted);
-		}
-
-		#logout:hover {
-			color: var(--fg);
-		}
-
-		/* same weight as the collection trash: muted in the row, --error once reached */
-		#account-delete-open {
-			padding: 0.2rem;
-			font-size: 0.95rem;
-			color: var(--muted);
-		}
-
-		#account-delete-open:hover {
-			color: var(--error);
-		}
-
-		dialog {
-			min-width: 16rem;
-			padding: 1rem 1.25rem;
-			border: 1px solid var(--line);
-			border-radius: 3px;
-			/* Canvas for the same reason a select does: the page fill is transparent */
-			background: Canvas;
-			color: CanvasText;
-		}
-
-		dialog::backdrop {
-			background: rgba(0, 0, 0, 0.4);
-		}
-
-		dialog h2 {
-			margin: 0 0 0.75rem;
-			line-height: 0;
-		}
-
-		dialog p {
-			margin: 0 0 0.5rem;
-			font-size: 0.85rem;
-		}
-
-		dialog hr {
-			margin: 0.75rem 0;
-			border: 0;
-			border-top: 1px solid var(--line);
-		}
-
-		dialog a {
-			color: inherit;
-		}
-
-		.about-note {
-			color: var(--muted);
-		}
-
-		.about-warn {
-			color: var(--warn);
-		}
-
-		#about form {
-			margin-top: 1rem;
-			text-align: right;
-		}
-
-		/* the account forms: fields stacked and full width, the dialog is narrow */
-		.stack {
-			display: flex;
-			flex-direction: column;
-			gap: 0.5rem;
-		}
-
-		.stack input {
-			box-sizing: border-box;
-			width: 100%;
-		}
-
-		/* only there while it has text, so a clean form doesn't hold an empty line */
-		.dialog-error {
-			margin: 0.75rem 0 0;
-			color: var(--error);
-			font-size: 0.85rem;
-		}
-
-		.dialog-error:empty {
-			display: none;
-		}
-
-		/* cancel sits first, so the destructive one is not under the thumb by default */
-		.dialog-actions {
-			display: flex;
-			justify-content: flex-end;
-			gap: 0.5rem;
-			margin-top: 0.25rem;
-		}
-
-		/* the one filled --error control: a submit weight, since that is what it is */
-		.danger {
-			border-color: var(--error);
-			background: var(--error);
-			color: Canvas;
-			font-weight: 600;
-		}
-
-		.danger:disabled {
-			border-color: var(--line);
-			background: transparent;
-			color: var(--muted);
-			font-weight: 400;
-			cursor: default;
-		}
-
-		#account-delete label {
-			font-size: 0.85rem;
-			color: var(--muted);
-		}
-
-		#account-delete h3 {
-			margin: 0 0 0.75rem;
-			font-size: 1rem;
-		}
-
-		summary,
-		.panel-title {
-			font-size: 0.8rem;
-			font-weight: 600;
-			text-transform: uppercase;
-			letter-spacing: 0.05em;
-			color: var(--muted);
-			margin: 0 0 0.75rem;
-			padding-bottom: 0.35rem;
-			border-bottom: 1px solid var(--line);
-		}
-
-		summary {
-			cursor: pointer;
-			user-select: none;
-		}
-
-		details:not([open]) summary {
-			margin-bottom: 0;
-		}
-
-		details {
-			margin-bottom: 2rem;
-		}
-
-		.split {
-			display: flex;
-			align-items: flex-start;
-			gap: 1.5rem;
-		}
-
-		/* min-width, or a grid row sized by its content would push the aside past the edge */
-		main {
-			flex: 1;
-			min-width: 0;
-		}
-
-		/* sticky, so the color stays in view while a long list scrolls beside it */
-		aside {
-			flex: 0 0 15rem;
-			position: sticky;
-			top: 2rem;
-		}
-
-		/* below this the two columns are both too narrow to be worth keeping side by side */
-		@media (max-width: 38rem) {
-			.split {
-				flex-direction: column;
-			}
-
-			/* stacked, the cross axis is horizontal, so the flex-start above shrinks a column to
-			   its content: main came out 147px wide inside a 388px page */
-			main,
-			aside {
-				align-self: stretch;
-			}
-
-			aside {
-				flex: none;
-				position: static;
-			}
-		}
-
-		/*
-		   The UA stylesheet hides [hidden] with display:none, which any display declared here
-		   outranks - #logged-in is a flex row, so it stayed on screen logged out. Several elements
-		   are toggled through el.hidden, so the rule has to win outright.
-		*/
-		[hidden] {
-			display: none !important;
-		}
-
-		.row {
-			display: flex;
-			align-items: center;
-			gap: 0.5rem;
-			flex-wrap: wrap;
-			margin-bottom: 0.5rem;
-		}
-		/* two rows on one line while there is room, the listing controls against the right edge */
-		.toolbar {
-			display: flex;
-			align-items: center;
-			flex-wrap: wrap;
-			gap: 0.5rem 1rem;
-			margin-bottom: 0.75rem;
-		}
-
-		.toolbar .row {
-			margin-bottom: 0;
-		}
-
-		.toolbar .row:last-child {
-			margin-left: auto;
-		}
-
-		label {
-			color: var(--muted);
-			font-size: 0.85rem;
-		}
-
-		input,
-		select,
-		button {
-			font: inherit;
-			font-size: 0.85rem;
-			padding: 0.25rem 0.5rem;
-			border: 1px solid var(--line);
-			border-radius: 3px;
-			background: transparent;
-			color: inherit;
-		}
-
-		/*
-			The transparent background above is wrong for a select: the browser paints the popup
-			and cannot paint it transparent, so it came out light while the inherited color stayed
-			light. Canvas and CanvasText resolve against color-scheme, which the theme button
-			flips.
-		*/
-		select,
-		option {
-			background: Canvas;
-			color: CanvasText;
-		}
-
-		button {
-			cursor: pointer;
-		}
-
-		/*
-			Controls of one kind share one look, so a row of them reads as groups rather than as
-			a line of identical buttons: a submit is filled, a helper is outlined, a setting is
-			text with a dotted underline, a collection is a tab.
-		*/
-		#collection-form button:not([type="button"]),
-		#add-form button:not([type="button"]) {
-			background: var(--primary);
-			border-color: var(--primary);
-			color: Canvas;
-			font-weight: 600;
-		}
-
-		#sort,
-		#order,
-		#limit,
-		#palette-sort,
-		#palette-order {
-			padding-left: 0.2rem;
-			padding-right: 0.2rem;
-			border-color: transparent;
-			text-decoration: underline dotted;
-			text-underline-offset: 0.25em;
-		}
-
-		#sort:hover,
-		#order:hover,
-		#limit:hover,
-		#palette-sort:hover,
-		#palette-order:hover {
-			border-color: var(--line);
-		}
-
-		#pins {
-			margin-bottom: 0.75rem;
-		}
-
-		/* the two bulk glyphs sit at the row's end, clear of the pills they act on */
-		#pins-all {
-			margin-left: auto;
-		}
-
-		.tabs {
-			display: flex;
-			gap: 0.25rem;
-			margin-bottom: 0.75rem;
-			border-bottom: 1px solid var(--line);
-		}
-
-		/*
-			The selected mark is 2px and the strip's own line is 1px, so the tab is pulled down
-			over it. Without the negative margin the mark sits above the line instead of
-			replacing it.
-		*/
-		.tab {
-			padding: 0.25rem 0.6rem;
-			margin-bottom: -1px;
-			border: none;
-			border-bottom: 2px solid transparent;
-			border-radius: 0;
-			color: var(--muted);
-		}
-
-		/* aria-selected is the only place the choice is recorded, so the style reads it */
-		.tab[aria-selected="true"] {
-			border-bottom-color: var(--fg);
-			color: var(--fg);
-			font-weight: 600;
-		}
-
-		/*
-			A cycler's label is its own value, so it needs a floor or stepping it shifts whatever
-			sits beside it. Each width is the widest label in its set, and the text is centered
-			in it, so a shorter label leaves the box where it is. #theme is last in its row and
-			needs none of this.
-		*/
-		#sort,
-		#palette-sort {
-			min-width: 3rem;
-		}
-
-		#order,
-		#palette-order {
-			min-width: 3.5rem;
-		}
-
-		#load-more {
-			margin-top: 0.75rem;
-		}
-
-		/* seven monospace characters and room for a caret, so the toolbar keeps to one line */
-		#hex {
-			width: 6.5rem;
-			font-family: ui-monospace, monospace;
-		}
-
-		/*
-			A tab strip, the same shape as the account tabs: the collections choose what the grid
-			below shows. The summary already draws a line, so the strip is pulled up toward it.
-		*/
-		.collection-bar {
-			display: flex;
-			align-items: center;
-			flex-wrap: wrap;
-			margin: -0.5rem 0 0.9rem;
-			border-bottom: 1px solid var(--line);
-		}
-
-		.collections {
-			display: flex;
-			flex-wrap: wrap;
-			gap: 0.25rem;
-		}
-
-		/* the tab carries the mark, the two buttons inside it are bare */
-		.collection {
-			display: flex;
-			align-items: center;
-			margin-bottom: -1px;
-			border-bottom: 2px solid transparent;
-			color: var(--muted);
-		}
-
-		.collection.active {
-			border-bottom-color: var(--fg);
-			color: var(--fg);
-		}
-
-		.collection-name {
-			border: none;
-			border-radius: 0;
-			background: none;
-		}
-
-		/* the glyph and the name in one button, so a click anywhere on the tab selects */
-		.collection-name {
-			display: flex;
-			align-items: center;
-			gap: 0.5rem;
-			max-width: 12rem;
-			padding: 0.3rem 0.5rem;
-		}
-
-		/* a name is up to collection.MaxNameLen runes, and a tab is not the place to show them */
-		.collection-name .name {
-			overflow: hidden;
-			text-overflow: ellipsis;
-			white-space: nowrap;
-		}
-
-		.collection.active .collection-name {
-			font-weight: 600;
-		}
-
-		/* the trigger for the create form, a glyph at the end of the strip */
-		#collection-new {
-			margin-left: 0.25rem;
-			border-color: transparent;
-		}
-
-		#collection-new:hover,
-		#collection-new[aria-expanded="true"] {
-			color: var(--fg);
-		}
-
-		/* last in the listing row, framed like the view controls before them, muted until
-		   reached: what they do is not undone */
-		#collection-empty,
-		#collection-delete {
-			color: var(--muted);
-		}
-
-		#collection-empty:hover,
-		#collection-delete:enabled:hover {
-			color: var(--error);
-		}
-
-		/* the default collection: the control stays so the row keeps its shape, and says no */
-		#collection-delete:disabled {
-			opacity: 0.4;
-			cursor: default;
-		}
-
-		/*
-			The stroke settings are the same for every glyph in the sprite, so they sit here
-			rather than on 27 <symbol>s. currentColor is what lets a parent tint a whole icon:
-			the chip sets its color to the collection's accent.
-		*/
-		.icon {
-			width: 1em;
-			height: 1em;
-			flex: none;
-			fill: none;
-			stroke: currentColor;
-			stroke-width: 2;
-			stroke-linecap: round;
-			stroke-linejoin: round;
-		}
-
-		.collection-icon {
-			font-size: 1.1rem;
-		}
-
-		/* the anchor .icon-picker is positioned against */
-		.icon-menu {
-			position: relative;
-			display: flex;
-		}
-
-		.icon-trigger {
-			display: flex;
-			align-items: center;
-			gap: 0.25rem;
-			padding: 0.15rem 0.35rem;
-			font-size: 1.1rem;
-			line-height: 1;
-		}
-
-		/* not part of the preview, so muted rather than the accent */
-		.icon-trigger .caret {
-			font-size: 0.7rem;
-			color: var(--muted);
-		}
-
-		/*
-			Absolutely positioned, so opening it doesn't push the toolbar and the grid down the page.
-		*/
-		.icon-picker {
-			position: absolute;
-			top: calc(100% + 0.25rem);
-			left: 0;
-			z-index: 1;
-			display: grid;
-			grid-template-columns: repeat(5, auto);
-			gap: 0.15rem;
-			padding: 0.3rem;
-			border: 1px solid var(--line);
-			border-radius: 3px;
-			/* opaque, or the toolbar behind shows through. Canvas for the same reason a select does */
-			background: Canvas;
-		}
-
-		.icon-option {
-			padding: 0.25rem;
-			border: 1px solid transparent;
-			border-radius: 3px;
-			background: none;
-			font-size: 1.1rem;
-			line-height: 0;
-		}
-
-		.icon-option:hover {
-			border-color: var(--line);
-		}
-
-		.icon-option[aria-checked="true"] {
-			border-color: var(--fg);
-		}
-
-		/*
-			The browser draws the swatch in a box that ignores the padding the other fields get,
-			so #collection-accent and #pick below take an explicit height instead of inheriting
-			one. The padding left here keeps the border visible around the color.
-		*/
-		input[type="color"] {
-			padding: 0.15rem;
-			cursor: pointer;
-		}
-
-		#collection-accent {
-			width: 2.5rem;
-			height: 1.7rem;
-		}
-
-		.panel {
-			margin-bottom: 2rem;
-		}
-
-		.panel:last-child {
-			margin-bottom: 0;
-		}
-
-		#pick,
-		#scratch {
-			width: 3.5rem;
-			height: 1.9rem;
-		}
-
-		.detail-adjust {
-			margin: 0.5rem 0 0;
-		}
-
-		#scratch-hex {
-			font-family: ui-monospace, monospace;
-		}
-
-		/* names the strip under it, at the weight a label carries */
-		.strip-name {
-			color: var(--muted);
-			font-size: 0.85rem;
-		}
-
-		/*
-			Blocks share rows by band count. A rotation is two to four bands, so two of them fit
-			a row with bands still wider than the label cutoff below, and a lone one grows to
-			fill its row. A scale is seven bands and keeps the column, as the markup says.
-		*/
-		#strips {
-			display: flex;
-			flex-wrap: wrap;
-			gap: 0.6rem 1rem;
-		}
-
-		.strip-block {
-			flex: 1 1 100%;
-		}
-
-		.strip-block.rotation {
-			flex-basis: 16rem;
-		}
-
-		/* a block is a label and a strip, so its toolbar needs less room than a section's */
-		.strip-block .toolbar {
-			margin-bottom: 0.35rem;
-		}
-
-		.strip-block .icon-button,
-		#pins .icon-button,
-		#collection-new {
-			padding: 0.1rem 0.3rem;
-			font-size: 0.95rem;
-			/* a step back, like the label beside them: the colors are what the eye is here for */
-			color: var(--muted);
-		}
-
-		.strip-block .icon-button:hover,
-		#pins .icon-button:hover {
-			color: var(--fg);
-		}
-
-		/* a glyph alone, sized like the icon trigger */
-		.icon-button {
-			display: flex;
-			align-items: center;
-			padding: 0.2rem 0.4rem;
-			font-size: 1.1rem;
-			line-height: 1;
-		}
-
-		#saved-dense[aria-pressed="true"] {
-			background: light-dark(rgba(0, 0, 0, 0.14), rgba(255, 255, 255, 0.18));
-		}
-
-		/*
-			A pin per derived strip: outlined and muted while off, filled while on. Two fills a
-			step apart read as one row of buttons, so the off state keeps the border every other
-			control has and the on state is the only filled thing in the row.
-		*/
-		.pill {
-			padding: 0.25rem 0.7rem;
-			border-radius: 999px;
-			background: light-dark(rgba(0, 0, 0, 0.02), rgba(255, 255, 255, 0.03));
-			color: var(--muted);
-		}
-
-		.pill:hover {
-			color: var(--fg);
-		}
-
-		.pill[aria-pressed="true"] {
-			border-color: transparent;
-			background: light-dark(rgba(0, 0, 0, 0.16), rgba(255, 255, 255, 0.2));
-			color: var(--fg);
-		}
-
-		#log p {
-			margin: 0 0 0.4rem;
-			font-size: 0.8rem;
-			color: var(--muted);
-			/* a hex or a proxy error has no spaces to break at, and the panel is 15rem */
-			overflow-wrap: anywhere;
-		}
-
-		#log p.failed {
-			color: var(--error);
-		}
-
-		/*
-			Five across. There is no border-box reset, so max-width is body's content box: the
-			grids get 60rem less the aside and the gap, which is 43.5rem. Five of these need
-			41.6rem and a sixth would need 50rem, so auto-fill settles on five.
-		*/
-		.grid {
-			display: grid;
-			grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
-			gap: 0.4rem;
-		}
-
-		.swatch {
-			display: flex;
-			flex-direction: column;
-			gap: 0.1rem;
-			/* a floor for the shortest labels, the two lines are taller than this anyway */
-			min-height: 3.2rem;
-			padding: 0.6rem 0.5rem;
-			border: 1px solid var(--line);
-			text-align: left;
-			font-family: ui-monospace, monospace;
-			font-size: 0.75rem;
-		}
-
-		/*
-			A dense grid: ten cells to a row and no gap, the whole set as one block. A name wider
-			than its cell is cut, and the Selected panel spells out whichever one was clicked. The
-			palette is always this, Saved colors takes it from a toggle.
-		*/
-		.dense {
-			grid-template-columns: repeat(10, minmax(0, 1fr));
-			gap: 0;
-		}
-
-		.dense .swatch {
-			/* border-box for the same reason .detail-color needs it */
-			box-sizing: border-box;
-			/* a fifth shorter than wide: two lines of text want less room than a square gives */
-			aspect-ratio: 5 / 4;
-			min-height: 0;
-			padding: 0.35rem 0.4rem;
-			/* the border goes with the gap, or two 1px edges meet as a lattice over the colors */
-			border: none;
-			/* the shared control radius too: four rounded corners meet as a notch of page */
-			border-radius: 0;
-		}
-
-		#saved.dense .label {
-			display: none;
-		}
-
-		/* positioned, so the ring paints over the neighbours it now overlaps */
-		.dense .swatch.selected {
-			position: relative;
-		}
-
-		/* a saved cell is positioned too, and a later one paints over the ring without the lift */
-		#saved.dense .cell:has(.swatch.selected) {
-			z-index: 1;
-		}
-
-		/*
-			Ten to a row is a 32px square once the columns stack. Here and not in the layout query
-			at the top of the file: same specificity, so the rule that comes later wins.
-		*/
-		@media (max-width: 38rem) {
-			.dense {
-				grid-template-columns: repeat(5, minmax(0, 1fr));
-			}
-		}
-
-		/*
-			box-shadow, not outline: the swatch keeps its focus ring. The inner Canvas ring
-			separates the marker from the swatch color, so it reads on any of them.
-		*/
-		.swatch.selected {
-			box-shadow: 0 0 0 2px Canvas, 0 0 0 4px var(--fg);
-		}
-
-		.swatch .label {
-			font-family: system-ui, sans-serif;
-			opacity: 0.75;
-			/* names and timestamps are longer than the swatch, and wrapping breaks the grid */
-			overflow: hidden;
-			text-overflow: ellipsis;
-			white-space: nowrap;
-		}
-
-		/*
-			The swatch and its delete control stacked as siblings. The outer grid sizes this cell
-			and the swatch stretches to fill it, which keeps a row of swatches one height.
-
-			minmax(0, 1fr), not the default auto track: an auto track grows toward the swatch's
-			max-content width, which is its label on one line. The swatch would then be wider than
-			the cell, overflow to the right and paint over the gap.
-		*/
-		.cell {
-			position: relative;
-			display: grid;
-			grid-template-columns: minmax(0, 1fr);
-		}
-
-		/*
-			Hidden until the pointer or the keyboard reaches the cell. visibility, not display, for
-			the same reason as the labels above: nothing reflows when it appears.
-		*/
-		.cell .remove {
-			position: absolute;
-			top: 0.15rem;
-			right: 0.15rem;
-			padding: 0 0.25rem;
-			border: none;
-			background: none;
-			font-size: 0.9rem;
-			line-height: 1.2;
-			visibility: hidden;
-		}
-
-		.cell:hover .remove,
-		.cell:focus-within .remove {
-			visibility: visible;
-		}
-
-		/* a touch screen doesn't hover, so the control has nothing to come out of */
-		@media (hover: none) {
-			.cell .remove {
-				visibility: visible;
-			}
-		}
-
-		/* the color and the hex stacked as siblings, same as .cell */
-		.detail-stack {
-			position: relative;
-		}
-
-		.detail-color {
-			/* aspect-ratio squares the content box, so a border would make it taller than wide */
-			box-sizing: border-box;
-			display: block;
-			width: 100%;
-			aspect-ratio: 1;
-			padding: 0;
-			border: 1px solid var(--line);
-		}
-
-		/*
-			The UA stylesheet sizes the fullscreen element, but the square, the border and the
-			radius survive it: the color comes out letterboxed, hairlined and round-cornered.
-		*/
-		.detail-color:fullscreen {
-			aspect-ratio: auto;
-			width: 100%;
-			height: 100%;
-			border: none;
-			border-radius: 0;
-		}
-
-		.detail-hex {
-			position: absolute;
-			left: 0.5rem;
-			bottom: 0.6rem;
-			padding: 0.1rem 0.25rem;
-			border: none;
-			background: transparent;
-			font-family: ui-monospace, monospace;
-		}
-
-		/* the only affordance: it has no chrome, and an underline reads on any background */
-		.detail-hex:hover {
-			text-decoration: underline;
-		}
-
-		.detail-label {
-			margin: 0.4rem 0 0;
-			color: var(--muted);
-			font-size: 0.8rem;
-			/* a name or a timestamp is wider than the panel, and here there is room to wrap it */
-			overflow-wrap: break-word;
-		}
-
-		/* requestFullscreen is called on the strip, so it goes at once however many bands it has */
-		.harmony {
-			display: flex;
-			gap: 0.25rem;
-			width: 100%;
-		}
-
-		/* the same shape as .detail-stack, per band */
-		.harmony .band {
-			position: relative;
-			flex: 1;
-		}
-
-		.harmony .band-color {
-			/* border-box for the same reason .detail-color needs it */
-			box-sizing: border-box;
-			display: block;
-			width: 100%;
-			/* one height for every strip: a band's width is the column over its count, so a
-			   square would make a two-band strip two blocks the size of the Selected panel */
-			height: 6rem;
-			padding: 0;
-			border: 1px solid var(--line);
-		}
-
-		/* full width, so the whole bottom of a band is the copy target */
-		.harmony .band-hex {
-			position: absolute;
-			left: 0;
-			right: 0;
-			bottom: 0.3rem;
-			padding: 0;
-			border: none;
-			background: transparent;
-			font-family: ui-monospace, monospace;
-			font-size: 0.8rem;
-			text-align: center;
-		}
-
-		/* same affordance as .detail-hex */
-		.harmony .band-hex:hover {
-			text-decoration: underline;
-		}
-
-		/* the gap goes too: the UA paints on black, which shows through it as lines */
-		.harmony:fullscreen {
-			height: 100%;
-			gap: 0;
-		}
-
-		/* the radius goes too, or the corners meet as notches between bands */
-		.harmony:fullscreen .band-color {
-			height: 100%;
-			border: none;
-			border-radius: 0;
-		}
-
-		/*
-			The saved strip is in <body> only to go full screen, so it takes no room there. The
-			UA's :fullscreen rules size the element themselves, with !important, so this is
-			only what it is while it is not.
-		*/
-		.offstage {
-			position: fixed;
-			width: 0;
-			height: 0;
-			overflow: hidden;
-		}
-
-		/*
-			Every strip on the page is the same builder at a different width: two bands in the
-			main column, seven beside them, forty full screen. So the band measures itself
-			and drops its label when a hex would be clipped by its neighbours, rather than the
-			builder guessing from a count or from screen.width.
-		*/
-		.harmony .band {
-			container-type: inline-size;
-		}
-
-		@container (max-width: 4rem) {
-			.band-hex {
-				display: none;
-			}
-		}
-
-		/* the fullscreen label is 1.25rem, so it wants more of the band */
-		@container (max-width: 6rem) {
-			.harmony:fullscreen .band-hex {
-				display: none;
-			}
-		}
-
-		.harmony:fullscreen .band-hex {
-			bottom: 1.5rem;
-			font-size: 1.25rem;
-		}
-
-		/* the answer to a press, on the button itself: a dip and back */
-		.pressed {
-			animation: press 0.5s ease-out;
-		}
-
-		@keyframes press {
-			from {
-				opacity: 0.25;
-			}
-			to {
-				opacity: 1;
-			}
-		}
-
-		.empty {
-			/* a grid parent would otherwise squeeze the line into the first column */
-			grid-column: 1 / -1;
-			color: var(--muted);
-			font-size: 0.85rem;
-			margin: 0;
-		}
-	</style>
-</head>
-
-<body>
-	<!--
+		</script>
+
+		<!-- defer, so the document exists when the script runs and it needs no load listener -->
+		<script defer src="/app.js"></script>
+		<link rel="stylesheet" href="/style.css" />
+	</head>
+
+	<body>
+		<!--
 		Every glyph the page draws. An i- symbol is a collection icon, and this is the only place
 		that set is written down for the page: app.js builds the picker by reading these ids back
 		out. Adding one is a <symbol> here, a slug in internal/icon and a value in the api.yaml
@@ -1101,483 +44,625 @@
 
 		Both notices in full: web/LICENSE-lucide.txt in the source repo.
 	-->
-	<svg id="icon-sprite" aria-hidden="true" hidden>
-		<defs>
-			<symbol id="i-anchor" viewBox="0 0 24 24">
-				<path d="M12 6v16"/>
-				<path d="m19 13 2-1a9 9 0 0 1-18 0l2 1"/>
-				<path d="M9 11h6"/>
-				<circle cx="12" cy="4" r="2"/>
-			</symbol>
-			<symbol id="i-brush" viewBox="0 0 24 24">
-				<path d="m11 10 3 3"/>
-				<path d="M6.5 21A3.5 3.5 0 1 0 3 17.5a2.62 2.62 0 0 1-.708 1.792A1 1 0 0 0 3 21z"/>
-				<path d="M9.969 17.031 21.378 5.624a1 1 0 0 0-3.002-3.002L6.967 14.031"/>
-			</symbol>
-			<symbol id="i-camera" viewBox="0 0 24 24">
-				<path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"/>
-				<circle cx="12" cy="13" r="3"/>
-			</symbol>
-			<symbol id="i-cat" viewBox="0 0 24 24">
-				<path d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"/>
-				<path d="M8 14v.5"/>
-				<path d="M16 14v.5"/>
-				<path d="M11.25 16.25h1.5L12 17l-.75-.75Z"/>
-			</symbol>
-			<symbol id="i-cloud" viewBox="0 0 24 24">
-				<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
-			</symbol>
-			<symbol id="i-coffee" viewBox="0 0 24 24">
-				<path d="M10 2v2"/>
-				<path d="M14 2v2"/>
-				<path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/>
-				<path d="M6 2v2"/>
-			</symbol>
-			<symbol id="i-crown" viewBox="0 0 24 24">
-				<path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/>
-				<path d="M5 21h14"/>
-			</symbol>
-			<symbol id="i-droplet" viewBox="0 0 24 24">
-				<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>
-			</symbol>
-			<symbol id="i-fish" viewBox="0 0 24 24">
-				<path d="M6.5 12c.94-3.46 4.94-6 8.5-6 3.56 0 6.06 2.54 7 6-.94 3.47-3.44 6-7 6s-7.56-2.53-8.5-6Z"/>
-				<path d="M18 12v.5"/>
-				<path d="M16 17.93a9.77 9.77 0 0 1 0-11.86"/>
-				<path d="M7 10.67C7 8 5.58 5.97 2.73 5.5c-1 1.5-1 5 .23 6.5-1.24 1.5-1.24 5-.23 6.5C5.58 18.03 7 16 7 13.33"/>
-				<path d="M10.46 7.26C10.2 5.88 9.17 4.24 8 3h5.8a2 2 0 0 1 1.98 1.67l.23 1.4"/>
-				<path d="m16.01 17.93-.23 1.4A2 2 0 0 1 13.8 21H9.5a5.96 5.96 0 0 0 1.49-3.98"/>
-			</symbol>
-			<symbol id="i-flower" viewBox="0 0 24 24">
-				<circle cx="12" cy="12" r="3"/>
-				<path d="M12 16.5A4.5 4.5 0 1 1 7.5 12 4.5 4.5 0 1 1 12 7.5a4.5 4.5 0 1 1 4.5 4.5 4.5 4.5 0 1 1-4.5 4.5"/>
-				<path d="M12 7.5V9"/>
-				<path d="M7.5 12H9"/>
-				<path d="M16.5 12H15"/>
-				<path d="M12 16.5V15"/>
-				<path d="m8 8 1.88 1.88"/>
-				<path d="M14.12 9.88 16 8"/>
-				<path d="m8 16 1.88-1.88"/>
-				<path d="M14.12 14.12 16 16"/>
-			</symbol>
-			<!--
+		<svg id="icon-sprite" aria-hidden="true" hidden>
+			<defs>
+				<symbol id="i-anchor" viewBox="0 0 24 24">
+					<path d="M12 6v16" />
+					<path d="m19 13 2-1a9 9 0 0 1-18 0l2 1" />
+					<path d="M9 11h6" />
+					<circle cx="12" cy="4" r="2" />
+				</symbol>
+				<symbol id="i-brush" viewBox="0 0 24 24">
+					<path d="m11 10 3 3" />
+					<path d="M6.5 21A3.5 3.5 0 1 0 3 17.5a2.62 2.62 0 0 1-.708 1.792A1 1 0 0 0 3 21z" />
+					<path d="M9.969 17.031 21.378 5.624a1 1 0 0 0-3.002-3.002L6.967 14.031" />
+				</symbol>
+				<symbol id="i-camera" viewBox="0 0 24 24">
+					<path
+						d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"
+					/>
+					<circle cx="12" cy="13" r="3" />
+				</symbol>
+				<symbol id="i-cat" viewBox="0 0 24 24">
+					<path
+						d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"
+					/>
+					<path d="M8 14v.5" />
+					<path d="M16 14v.5" />
+					<path d="M11.25 16.25h1.5L12 17l-.75-.75Z" />
+				</symbol>
+				<symbol id="i-cloud" viewBox="0 0 24 24">
+					<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+				</symbol>
+				<symbol id="i-coffee" viewBox="0 0 24 24">
+					<path d="M10 2v2" />
+					<path d="M14 2v2" />
+					<path
+						d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"
+					/>
+					<path d="M6 2v2" />
+				</symbol>
+				<symbol id="i-crown" viewBox="0 0 24 24">
+					<path
+						d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"
+					/>
+					<path d="M5 21h14" />
+				</symbol>
+				<symbol id="i-droplet" viewBox="0 0 24 24">
+					<path
+						d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"
+					/>
+				</symbol>
+				<symbol id="i-fish" viewBox="0 0 24 24">
+					<path
+						d="M6.5 12c.94-3.46 4.94-6 8.5-6 3.56 0 6.06 2.54 7 6-.94 3.47-3.44 6-7 6s-7.56-2.53-8.5-6Z"
+					/>
+					<path d="M18 12v.5" />
+					<path d="M16 17.93a9.77 9.77 0 0 1 0-11.86" />
+					<path
+						d="M7 10.67C7 8 5.58 5.97 2.73 5.5c-1 1.5-1 5 .23 6.5-1.24 1.5-1.24 5-.23 6.5C5.58 18.03 7 16 7 13.33"
+					/>
+					<path d="M10.46 7.26C10.2 5.88 9.17 4.24 8 3h5.8a2 2 0 0 1 1.98 1.67l.23 1.4" />
+					<path d="m16.01 17.93-.23 1.4A2 2 0 0 1 13.8 21H9.5a5.96 5.96 0 0 0 1.49-3.98" />
+				</symbol>
+				<symbol id="i-flower" viewBox="0 0 24 24">
+					<circle cx="12" cy="12" r="3" />
+					<path
+						d="M12 16.5A4.5 4.5 0 1 1 7.5 12 4.5 4.5 0 1 1 12 7.5a4.5 4.5 0 1 1 4.5 4.5 4.5 4.5 0 1 1-4.5 4.5"
+					/>
+					<path d="M12 7.5V9" />
+					<path d="M7.5 12H9" />
+					<path d="M16.5 12H15" />
+					<path d="M12 16.5V15" />
+					<path d="m8 8 1.88 1.88" />
+					<path d="M14.12 9.88 16 8" />
+					<path d="m8 16 1.88-1.88" />
+					<path d="M14.12 14.12 16 16" />
+				</symbol>
+				<!--
 				ui- rather than i-: the picker builds itself out of the i- symbols, and a slug
 				outside internal/icon comes back a 400. The theme toggle needs no such pair, since
 				a sun and a moon are collection icons in their own right.
 			-->
-			<symbol id="ui-monitor" viewBox="0 0 24 24">
-				<rect width="20" height="14" x="2" y="3" rx="2"/>
-				<line x1="8" x2="16" y1="21" y2="21"/>
-				<line x1="12" x2="12" y1="17" y2="21"/>
-			</symbol>
-			<symbol id="ui-eye" viewBox="0 0 24 24">
-				<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>
-				<circle cx="12" cy="12" r="3"/>
-			</symbol>
-			<symbol id="ui-trash" viewBox="0 0 24 24">
-				<path d="M10 11v6"/>
-				<path d="M14 11v6"/>
-				<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
-				<path d="M3 6h18"/>
-				<path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-			</symbol>
-			<symbol id="ui-circle-plus" viewBox="0 0 24 24">
-				<circle cx="12" cy="12" r="10"/>
-				<path d="M8 12h8"/>
-				<path d="M12 8v8"/>
-			</symbol>
-			<symbol id="ui-grid" viewBox="0 0 24 24">
-				<rect width="18" height="18" x="3" y="3" rx="2"/>
-				<path d="M3 12h18"/>
-				<path d="M12 3v18"/>
-			</symbol>
-			<symbol id="ui-eye-off" viewBox="0 0 24 24">
-				<path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575a1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/>
-				<path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/>
-				<path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/>
-				<path d="m2 2 20 20"/>
-			</symbol>
-			<symbol id="ui-list-checks" viewBox="0 0 24 24">
-				<path d="M13 5h8"/>
-				<path d="M13 12h8"/>
-				<path d="M13 19h8"/>
-				<path d="m3 17 2 2 4-4"/>
-				<path d="m3 7 2 2 4-4"/>
-			</symbol>
-			<symbol id="ui-list-x" viewBox="0 0 24 24">
-				<path d="M16 5H3"/>
-				<path d="M11 12H3"/>
-				<path d="M16 19H3"/>
-				<path d="m15.5 9.5 5 5"/>
-				<path d="m20.5 9.5-5 5"/>
-			</symbol>
-			<symbol id="ui-plus" viewBox="0 0 24 24">
-				<path d="M5 12h14"/>
-				<path d="M12 5v14"/>
-			</symbol>
-			<symbol id="ui-eraser" viewBox="0 0 24 24">
-				<path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/>
-				<path d="m5.082 11.09 8.828 8.828"/>
-			</symbol>
-			<symbol id="i-gem" viewBox="0 0 24 24">
-				<path d="M10.5 3 8 9l4 13 4-13-2.5-6"/>
-				<path d="M17 3a2 2 0 0 1 1.6.8l3 4a2 2 0 0 1 .013 2.382l-7.99 10.986a2 2 0 0 1-3.247 0l-7.99-10.986A2 2 0 0 1 2.4 7.8l2.998-3.997A2 2 0 0 1 7 3z"/>
-				<path d="M2 9h20"/>
-			</symbol>
-			<symbol id="i-heart" viewBox="0 0 24 24">
-				<path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"/>
-			</symbol>
-			<symbol id="i-image" viewBox="0 0 24 24">
-				<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
-				<circle cx="9" cy="9" r="2"/>
-				<path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
-			</symbol>
-			<symbol id="i-layers" viewBox="0 0 24 24">
-				<path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/>
-				<path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/>
-				<path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/>
-			</symbol>
-			<symbol id="i-leaf" viewBox="0 0 24 24">
-				<path d="M11 20a10 10 0 0010-10 25.9 25.9 0 00-1.04-7.281 1 1 0 00-1.755-.325C15.833 5.5 13 5.5 9.8 6.1A7 7 0 0011 20"/>
-				<path d="M2 21a5 5 0 012.911-4.544C7.613 15.212 8.351 15.24 11 13"/>
-			</symbol>
-			<symbol id="i-moon" viewBox="0 0 24 24">
-				<path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/>
-			</symbol>
-			<symbol id="i-mountain" viewBox="0 0 24 24">
-				<path d="m8 3 4 8 5-5 5 15H2L8 3z"/>
-			</symbol>
-			<symbol id="i-music" viewBox="0 0 24 24">
-				<path d="M9 18V5l12-2v13"/>
-				<circle cx="6" cy="18" r="3"/>
-				<circle cx="18" cy="16" r="3"/>
-			</symbol>
-			<symbol id="i-palette" viewBox="0 0 24 24">
-				<path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"/>
-				<circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/>
-				<circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/>
-				<circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/>
-				<circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/>
-			</symbol>
-			<symbol id="i-pipette" viewBox="0 0 24 24">
-				<path d="m12 9-8.414 8.414A2 2 0 0 0 3 18.828v1.344a2 2 0 0 1-.586 1.414A2 2 0 0 1 3.828 21h1.344a2 2 0 0 0 1.414-.586L15 12"/>
-				<path d="m18 9 .4.4a1 1 0 1 1-3 3l-3.8-3.8a1 1 0 1 1 3-3l.4.4 3.4-3.4a1 1 0 1 1 3 3z"/>
-				<path d="m2 22 .414-.414"/>
-			</symbol>
-			<symbol id="i-snowflake" viewBox="0 0 24 24">
-				<path d="m10 20-1.25-2.5L6 18"/>
-				<path d="M10 4 8.75 6.5 6 6"/>
-				<path d="m14 20 1.25-2.5L18 18"/>
-				<path d="m14 4 1.25 2.5L18 6"/>
-				<path d="m17 21-3-6h-4"/>
-				<path d="m17 3-3 6 1.5 3"/>
-				<path d="M2 12h6.5L10 9"/>
-				<path d="m20 10-1.5 2 1.5 2"/>
-				<path d="M22 12h-6.5L14 15"/>
-				<path d="m4 10 1.5 2L4 14"/>
-				<path d="m7 21 3-6-1.5-3"/>
-				<path d="m7 3 3 6h4"/>
-			</symbol>
-			<symbol id="i-square" viewBox="0 0 24 24">
-				<rect width="18" height="18" x="3" y="3" rx="2"/>
-			</symbol>
-			<symbol id="i-star" viewBox="0 0 24 24">
-				<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>
-			</symbol>
-			<symbol id="i-sun" viewBox="0 0 24 24">
-				<circle cx="12" cy="12" r="4"/>
-				<path d="M12 2v2"/>
-				<path d="M12 20v2"/>
-				<path d="m4.93 4.93 1.41 1.41"/>
-				<path d="m17.66 17.66 1.41 1.41"/>
-				<path d="M2 12h2"/>
-				<path d="M20 12h2"/>
-				<path d="m6.34 17.66-1.41 1.41"/>
-				<path d="m19.07 4.93-1.41 1.41"/>
-			</symbol>
-			<symbol id="i-tag" viewBox="0 0 24 24">
-				<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/>
-				<circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>
-			</symbol>
-		</defs>
-	</svg>
+				<symbol id="ui-monitor" viewBox="0 0 24 24">
+					<rect width="20" height="14" x="2" y="3" rx="2" />
+					<line x1="8" x2="16" y1="21" y2="21" />
+					<line x1="12" x2="12" y1="17" y2="21" />
+				</symbol>
+				<symbol id="ui-eye" viewBox="0 0 24 24">
+					<path
+						d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"
+					/>
+					<circle cx="12" cy="12" r="3" />
+				</symbol>
+				<symbol id="ui-trash" viewBox="0 0 24 24">
+					<path d="M10 11v6" />
+					<path d="M14 11v6" />
+					<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+					<path d="M3 6h18" />
+					<path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+				</symbol>
+				<symbol id="ui-circle-plus" viewBox="0 0 24 24">
+					<circle cx="12" cy="12" r="10" />
+					<path d="M8 12h8" />
+					<path d="M12 8v8" />
+				</symbol>
+				<symbol id="ui-grid" viewBox="0 0 24 24">
+					<rect width="18" height="18" x="3" y="3" rx="2" />
+					<path d="M3 12h18" />
+					<path d="M12 3v18" />
+				</symbol>
+				<symbol id="ui-eye-off" viewBox="0 0 24 24">
+					<path
+						d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575a1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"
+					/>
+					<path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
+					<path
+						d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"
+					/>
+					<path d="m2 2 20 20" />
+				</symbol>
+				<symbol id="ui-list-checks" viewBox="0 0 24 24">
+					<path d="M13 5h8" />
+					<path d="M13 12h8" />
+					<path d="M13 19h8" />
+					<path d="m3 17 2 2 4-4" />
+					<path d="m3 7 2 2 4-4" />
+				</symbol>
+				<symbol id="ui-list-x" viewBox="0 0 24 24">
+					<path d="M16 5H3" />
+					<path d="M11 12H3" />
+					<path d="M16 19H3" />
+					<path d="m15.5 9.5 5 5" />
+					<path d="m20.5 9.5-5 5" />
+				</symbol>
+				<symbol id="ui-plus" viewBox="0 0 24 24">
+					<path d="M5 12h14" />
+					<path d="M12 5v14" />
+				</symbol>
+				<symbol id="ui-eraser" viewBox="0 0 24 24">
+					<path
+						d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"
+					/>
+					<path d="m5.082 11.09 8.828 8.828" />
+				</symbol>
+				<symbol id="i-gem" viewBox="0 0 24 24">
+					<path d="M10.5 3 8 9l4 13 4-13-2.5-6" />
+					<path
+						d="M17 3a2 2 0 0 1 1.6.8l3 4a2 2 0 0 1 .013 2.382l-7.99 10.986a2 2 0 0 1-3.247 0l-7.99-10.986A2 2 0 0 1 2.4 7.8l2.998-3.997A2 2 0 0 1 7 3z"
+					/>
+					<path d="M2 9h20" />
+				</symbol>
+				<symbol id="i-heart" viewBox="0 0 24 24">
+					<path
+						d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"
+					/>
+				</symbol>
+				<symbol id="i-image" viewBox="0 0 24 24">
+					<rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+					<circle cx="9" cy="9" r="2" />
+					<path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+				</symbol>
+				<symbol id="i-layers" viewBox="0 0 24 24">
+					<path
+						d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"
+					/>
+					<path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" />
+					<path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" />
+				</symbol>
+				<symbol id="i-leaf" viewBox="0 0 24 24">
+					<path
+						d="M11 20a10 10 0 0010-10 25.9 25.9 0 00-1.04-7.281 1 1 0 00-1.755-.325C15.833 5.5 13 5.5 9.8 6.1A7 7 0 0011 20"
+					/>
+					<path d="M2 21a5 5 0 012.911-4.544C7.613 15.212 8.351 15.24 11 13" />
+				</symbol>
+				<symbol id="i-moon" viewBox="0 0 24 24">
+					<path
+						d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"
+					/>
+				</symbol>
+				<symbol id="i-mountain" viewBox="0 0 24 24">
+					<path d="m8 3 4 8 5-5 5 15H2L8 3z" />
+				</symbol>
+				<symbol id="i-music" viewBox="0 0 24 24">
+					<path d="M9 18V5l12-2v13" />
+					<circle cx="6" cy="18" r="3" />
+					<circle cx="18" cy="16" r="3" />
+				</symbol>
+				<symbol id="i-palette" viewBox="0 0 24 24">
+					<path
+						d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"
+					/>
+					<circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+					<circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+					<circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+					<circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
+				</symbol>
+				<symbol id="i-pipette" viewBox="0 0 24 24">
+					<path
+						d="m12 9-8.414 8.414A2 2 0 0 0 3 18.828v1.344a2 2 0 0 1-.586 1.414A2 2 0 0 1 3.828 21h1.344a2 2 0 0 0 1.414-.586L15 12"
+					/>
+					<path d="m18 9 .4.4a1 1 0 1 1-3 3l-3.8-3.8a1 1 0 1 1 3-3l.4.4 3.4-3.4a1 1 0 1 1 3 3z" />
+					<path d="m2 22 .414-.414" />
+				</symbol>
+				<symbol id="i-snowflake" viewBox="0 0 24 24">
+					<path d="m10 20-1.25-2.5L6 18" />
+					<path d="M10 4 8.75 6.5 6 6" />
+					<path d="m14 20 1.25-2.5L18 18" />
+					<path d="m14 4 1.25 2.5L18 6" />
+					<path d="m17 21-3-6h-4" />
+					<path d="m17 3-3 6 1.5 3" />
+					<path d="M2 12h6.5L10 9" />
+					<path d="m20 10-1.5 2 1.5 2" />
+					<path d="M22 12h-6.5L14 15" />
+					<path d="m4 10 1.5 2L4 14" />
+					<path d="m7 21 3-6-1.5-3" />
+					<path d="m7 3 3 6h4" />
+				</symbol>
+				<symbol id="i-square" viewBox="0 0 24 24">
+					<rect width="18" height="18" x="3" y="3" rx="2" />
+				</symbol>
+				<symbol id="i-star" viewBox="0 0 24 24">
+					<path
+						d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"
+					/>
+				</symbol>
+				<symbol id="i-sun" viewBox="0 0 24 24">
+					<circle cx="12" cy="12" r="4" />
+					<path d="M12 2v2" />
+					<path d="M12 20v2" />
+					<path d="m4.93 4.93 1.41 1.41" />
+					<path d="m17.66 17.66 1.41 1.41" />
+					<path d="M2 12h2" />
+					<path d="M20 12h2" />
+					<path d="m6.34 17.66-1.41 1.41" />
+					<path d="m19.07 4.93-1.41 1.41" />
+				</symbol>
+				<symbol id="i-tag" viewBox="0 0 24 24">
+					<path
+						d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"
+					/>
+					<circle cx="7.5" cy="7.5" r=".5" fill="currentColor" />
+				</symbol>
+			</defs>
+		</svg>
 
-	<header>
-		<!-- clickable: app.js cycles the tint attribute the rules below read -->
-		<h1 id="title">wavelen</h1>
-		<!-- Both states are in the markup and app.js hides one: the header is the first thing
+		<header>
+			<!-- clickable: app.js cycles the tint attribute the rules below read -->
+			<h1 id="title">wavelen</h1>
+			<!-- Both states are in the markup and app.js hides one: the header is the first thing
 		     painted, so building either from script would flash the wrong one. -->
-		<button type="button" class="header-word" id="logged-out">log in</button>
-		<span class="account" id="logged-in" hidden>
-			<!-- filled from GET /me, not from the typed nickname, which is unnormalized -->
-			<span class="who" id="who"></span>
-			<button type="button" id="logout">log out</button>
-			<button type="button" class="icon-button" id="account-delete-open"
-				title="delete this account and everything in it"
-				aria-label="delete this account and everything in it">
-				<svg class="icon" aria-hidden="true"><use href="#ui-trash"/></svg>
-			</button>
-		</span>
-		<button type="button" class="header-word" id="about-open">about</button>
-	</header>
+			<button type="button" class="header-word" id="logged-out">log in</button>
+			<span class="account" id="logged-in" hidden>
+				<!-- filled from GET /me, not from the typed nickname, which is unnormalized -->
+				<span class="who" id="who"></span>
+				<button type="button" id="logout">log out</button>
+				<button
+					type="button"
+					class="icon-button"
+					id="account-delete-open"
+					title="delete this account and everything in it"
+					aria-label="delete this account and everything in it"
+				>
+					<svg class="icon" aria-hidden="true"><use href="#ui-trash" /></svg>
+				</button>
+			</span>
+			<button type="button" class="header-word" id="about-open">about</button>
+		</header>
 
-	<!-- The two account forms, in a dialog: logging in is a header affair, not a section of the
+		<!-- The two account forms, in a dialog: logging in is a header affair, not a section of the
 	     page. Errors go to the line under the form, since the log panel is behind the backdrop.
 	     log in is selected here, not by script, for the same reason as the header above. -->
-	<dialog id="account" aria-label="account">
-		<div class="tabs" role="tablist">
-			<button type="button" class="tab" id="tab-login" role="tab"
-				aria-controls="login-form" aria-selected="true">log in</button>
-			<button type="button" class="tab" id="tab-signup" role="tab"
-				aria-controls="signup-form" aria-selected="false">sign up</button>
-		</div>
-
-		<!-- The tab names the panel, so each field carries its own aria-label. -->
-		<form class="stack" id="login-form" role="tabpanel" aria-labelledby="tab-login">
-			<input id="login-nick" placeholder="nickname" aria-label="nickname"
-				autocomplete="username">
-			<input id="login-password" type="password" placeholder="password"
-				aria-label="password" autocomplete="current-password">
-			<button>log in</button>
-		</form>
-		<form class="stack" id="signup-form" role="tabpanel" aria-labelledby="tab-signup" hidden>
-			<input id="new-nick" placeholder="nickname" aria-label="nickname"
-				autocomplete="username">
-			<input id="new-name" placeholder="name" aria-label="name">
-			<input id="new-password" type="password" placeholder="password"
-				aria-label="password" autocomplete="new-password">
-			<button>create user</button>
-		</form>
-		<p class="dialog-error" id="account-error" role="alert"></p>
-	</dialog>
-
-	<!-- Typing the nickname is the confirmation: a confirm() is one click away from the account
-	     going, and there is no recovery. The button stays disabled until the field matches. -->
-	<dialog id="account-delete" aria-labelledby="account-delete-title">
-		<h3 id="account-delete-title">delete this account</h3>
-		<p>
-			Every collection, every color in them and every token go with it.
-			There is no undo, and no export.
-		</p>
-		<p class="about-note">
-			The nickname is released. Anyone can sign up with it afterwards, and that
-			account would be a new one.
-		</p>
-		<form class="stack" id="account-delete-form">
-			<!-- the label carries the nickname, so the field itself needs no placeholder text -->
-			<label for="account-delete-nick">type <b id="account-delete-nick-echo"></b> to confirm</label>
-			<input id="account-delete-nick" aria-label="nickname" autocomplete="off"
-				autocapitalize="off" spellcheck="false">
-			<div class="dialog-actions">
-				<!-- type=button inside a form: this one cancels, it does not submit -->
-				<button type="button" id="account-delete-cancel">cancel</button>
-				<button id="account-delete-submit" class="danger" disabled>delete</button>
-			</div>
-		</form>
-		<p class="dialog-error" id="account-delete-error" role="alert"></p>
-	</dialog>
-
-	<!-- The browser's own modal: Escape closes it, the backdrop is its own. app.js fills the
-	     version on the first open. -->
-	<dialog id="about" aria-labelledby="about-title">
-		<!-- the wordmark, with its size in the markup so the box is right before the file lands -->
-		<h2 id="about-title">
-			<img src="images/logo.png" alt="wavelen" width="358" height="70">
-		</h2>
-		<p>version <span id="about-version">-</span></p>
-		<p><a href="https://github.com/salandered/wavelen">github.com/salandered/wavelen</a></p>
-		<p class="about-warn">This project is a work in progress. Your data may be lost!</p>
-		<p class="about-note">contact me: <a href="mailto:salandered@pm.me">salandered@pm.me</a></p>
-		<hr>
-		<!-- the full notices are in the comment above the sprite and in the repo -->
-		<p class="about-note">Icons: <a href="https://lucide.dev">Lucide</a>, ISC and MIT.</p>
-		<!-- method=dialog: the submit closes it, no script -->
-		<form method="dialog">
-			<button>close</button>
-		</form>
-	</dialog>
-
-	<div class="split">
-		<main>
-		<!-- Needs a token, so app.js hides it logged out. -->
-		<details data-collapse-key="saved" id="saved-section" open>
-			<summary>Saved colors</summary>
-			<!-- app.js fills #collections with one tab per collection; the button beside it stays -->
-			<div class="collection-bar">
-				<div class="collections" id="collections"></div>
-				<button type="button" class="icon-button" id="collection-new" title="new collection"
-					aria-label="new collection" aria-expanded="false" aria-controls="collection-form">
-					<svg class="icon" aria-hidden="true"><use href="#ui-plus"/></svg>
+		<dialog id="account" aria-label="account">
+			<div class="tabs" role="tablist">
+				<button
+					type="button"
+					class="tab"
+					id="tab-login"
+					role="tab"
+					aria-controls="login-form"
+					aria-selected="true"
+				>
+					log in
+				</button>
+				<button
+					type="button"
+					class="tab"
+					id="tab-signup"
+					role="tab"
+					aria-controls="signup-form"
+					aria-selected="false"
+				>
+					sign up
 				</button>
 			</div>
-			<!-- maxlength is collection.MaxNameLen: the API answers 400 past it either way -->
-			<form id="collection-form" hidden>
-				<div class="row">
-					<label for="collection-name">new</label>
-					<input id="collection-name" placeholder="name" maxlength="60">
-					<!-- both are optional in the API, and these two defaults are the API's own -->
-					<input type="color" id="collection-accent" value="#808080"
-					       aria-label="collection accent">
 
-					<!-- type=button, or the trigger submits the form instead of opening the
-					     grid. aria-expanded is the only record of whether it is open. Both
-					     are filled by app.js out of the sprite above. -->
-					<div class="icon-menu">
-						<button type="button" class="icon-trigger" id="icon-trigger"
-							aria-haspopup="true" aria-expanded="false"
-							aria-controls="icon-picker"></button>
-						<div class="icon-picker" id="icon-picker" role="radiogroup"
-						     aria-label="collection icon" hidden></div>
-					</div>
+			<!-- The tab names the panel, so each field carries its own aria-label. -->
+			<form class="stack" id="login-form" role="tabpanel" aria-labelledby="tab-login">
+				<input
+					id="login-nick"
+					placeholder="nickname"
+					aria-label="nickname"
+					autocomplete="username"
+				/>
+				<input
+					id="login-password"
+					type="password"
+					placeholder="password"
+					aria-label="password"
+					autocomplete="current-password"
+				/>
+				<button>log in</button>
+			</form>
+			<form class="stack" id="signup-form" role="tabpanel" aria-labelledby="tab-signup" hidden>
+				<input id="new-nick" placeholder="nickname" aria-label="nickname" autocomplete="username" />
+				<input id="new-name" placeholder="name" aria-label="name" />
+				<input
+					id="new-password"
+					type="password"
+					placeholder="password"
+					aria-label="password"
+					autocomplete="new-password"
+				/>
+				<button>create user</button>
+			</form>
+			<p class="dialog-error" id="account-error" role="alert"></p>
+		</dialog>
 
-					<button>create</button>
+		<!-- Typing the nickname is the confirmation: a confirm() is one click away from the account
+	     going, and there is no recovery. The button stays disabled until the field matches. -->
+		<dialog id="account-delete" aria-labelledby="account-delete-title">
+			<h3 id="account-delete-title">delete this account</h3>
+			<p>
+				Every collection, every color in them and every token go with it. There is no undo, and no
+				export.
+			</p>
+			<p class="about-note">
+				The nickname is released. Anyone can sign up with it afterwards, and that account would be a
+				new one.
+			</p>
+			<form class="stack" id="account-delete-form">
+				<!-- the label carries the nickname, so the field itself needs no placeholder text -->
+				<label for="account-delete-nick"
+					>type <b id="account-delete-nick-echo"></b> to confirm</label
+				>
+				<input
+					id="account-delete-nick"
+					aria-label="nickname"
+					autocomplete="off"
+					autocapitalize="off"
+					spellcheck="false"
+				/>
+				<div class="dialog-actions">
+					<!-- type=button inside a form: this one cancels, it does not submit -->
+					<button type="button" id="account-delete-cancel">cancel</button>
+					<button id="account-delete-submit" class="danger" disabled>delete</button>
 				</div>
 			</form>
-			<!-- the add row and the listing controls on one line, see .toolbar -->
-			<div class="toolbar">
-				<form class="row" id="add-form">
-					<input id="hex" placeholder="#ff00aa" aria-label="hex color">
-					<button>add</button>
-					<!-- type=button, or it would submit the form instead of filling the field -->
-					<button type="button" id="random-hex">random</button>
-					<button type="button" id="bulk-add" title="dev only: 10 separate POSTs">
-						add 10 random
-					</button>
-				</form>
-				<!-- order says descending/ascending rather than newest/oldest: it applies to hex too -->
-				<!-- No labels: a cycler's value names it well enough, and the words cost the room
+			<p class="dialog-error" id="account-delete-error" role="alert"></p>
+		</dialog>
+
+		<!-- The browser's own modal: Escape closes it, the backdrop is its own. app.js fills the
+	     version on the first open. -->
+		<dialog id="about" aria-labelledby="about-title">
+			<!-- the wordmark, with its size in the markup so the box is right before the file lands -->
+			<h2 id="about-title">
+				<img src="images/logo.png" alt="wavelen" width="358" height="70" />
+			</h2>
+			<p>version <span id="about-version">-</span></p>
+			<p><a href="https://github.com/salandered/wavelen">github.com/salandered/wavelen</a></p>
+			<p class="about-warn">This project is a work in progress. Your data may be lost!</p>
+			<p class="about-note">contact me: <a href="mailto:salandered@pm.me">salandered@pm.me</a></p>
+			<hr />
+			<!-- the full notices are in the comment above the sprite and in the repo -->
+			<p class="about-note">Icons: <a href="https://lucide.dev">Lucide</a>, ISC and MIT.</p>
+			<!-- method=dialog: the submit closes it, no script -->
+			<form method="dialog">
+				<button>close</button>
+			</form>
+		</dialog>
+
+		<div class="split">
+			<main>
+				<!-- Needs a token, so app.js hides it logged out. -->
+				<details data-collapse-key="saved" id="saved-section" open>
+					<summary>Saved colors</summary>
+					<!-- app.js fills #collections with one tab per collection; the button beside it stays -->
+					<div class="collection-bar">
+						<div class="collections" id="collections"></div>
+						<button
+							type="button"
+							class="icon-button"
+							id="collection-new"
+							title="new collection"
+							aria-label="new collection"
+							aria-expanded="false"
+							aria-controls="collection-form"
+						>
+							<svg class="icon" aria-hidden="true"><use href="#ui-plus" /></svg>
+						</button>
+					</div>
+					<!-- maxlength is collection.MaxNameLen: the API answers 400 past it either way -->
+					<form id="collection-form" hidden>
+						<div class="row">
+							<label for="collection-name">new</label>
+							<input id="collection-name" placeholder="name" maxlength="60" />
+							<!-- both are optional in the API, and these two defaults are the API's own -->
+							<input
+								type="color"
+								id="collection-accent"
+								value="#808080"
+								aria-label="collection accent"
+							/>
+
+							<!-- type=button, or the trigger submits the form instead of opening the
+					     grid. aria-expanded is the only record of whether it is open. Both
+					     are filled by app.js out of the sprite above. -->
+							<div class="icon-menu">
+								<button
+									type="button"
+									class="icon-trigger"
+									id="icon-trigger"
+									aria-haspopup="true"
+									aria-expanded="false"
+									aria-controls="icon-picker"
+								></button>
+								<div
+									class="icon-picker"
+									id="icon-picker"
+									role="radiogroup"
+									aria-label="collection icon"
+									hidden
+								></div>
+							</div>
+
+							<button>create</button>
+						</div>
+					</form>
+					<!-- the add row and the listing controls on one line, see .toolbar -->
+					<div class="toolbar">
+						<form class="row" id="add-form">
+							<input id="hex" placeholder="#ff00aa" aria-label="hex color" />
+							<button>add</button>
+							<!-- type=button, or it would submit the form instead of filling the field -->
+							<button type="button" id="random-hex">random</button>
+							<button type="button" id="bulk-add" title="dev only: 10 separate POSTs">
+								add 10 random
+							</button>
+						</form>
+						<!-- order says descending/ascending rather than newest/oldest: it applies to hex too -->
+						<!-- No labels: a cycler's value names it well enough, and the words cost the room
 				     the toolbar needs. The title carries the name. -->
-				<div class="row">
-					<!-- cyclers: app.js writes the labels, the value stays in data-value -->
-					<button type="button" id="sort" data-value="created_at" title="sort by"></button>
-					<button type="button" id="order" data-value="desc" title="order"></button>
-					<select id="limit" title="per page">
-						<option value="10">10</option>
-						<option value="20" selected>20</option>
-						<option value="50">50</option>
-						<option value="100">100</option>
-					</select>
-					<!-- the shape the palette is always in, see .dense -->
-					<button type="button" class="icon-button" id="saved-dense" title="dense grid"
-						aria-label="dense grid" aria-pressed="false">
-						<svg class="icon" aria-hidden="true"><use href="#ui-grid"/></svg>
-					</button>
-					<!-- the grid as one strip of bands, the shape every strip goes full screen in -->
-					<button type="button" class="icon-button" id="saved-fullscreen" title="the colors below, full screen"
-						aria-label="the colors below, full screen">
-						<svg class="icon" aria-hidden="true"><use href="#ui-monitor"/></svg>
-					</button>
-					<!-- both act on the active collection: the eraser empties it and the collection
+						<div class="row">
+							<!-- cyclers: app.js writes the labels, the value stays in data-value -->
+							<button type="button" id="sort" data-value="created_at" title="sort by"></button>
+							<button type="button" id="order" data-value="desc" title="order"></button>
+							<select id="limit" title="per page">
+								<option value="10">10</option>
+								<option value="20" selected>20</option>
+								<option value="50">50</option>
+								<option value="100">100</option>
+							</select>
+							<!-- the shape the palette is always in, see .dense -->
+							<button
+								type="button"
+								class="icon-button"
+								id="saved-dense"
+								title="dense grid"
+								aria-label="dense grid"
+								aria-pressed="false"
+							>
+								<svg class="icon" aria-hidden="true"><use href="#ui-grid" /></svg>
+							</button>
+							<!-- the grid as one strip of bands, the shape every strip goes full screen in -->
+							<button
+								type="button"
+								class="icon-button"
+								id="saved-fullscreen"
+								title="the colors below, full screen"
+								aria-label="the colors below, full screen"
+							>
+								<svg class="icon" aria-hidden="true"><use href="#ui-monitor" /></svg>
+							</button>
+							<!-- both act on the active collection: the eraser empties it and the collection
 					     stays, the trash deletes it and its colors with it. app.js disables the
 					     trash while the active one is the default, which the server refuses to
 					     delete. -->
-					<button type="button" class="icon-button" id="collection-empty"
-						title="delete every color in this collection"
-						aria-label="delete every color in this collection">
-						<svg class="icon" aria-hidden="true"><use href="#ui-eraser"/></svg>
-					</button>
-					<button type="button" class="icon-button" id="collection-delete"
-						title="delete this collection and its colors"
-						aria-label="delete this collection and its colors, not allowed for the default one"
-						disabled>
-						<svg class="icon" aria-hidden="true"><use href="#ui-trash"/></svg>
-					</button>
-				</div>
-			</div>
-			<div class="grid" id="saved"></div>
-			<!-- hidden until a response carries a next_cursor, which is the end-of-list signal -->
-			<button type="button" id="load-more" hidden>load more</button>
-		</details>
+							<button
+								type="button"
+								class="icon-button"
+								id="collection-empty"
+								title="delete every color in this collection"
+								aria-label="delete every color in this collection"
+							>
+								<svg class="icon" aria-hidden="true"><use href="#ui-eraser" /></svg>
+							</button>
+							<button
+								type="button"
+								class="icon-button"
+								id="collection-delete"
+								title="delete this collection and its colors"
+								aria-label="delete this collection and its colors, not allowed for the default one"
+								disabled
+							>
+								<svg class="icon" aria-hidden="true"><use href="#ui-trash" /></svg>
+							</button>
+						</div>
+					</div>
+					<div class="grid" id="saved"></div>
+					<!-- hidden until a response carries a next_cursor, which is the end-of-list signal -->
+					<button type="button" id="load-more" hidden>load more</button>
+				</details>
 
-		<!-- Every strip the API derives from the selection, in the main column: seven bands need the
+				<!-- Every strip the API derives from the selection, in the main column: seven bands need the
 		     width and the labels only fit there. A pin per name, and app.js builds a block per pinned
 		     one into #strips. -->
-		<details data-collapse-key="harmony" id="harmony-section" open>
-			<summary>Harmony</summary>
-			<!-- One pin per name the API serves, in the server's own order; DERIVED in app.js is the
+				<details data-collapse-key="harmony" id="harmony-section" open>
+					<summary>Harmony</summary>
+					<!-- One pin per name the API serves, in the server's own order; DERIVED in app.js is the
 			     same list, and AXIS there titles the two scales. aria-pressed is the record of what
 			     is on, and the CSS reads it. -->
-			<div class="row" id="pins">
-				<button type="button" class="pill" id="pin-complement" aria-pressed="false">complement</button>
-				<button type="button" class="pill" id="pin-analogous" aria-pressed="false">analogous</button>
-				<button type="button" class="pill" id="pin-triad" aria-pressed="false">triad</button>
-				<button type="button" class="pill" id="pin-split-complement" aria-pressed="false">split-complement</button>
-				<button type="button" class="pill" id="pin-square" aria-pressed="false">square</button>
-				<button type="button" class="pill" id="pin-ramp" aria-pressed="false">ramp</button>
-				<button type="button" class="pill" id="pin-tones" aria-pressed="false">tones</button>
-				<!-- the whole row at once, at its end: a glyph each, the way a strip's controls are -->
-				<button type="button" class="icon-button" id="pins-all" title="pin every strip"
-					aria-label="pin every strip">
-					<svg class="icon" aria-hidden="true"><use href="#ui-list-checks"/></svg>
-				</button>
-				<button type="button" class="icon-button" id="pins-none" title="unpin every strip"
-					aria-label="unpin every strip">
-					<svg class="icon" aria-hidden="true"><use href="#ui-list-x"/></svg>
-				</button>
-			</div>
-			<div id="strips"></div>
-		</details>
+					<div class="row" id="pins">
+						<button type="button" class="pill" id="pin-complement" aria-pressed="false">
+							complement
+						</button>
+						<button type="button" class="pill" id="pin-analogous" aria-pressed="false">
+							analogous
+						</button>
+						<button type="button" class="pill" id="pin-triad" aria-pressed="false">triad</button>
+						<button type="button" class="pill" id="pin-split-complement" aria-pressed="false">
+							split-complement
+						</button>
+						<button type="button" class="pill" id="pin-square" aria-pressed="false">square</button>
+						<button type="button" class="pill" id="pin-ramp" aria-pressed="false">ramp</button>
+						<button type="button" class="pill" id="pin-tones" aria-pressed="false">tones</button>
+						<!-- the whole row at once, at its end: a glyph each, the way a strip's controls are -->
+						<button
+							type="button"
+							class="icon-button"
+							id="pins-all"
+							title="pin every strip"
+							aria-label="pin every strip"
+						>
+							<svg class="icon" aria-hidden="true"><use href="#ui-list-checks" /></svg>
+						</button>
+						<button
+							type="button"
+							class="icon-button"
+							id="pins-none"
+							title="unpin every strip"
+							aria-label="unpin every strip"
+						>
+							<svg class="icon" aria-hidden="true"><use href="#ui-list-x" /></svg>
+						</button>
+					</div>
+					<div id="strips"></div>
+				</details>
 
-		<details data-collapse-key="palette" open>
-			<!-- the name the CSS Color spec uses, and what internal/palette holds: the 100 named
+				<details data-collapse-key="palette" open>
+					<!-- the name the CSS Color spec uses, and what internal/palette holds: the 100 named
 			     colors -->
-			<summary>CSS named colors</summary>
-			<!-- the palette is 100 fixed rows, so it sorts but never pages. The toolbar puts the
+					<summary>CSS named colors</summary>
+					<!-- the palette is 100 fixed rows, so it sorts but never pages. The toolbar puts the
 			     one row on the right, where the saved section keeps its listing controls. -->
-			<div class="toolbar">
-				<div class="row">
-					<button type="button" id="palette-sort" data-value="name" title="sort by"></button>
-					<button type="button" id="palette-order" data-value="asc" title="order"></button>
-				</div>
-			</div>
-			<div class="grid dense" id="palette"></div>
-		</details>
-		</main>
+					<div class="toolbar">
+						<div class="row">
+							<button type="button" id="palette-sort" data-value="name" title="sort by"></button>
+							<button type="button" id="palette-order" data-value="asc" title="order"></button>
+						</div>
+					</div>
+					<div class="grid dense" id="palette"></div>
+				</details>
+			</main>
 
-		<aside>
-			<section class="panel">
-				<h2 class="panel-title">View</h2>
-				<div class="row">
-					<!-- an eye or an eye-off out of the sprite, filled by app.js -->
-					<button type="button" class="icon-button" id="zen"></button>
-					<!-- a sun or a moon out of the sprite, filled by app.js -->
-					<button type="button" class="icon-button" id="theme"></button>
-				</div>
-			</section>
+			<aside>
+				<section class="panel">
+					<h2 class="panel-title">View</h2>
+					<div class="row">
+						<!-- an eye or an eye-off out of the sprite, filled by app.js -->
+						<button type="button" class="icon-button" id="zen"></button>
+						<!-- a sun or a moon out of the sprite, filled by app.js -->
+						<button type="button" class="icon-button" id="theme"></button>
+					</div>
+				</section>
 
-			<!-- Collapsible through the same data-collapse-key as the sections on the left.
+				<!-- Collapsible through the same data-collapse-key as the sections on the left.
 			     View and Picker are one row each and stay fixed. -->
-			<details class="panel" data-collapse-key="selected" open>
-				<summary>Selected</summary>
-				<div id="detail"></div>
-				<!-- Mirrors the selection and nudges it. Static rather than built by renderDetail:
+				<details class="panel" data-collapse-key="selected" open>
+					<summary>Selected</summary>
+					<div id="detail"></div>
+					<!-- Mirrors the selection and nudges it. Static rather than built by renderDetail:
 				     a rebuilt input would drop the dialog that is open on it. Under the color, so
 				     the dialog covers the panels below rather than the color being adjusted. -->
-				<div class="row detail-adjust">
-					<input type="color" id="pick" value="#808080" aria-label="adjust the selected color"
-						disabled>
-					<label for="pick">adjust</label>
-				</div>
-			</details>
+					<div class="row detail-adjust">
+						<input
+							type="color"
+							id="pick"
+							value="#808080"
+							aria-label="adjust the selected color"
+							disabled
+						/>
+						<label for="pick">adjust</label>
+					</div>
+				</details>
 
-			<!-- A scratch pad: not wired to the selection, so trying a color here resets nothing
+				<!-- A scratch pad: not wired to the selection, so trying a color here resets nothing
 			     else on the page. -->
-			<section class="panel">
-				<h2 class="panel-title">Picker</h2>
-				<div class="row">
-					<!-- neutral: the value only says where the dialog opens -->
-					<input type="color" id="scratch" value="#808080" aria-label="pick a color">
-					<button type="button" id="scratch-hex" title="copy"></button>
-				</div>
-			</section>
+				<section class="panel">
+					<h2 class="panel-title">Picker</h2>
+					<div class="row">
+						<!-- neutral: the value only says where the dialog opens -->
+						<input type="color" id="scratch" value="#808080" aria-label="pick a color" />
+						<button type="button" id="scratch-hex" title="copy"></button>
+					</div>
+				</section>
 
-			<details class="panel" data-collapse-key="log" open>
-				<summary>Log</summary>
-				<!-- role=log, not status: entries are added, and only the new one is read out -->
-				<div id="log" role="log"></div>
-			</details>
-		</aside>
-	</div>
-</body>
-
+				<details class="panel" data-collapse-key="log" open>
+					<summary>Log</summary>
+					<!-- role=log, not status: entries are added, and only the new one is read out -->
+					<div id="log" role="log"></div>
+				</details>
+			</aside>
+		</div>
+	</body>
 </html>

@@ -43,6 +43,9 @@ _tmp*.json
 # macOS
 .DS_Store
 
+# node
+node_modules/
+
 # misc
 desktop.ini
 tmp/
