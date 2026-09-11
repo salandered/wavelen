@@ -19,16 +19,17 @@ var _ storage.Storage = (*mockStorage)(nil)
 type mockStorage struct {
 	//// what the methods answer
 	// color
-	colors         []color.Color
-	colorsErr      error
-	colorAdded     bool
-	addColorErr    error
-	colorCount     int
-	colorCountErr  error
-	hasColor       bool
-	hasColorErr    error
-	deleteColorErr error
-	hasMore        bool
+	colors          []color.Color
+	colorsErr       error
+	colorAdded      bool
+	addColorErr     error
+	colorCount      int
+	colorCountErr   error
+	hasColor        bool
+	hasColorErr     error
+	deleteColorErr  error
+	deleteColorsErr error
+	hasMore         bool
 	// collection
 	assignCltID     collection.ID
 	resolveErr      error
@@ -242,6 +243,11 @@ func (s *mockStorage) DeleteColor(
 ) error {
 	s.gotCollectionID, s.gotHex = cltID, hex
 	return s.deleteColorErr
+}
+
+func (s *mockStorage) DeleteAllColors(_ context.Context, cltID collection.ID) error {
+	s.gotCollectionID = cltID
+	return s.deleteColorsErr
 }
 
 func (s *mockStorage) ListColors(

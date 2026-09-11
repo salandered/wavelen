@@ -70,6 +70,15 @@ func (s *Postgres) DeleteColor(
 	return nil
 }
 
+func (s *Postgres) DeleteAllColors(ctx context.Context, cltID collection.ID) error {
+	const query = `DELETE FROM collection_colors WHERE collection_id = $1`
+
+	if _, err := s.db.Exec(ctx, query, cltID); err != nil {
+		return fmt.Errorf("storage delete all colors: %w", err)
+	}
+	return nil
+}
+
 // One page after the cursor, ordered by the column p names with hex as the tiebreak
 func (s *Postgres) ListColors(
 	ctx context.Context, cltID collection.ID, p ListColorsParams,

@@ -132,6 +132,33 @@ func (s *StorageSuite) TestDeleteColorFromAnUnknownCollection() {
 	s.Require().ErrorIs(err, storage.ErrNotFound)
 }
 
+func (s *StorageSuite) TestDeleteAllColorsEmptiesSpecifiedCollection() {
+	_, olyaCollection := s.createUserAndCollection("olya", "Olya")
+	_, graceCollection := s.createUserAndCollection("grace", "Grace")
+	s.addColors(olyaCollection, "#ff0000", "#00ff00", "#e0d253")
+	s.addColors(graceCollection, "#ff0000")
+
+	// when
+	err := s.storage.DeleteAllColors(s.ctx(), olyaCollection)
+
+	// then
+	s.Require().NoError(err)
+
+	n, err := s.storage.CountColors(s.ctx(), olyaCollection)
+	s.Require().NoError(err)
+	s.Require().Zero(n)
+
+	n, err = s.storage.CountColors(s.ctx(), graceCollection)
+	s.Require().NoError(err)
+	s.Require().Equal(1, n)
+}
+
+func (s *StorageSuite) TestDeleteAllColorsFromEmptyCollection() {
+	_, collectionID := s.createUserAndCollection("olya", "Olya")
+
+	s.Require().NoError(s.storage.DeleteAllColors(s.ctx(), collectionID))
+}
+
 func (s *StorageSuite) TestAddColorConstraintRejectsInvalidHex() {
 	_, collectionID := s.createUserAndCollection("olya", "Olya")
 

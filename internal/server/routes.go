@@ -68,6 +68,7 @@ func newMux(s storage.Storage, cfg HandlerConfig) *http.ServeMux {
 
 	mux.Handle("GET /api/v1/me/collections/{id}/colors", authed(colors.HandleListColors))
 	mux.Handle("POST /api/v1/me/collections/{id}/colors", authed(colors.HandleAddColor))
+	mux.Handle("DELETE /api/v1/me/collections/{id}/colors", authed(colors.HandleDeleteAllColors))
 	mux.Handle("DELETE /api/v1/me/collections/{id}/colors/{hex}", authed(colors.HandleDeleteColor))
 
 	//// common data and operations

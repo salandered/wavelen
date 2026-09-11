@@ -663,6 +663,36 @@ func (s *APISuite) TestDeleteColorRejectsBadHex() {
 	}
 }
 
+// Delete all colors
+
+func (s *APISuite) TestDeleteAllColorsReturnsNoContent() {
+	s.storage.tokenUser = 42
+
+	resp := s.del(savedColorsPath)
+	s.Require().Equal(http.StatusNoContent, resp.StatusCode)
+	s.Require().Empty(s.body(resp))
+
+	s.Require().Equal(user.ID(42), s.storage.gotUserID)
+	s.Require().Equal(stubCollectionID, s.storage.gotCollectionID)
+}
+
+func (s *APISuite) TestDeleteAllColorsEmptyCollectionReturnsNoContent() {
+	s.Require().Equal(http.StatusNoContent, s.del(savedColorsPath).StatusCode)
+}
+
+func (s *APISuite) TestDeleteAllColorsCollectionUserDoesNotOwnReturnsNotFound() {
+	s.storage.resolveErr = storage.ErrNotFound
+
+	resp := s.del(savedColorsPath)
+	s.Require().Equal(http.StatusNotFound, resp.StatusCode)
+	s.Require().Equal("not found", s.errorMessage(resp))
+}
+
+func (s *APISuite) TestDeleteAllColorsRejectsBadCollectionID() {
+	resp := s.del(collectionsPath + "/not-a-uuid/colors")
+	s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
+}
+
 // Listing colors
 
 func (s *APISuite) TestListColorsRendersEmptyArrayNotNull() {

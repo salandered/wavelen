@@ -13,15 +13,17 @@ import (
 )
 
 type ColorService interface {
-	AddColor(
-		ctx context.Context, userID user.ID, collectionID collection.ID, hex color.Hex,
+	AddColor(ctx context.Context, userID user.ID, cltID collection.ID, hex color.Hex,
 	) (bool, error)
 	ListColors(
-		ctx context.Context, userID user.ID, collectionID collection.ID,
+		ctx context.Context, userID user.ID, cltID collection.ID,
 		p storage.ListColorsParams,
 	) (storage.ColorPage, error)
 	DeleteColor(
-		ctx context.Context, userID user.ID, collectionID collection.ID, hex color.Hex,
+		ctx context.Context, userID user.ID, cltID collection.ID, hex color.Hex,
+	) error
+	DeleteAllColors(
+		ctx context.Context, userID user.ID, cltID collection.ID,
 	) error
 }
 
@@ -137,6 +139,24 @@ func (h *ColorHandler) HandleDeleteColor(w http.ResponseWriter, req *http.Reques
 	}
 
 	if err := h.ColorSrv.DeleteColor(ctx, userID, collectionID, hex); err != nil {
+		writeStorageError(ctx, w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *ColorHandler) HandleDeleteAllColors(
+	w http.ResponseWriter, req *http.Request, userID user.ID,
+) {
+	ctx := req.Context()
+
+	collectionID, err := collectionIDFromPath(req)
+	if err != nil {
+		writeRequestError(ctx, w, err)
+		return
+	}
+
+	if err := h.ColorSrv.DeleteAllColors(ctx, userID, collectionID); err != nil {
 		writeStorageError(ctx, w, err)
 		return
 	}

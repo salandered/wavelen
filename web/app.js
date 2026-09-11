@@ -7,6 +7,7 @@ const API = "/api/v1";
 const DETAILS_KEY = "details_open";
 const ZEN_KEY = "zen";
 const DENSE_KEY = "dense";
+const PINNED_KEY = "pinned";
 const SESSION_KEY = "session";
 const CONTROLS_KEY = "controls";
 
@@ -411,8 +412,8 @@ function collectionRemove(col) {
 	return remove;
 }
 
-// The one control that destroys rows it is not showing: the delete cascades to the colors and
-// there is no account recovery. Hence the confirm, which deleting a single swatch does not get.
+// One of the two controls that destroy rows the page is not showing: the delete cascades to the
+// colors and there is no account recovery. Hence the confirm, which deleting a swatch does not get.
 async function deleteCollection(col) {
 	if (!confirm(`delete ${col.name} and every color in it?`)) {
 		return;
@@ -428,6 +429,35 @@ async function deleteCollection(col) {
 		}
 		// the grid is showing a collection that no longer exists
 		setActiveCollection(pickCollection(null));
+		await loadSaved();
+	} catch (err) {
+		setStatus(err.message, true);
+	}
+}
+
+// The other one: the collection pages, so what goes includes colors no grid on screen has. The
+// collection itself stays, which is the whole difference between this and the delete above.
+async function emptyCollection() {
+	if (!requireSession()) {
+		return;
+	}
+
+	// resolved before the question, so the name in it is the collection the request will hit
+	let path;
+	try {
+		path = await savedColorsPath();
+	} catch (err) {
+		setStatus(err.message, true);
+		return;
+	}
+
+	const name = collectionName(activeCollection);
+	if (!confirm(`delete every color in ${name}?`)) {
+		return;
+	}
+	try {
+		await call("DELETE", path);
+		setStatus(`emptied ${name}`);
 		await loadSaved();
 	} catch (err) {
 		setStatus(err.message, true);
@@ -556,18 +586,10 @@ function selectionChanged() {
 	markSelected();
 	renderDetail();
 	$("pick").disabled = selectedHex === null;
-	for (const mode of HARMONIES) {
-		$(mode).disabled = selectedHex === null;
-	}
 
-	// a strip built for the previous color would be wrong, so it either follows or goes back to
-	// the placeholder
-	if (selectedHex !== null) {
-		showHarmony(harmonyMode);
-	} else {
-		clearHarmony();
-	}
-	showScales();
+	// a strip built for the previous color would be wrong, so every pinned one follows the
+	// selection or empties with it
+	showStrips();
 }
 
 // A saved swatch carries a delete control, a palette one does not. Siblings inside a cell, not one
@@ -719,123 +741,190 @@ function initScratch() {
 	renderScratch();
 }
 
-// ---- harmony ----
+// ---- derived strips ----
 
-// Which harmony the panel is showing, so clicking a different swatch keeps it rather than making
-// the button be pressed again. Complement from the start: a selection with an empty strip beside
-// it looked like a panel waiting for something.
-let harmonyMode = "complement";
+// The seven names the API derives from one color, in its own order out of color.HarmonyNames. One
+// endpoint answers for all of them in one shape, so one loader draws any of them. Each name is the
+// suffix of its pin's id and of the div its strip lands in.
+const DERIVED = ["complement", "analogous", "triad", "split-complement", "square", "ramp", "tones"];
 
-// Same guard as loadSaved: the buttons stay live while a request is out, so an earlier response
-// landing later must not replace a fresher strip.
-let harmonyGeneration = 0;
+// The rotations lead their strip with the selection, since the pairing is the point. A scale is
+// seven points on an axis and the selection is not one of them, so a band for it would sit at the
+// head reading as a step out of order.
+const LEADING = new Set(["complement", "analogous", "triad", "split-complement", "square"]);
 
-// The modes, in the order the pills sit in, and each name is also its pill's id. These are the
-// hue rotations out of color.HarmonyNames; ramp is the server's sixth and has a section of its own.
-const HARMONIES = ["complement", "analogous", "triad", "split-complement", "square"];
+// The axis a scale sweeps, which its name does not say. The pin and the strip's own label both
+// carry it as a title.
+const AXIS = {
+	ramp: "lightness, dark to light",
+	tones: "chroma, the gray of this lightness to the full color",
+};
 
-function clearHarmony() {
-	$("harmony").replaceChildren();
-}
+// What the page opens on, which is what it showed before the pins: one rotation and both scales.
+const DEF_PINNED = ["complement", "ramp", "tones"];
 
-// aria-pressed is the record of the mode, and the CSS reads it
-function renderHarmonyButtons() {
-	for (const mode of HARMONIES) {
-		$(mode).setAttribute("aria-pressed", String(mode === harmonyMode));
-	}
-}
+// The bands each strip on screen was built from, by name: { hex, bands }. The hex is what lets a
+// pin come back without a request, and what keeps an older selection's colors off the page and out
+// of an add.
+const stripColors = {};
 
-// Only reached with a selection: the pills are disabled without one.
-async function showHarmony(mode) {
-	harmonyMode = mode;
-	renderHarmonyButtons();
-	const generation = ++harmonyGeneration;
-	const hex = selectedHex;
-
-	try {
-		// bare six digits in the path, same rule as the delete above
-		const { data } = await call("GET", `/colors/${hex.slice(1)}/${mode}`);
-		if (generation !== harmonyGeneration) {
-			return; // a later click owns the panel now
-		}
-		// one shape for every harmony: the normalized hex asked about, the name, and the colors
-		// it derives. The strip shows the color beside them, since the pairing is the point.
-		renderHarmony([data.hex, ...data.colors]);
-	} catch (err) {
-		if (generation !== harmonyGeneration) {
-			return;
-		}
-		clearHarmony();
-		setStatus(err.message, true);
-	}
-}
-
-// ---- scales ----
-
-// The two harmonies that hold the hue and sweep one axis: ramp the lightness, tones the chroma.
-// Seven bands each want the width of the main column, and the labels only fit there. Both are the
-// name of their harmony, of the div that holds the strip and of the button beside it, so one
-// function draws either. The section has no mode to keep, so it follows the selection alone.
-const SCALES = ["ramp", "tones"];
-
-let scaleGeneration = 0;
-
-// The steps of whichever strip is on screen, kept so the ramp's add button does not ask for them a
-// second time. Emptied with the strip, so the button cannot post a scale of an older selection.
-const scaleColors = { ramp: [], tones: [] };
+// Same guard as loadSaved, one number for the whole section: the pins stay live while a request is
+// out, so an earlier response landing later must not replace a fresher strip.
+let stripGeneration = 0;
 
 // A closed section asks for nothing. What it missed while closed is what it loads when it opens.
-let scalesStale = false;
+let stripsStale = false;
 
-function showScales() {
-	if (!$("scales-section").open) {
-		scalesStale = true;
+// The pinned names, always in DERIVED order: the strips read top to bottom the way the pins read
+// left to right, whatever order they were pinned in.
+let pinned = [];
+
+function applyPinned(names) {
+	pinned = DERIVED.filter((name) => names.includes(name));
+	for (const name of DERIVED) {
+		$(`pin-${name}`).setAttribute("aria-pressed", String(pinned.includes(name)));
+	}
+	writeStored(PINNED_KEY, pinned);
+	renderStrips();
+}
+
+function togglePin(name) {
+	applyPinned(pinned.includes(name) ? pinned.filter((other) => other !== name) : [...pinned, name]);
+}
+
+// A block per pinned name, built here rather than declared in the markup: which of the seven are on
+// is the user's. Every block is the same three things, so the two scales stopped being special.
+function renderStrips() {
+	if (pinned.length === 0) {
+		renderEmpty($("strips"), "nothing pinned");
 		return;
 	}
-	scalesStale = false;
+	$("strips").replaceChildren(...pinned.map(stripBlock));
+	showStrips();
+}
 
-	// one number for the pair, so a selection landing mid-flight drops both older strips
-	const generation = ++scaleGeneration;
-	for (const scale of SCALES) {
+function stripBlock(name) {
+	const block = document.createElement("div");
+	block.className = "strip-block";
+
+	const toolbar = document.createElement("div");
+	toolbar.className = "toolbar";
+
+	const named = document.createElement("div");
+	named.className = "row";
+	const label = document.createElement("span");
+	label.className = "strip-name";
+	label.textContent = name;
+	if (AXIS[name] !== undefined) {
+		label.title = AXIS[name];
+	}
+	named.append(label);
+
+	const controls = document.createElement("div");
+	controls.className = "row";
+	controls.append(
+		iconButton("ui-circle-plus", `add the ${name} to this collection`,
+			(event) => addStrip(name, event.currentTarget)),
+		iconButton("ui-monitor", `the ${name} below, full screen`, () => showStripFullscreen(name)),
+	);
+
+	toolbar.append(named, controls);
+
+	const strip = document.createElement("div");
+	strip.id = `strip-${name}`;
+
+	block.append(toolbar, strip);
+	return block;
+}
+
+function iconButton(symbol, label, onClick) {
+	const button = document.createElement("button");
+	button.type = "button";
+	button.className = "icon-button";
+	button.title = label;
+	button.setAttribute("aria-label", label);
+	button.append(spriteSvg(symbol, "icon"));
+	button.addEventListener("click", onClick);
+	return button;
+}
+
+// A pin whose bands were derived from the color already selected is drawn from memory: the request
+// would answer what stripColors holds.
+function showStrips() {
+	if (!$("harmony-section").open) {
+		stripsStale = true;
+		return;
+	}
+	stripsStale = false;
+
+	const generation = ++stripGeneration;
+	for (const name of pinned) {
 		if (selectedHex === null) {
-			scaleColors[scale] = [];
-			$(scale).replaceChildren();
+			delete stripColors[name];
+			drawStrip(name, null);
+		} else if (stripColors[name]?.hex === selectedHex) {
+			drawStrip(name, stripColors[name].bands);
 		} else {
-			loadScale(scale, selectedHex, generation);
+			loadStrip(name, selectedHex, generation);
 		}
 	}
 }
 
-async function loadScale(scale, hex, generation) {
+async function loadStrip(name, hex, generation) {
 	try {
-		const { data } = await call("GET", `/colors/${hex.slice(1)}/${scale}`);
-		if (generation !== scaleGeneration) {
+		// bare six digits in the path, same rule as the delete above
+		const { data } = await call("GET", `/colors/${hex.slice(1)}/${name}`);
+		if (generation !== stripGeneration) {
 			return; // a later selection owns the section now
 		}
-		// The steps alone, unlike the harmony panel. A scale is seven points on an axis and the
-		// selection is not one of them, so a band for it would sit at the head reading as a step
-		// out of order. A band selects, the way a swatch does, and the button above the strip is
-		// what sends it full screen.
-		scaleColors[scale] = data.colors;
-		$(scale).replaceChildren(buildStrip(data.colors, (step) => selectColor(step, scale)));
+		// the answer is the normalized hex asked about, the name, and the colors it derives
+		const bands = LEADING.has(name) ? [data.hex, ...data.colors] : data.colors;
+		stripColors[name] = { hex, bands };
+		drawStrip(name, bands);
 	} catch (err) {
-		if (generation !== scaleGeneration) {
+		if (generation !== stripGeneration) {
 			return;
 		}
-		scaleColors[scale] = [];
-		$(scale).replaceChildren();
+		delete stripColors[name];
+		drawStrip(name, null);
 		setStatus(err.message, true);
 	}
 }
 
-// A step the collection already holds answers 200 rather than 201, so created counts what was new,
-// the same shape the bulk run reports.
-async function addRamp() {
+// A band selects, the way a swatch does, so a step can be picked up and worked on. The block's own
+// button is what sends the strip full screen.
+function drawStrip(name, bands) {
+	const target = $(`strip-${name}`);
+	if (target === null) {
+		return; // unpinned while its request was out
+	}
+	if (bands === null) {
+		target.replaceChildren();
+		return;
+	}
+	target.replaceChildren(buildStrip(bands, (band) => selectColor(band, name)));
+}
+
+// The strip is already on the page, so it goes full screen where it stands. The saved grid has to
+// build one first, since a grid of cells is not a strip.
+function showStripFullscreen(name) {
+	const strip = $(`strip-${name}`)?.querySelector(".harmony") ?? null;
+	if (strip === null) {
+		setStatus("nothing to show", true);
+		return;
+	}
+	toggleFullscreen(strip);
+}
+
+// The bands on screen, the leading selection included: the button sits over the strip, so what it
+// adds is what the strip shows. A band the collection already holds answers 200 rather than 201, so
+// created counts what was new, the same shape the bulk run reports.
+async function addStrip(name, button) {
 	if (!requireSession()) {
 		return;
 	}
-	const hexes = scaleColors.ramp;
-	if (hexes.length === 0) {
+	const bands = stripColors[name]?.bands ?? [];
+	if (bands.length === 0) {
 		setStatus("nothing to add", true);
 		return;
 	}
@@ -852,9 +941,9 @@ async function addRamp() {
 	let failed = 0;
 	let firstError = null;
 
-	$("ramp-add").disabled = true;
+	button.disabled = true;
 	try {
-		for (const [done, hex] of hexes.entries()) {
+		for (const [done, hex] of bands.entries()) {
 			try {
 				const { status } = await call("POST", path, { hex });
 				if (status === 201) {
@@ -864,32 +953,15 @@ async function addRamp() {
 				failed++;
 				firstError ??= err.message;
 			}
-			setProgress(`adding the ramp... ${done + 1}/${hexes.length}`);
+			setProgress(`adding the ${name}... ${done + 1}/${bands.length}`);
 		}
 	} finally {
-		$("ramp-add").disabled = false;
+		button.disabled = false;
 	}
 
-	const summary = `added ${created} of ${hexes.length} to ${collectionName(activeCollection)}`;
+	const summary = `added ${created} of ${bands.length} to ${collectionName(activeCollection)}`;
 	setStatus(failed === 0 ? summary : `${summary}, ${failed} failed - ${firstError}`, failed > 0);
 	await loadSaved();
-}
-
-// The strip is already on the page, so it goes full screen where it stands. The saved grid has to
-// build one first, since a grid of cells is not a strip.
-function showScaleFullscreen(scale) {
-	const strip = $(scale).querySelector(".harmony");
-	if (strip === null) {
-		setStatus("nothing to show", true);
-		return;
-	}
-	toggleFullscreen(strip);
-}
-
-// The strip goes full screen, not a band: one color of a harmony full screen is what the Selected
-// panel already does. So the strip is a plain element and every band carries its own pair.
-function renderHarmony(hexes) {
-	$("harmony").replaceChildren(buildStrip(hexes));
 }
 
 // The saved grid as the same strip, straight to full screen. It is the swatches on screen, pages
@@ -920,9 +992,9 @@ async function showSavedFullscreen() {
 	}
 }
 
-// A band click goes full screen, since the strip is what has a fullscreen view and a panel strip
-// has no room for a button of its own. A caller that passes onBand takes the click instead and
-// carries its own button, see the ramp section.
+// A band click toggles full screen by default, which is what the saved grid's off-stage strip
+// needs: it has no block to carry a button. A caller that passes onBand takes the click instead
+// and carries its own button, see drawStrip.
 function buildStrip(hexes, onBand) {
 	const strip = document.createElement("div");
 	strip.className = "harmony";
@@ -1386,6 +1458,17 @@ document.addEventListener("click", (event) => {
 	button.classList.add("pressed");
 }, true);
 
+// The title steps through the two tints and then its own color again. The attribute is the only
+// record, so a reload starts over.
+$("title").addEventListener("click", () => {
+	const next = (Number($("title").dataset.tint ?? 0) + 1) % 3;
+	if (next === 0) {
+		delete $("title").dataset.tint;
+	} else {
+		$("title").dataset.tint = String(next);
+	}
+});
+
 $("about-open").addEventListener("click", openAbout);
 
 $("theme").addEventListener("click", () => {
@@ -1432,8 +1515,11 @@ $("hex").addEventListener("input", () => {
 	}
 });
 
-for (const mode of HARMONIES) {
-	$(mode).addEventListener("click", () => showHarmony(mode));
+for (const name of DERIVED) {
+	if (AXIS[name] !== undefined) {
+		$(`pin-${name}`).title = AXIS[name];
+	}
+	$(`pin-${name}`).addEventListener("click", () => togglePin(name));
 }
 
 $("bulk-add").addEventListener("click", addRandomColors);
@@ -1544,14 +1630,11 @@ $("collection-new").addEventListener("click", () => {
 	openCollectionForm($("collection-new").getAttribute("aria-expanded") !== "true");
 });
 
+$("collection-empty").addEventListener("click", emptyCollection);
+
 $("saved-dense").addEventListener("click", () => applyDense(!denseOn()));
 
 $("saved-fullscreen").addEventListener("click", showSavedFullscreen);
-$("ramp-add").addEventListener("click", addRamp);
-
-for (const scale of SCALES) {
-	$(`${scale}-fullscreen`).addEventListener("click", () => showScaleFullscreen(scale));
-}
 
 // No debounce, unlike the picker in the aside: this only writes a style property.
 $("collection-accent").addEventListener("input", renderIconChoice);
@@ -1613,13 +1696,16 @@ for (const id of ["palette-sort", "palette-order"]) {
 
 initPicker();
 initScratch(); // labels the hex button from the input's own value in the markup
-$("scales-section").addEventListener("toggle", () => {
-	if ($("scales-section").open && scalesStale) {
-		showScales();
+$("harmony-section").addEventListener("toggle", () => {
+	if ($("harmony-section").open && stripsStale) {
+		showStrips();
 	}
 });
-renderHarmonyButtons(); // marks the starting mode, before there is a strip to show in it
-// fills the Selected panel, the harmony strip and both scales, three requests in all
+// after initCollapsibleSections, which decides whether the section it draws into is open. A
+// stored value that is not an array is dropped, the way a stored control outside CONTROL_VALUES is.
+const storedPinned = readStored(PINNED_KEY, DEF_PINNED);
+applyPinned(Array.isArray(storedPinned) ? storedPinned : DEF_PINNED);
+// fills the Selected panel and every pinned strip, one request each
 selectColor(DEF_SELECTION.hex, DEF_SELECTION.name);
 renderLog(); // same, until something happens
 renderIconPicker(); // reads the sprite once, before anything can select out of it

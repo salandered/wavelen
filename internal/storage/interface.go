@@ -47,6 +47,7 @@ type ColorRepo interface {
 	CountColors(ctx context.Context, cltID collection.ID) (int, error)
 	HasColor(ctx context.Context, cltID collection.ID, hex color.Hex) (bool, error)
 	DeleteColor(ctx context.Context, cltID collection.ID, hex color.Hex) error
+	DeleteAllColors(ctx context.Context, cltID collection.ID) error
 }
 
 type HealthRepo interface {

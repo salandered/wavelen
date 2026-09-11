@@ -103,6 +103,21 @@
 			font-size: 1.25rem;
 			margin: 0;
 			margin-right: auto;
+			cursor: pointer;
+			/* a second click inside the double-click window selects the word otherwise */
+			user-select: none;
+		}
+
+		/*
+			Two tints and back, a click at a time. Bare values rather than tokens: they read on
+			either ground and belong to nothing else on the page.
+		*/
+		h1[data-tint="1"] {
+			color: #b7159c;
+		}
+
+		h1[data-tint="2"] {
+			color: #358e5c;
 		}
 
 		/* words beside the title, not buttons among the controls */
@@ -369,6 +384,10 @@
 			border-color: var(--line);
 		}
 
+		#pins {
+			margin-bottom: 0.75rem;
+		}
+
 		.tabs {
 			display: flex;
 			gap: 0.25rem;
@@ -516,6 +535,16 @@
 			color: var(--fg);
 		}
 
+		/* last in the listing row, muted until reached: what it does is not undone */
+		#collection-empty {
+			border-color: transparent;
+			color: var(--muted);
+		}
+
+		#collection-empty:hover {
+			color: var(--error);
+		}
+
 		/*
 			The stroke settings are the same for every glyph in the sprite, so they sit here
 			rather than on 27 <symbol>s. currentColor is what lets a parent tint a whole icon:
@@ -630,13 +659,30 @@
 		}
 
 		/* names the strip under it, at the weight a label carries */
-		.scale-name {
+		.strip-name {
 			color: var(--muted);
 			font-size: 0.85rem;
 		}
 
-		.scale-gap {
-			margin-top: 1rem;
+		/* the gap goes between blocks, so the first one sits under the pins */
+		.strip-block + .strip-block {
+			margin-top: 0.6rem;
+		}
+
+		/* a block is a label and a strip, so its toolbar needs less room than a section's */
+		.strip-block .toolbar {
+			margin-bottom: 0.35rem;
+		}
+
+		.strip-block .icon-button {
+			padding: 0.1rem 0.3rem;
+			font-size: 0.95rem;
+			/* a step back, like the label beside them: the colors are what the eye is here for */
+			color: var(--muted);
+		}
+
+		.strip-block .icon-button:hover {
+			color: var(--fg);
 		}
 
 		/* a glyph alone, sized like the icon trigger */
@@ -652,22 +698,26 @@
 			background: light-dark(rgba(0, 0, 0, 0.14), rgba(255, 255, 255, 0.18));
 		}
 
-		/* the two harmony modes: a pair of pills, the one on show filled darker */
+		/*
+			A pin per derived strip: outlined and muted while off, filled while on. Two fills a
+			step apart read as one row of buttons, so the off state keeps the border every other
+			control has and the on state is the only filled thing in the row.
+		*/
 		.pill {
 			padding: 0.25rem 0.7rem;
-			border-color: transparent;
 			border-radius: 999px;
-			background: light-dark(rgba(0, 0, 0, 0.06), rgba(255, 255, 255, 0.08));
+			background: light-dark(rgba(0, 0, 0, 0.02), rgba(255, 255, 255, 0.03));
+			color: var(--muted);
+		}
+
+		.pill:hover {
+			color: var(--fg);
 		}
 
 		.pill[aria-pressed="true"] {
-			background: light-dark(rgba(0, 0, 0, 0.14), rgba(255, 255, 255, 0.18));
-			font-weight: 600;
-		}
-
-		.pill:disabled {
-			cursor: default;
-			opacity: 0.5;
+			border-color: transparent;
+			background: light-dark(rgba(0, 0, 0, 0.16), rgba(255, 255, 255, 0.2));
+			color: var(--fg);
 		}
 
 		#log p {
@@ -880,8 +930,9 @@
 			box-sizing: border-box;
 			display: block;
 			width: 100%;
-			/* squares in the panel; the fullscreen rule below drops this so they become bands */
-			aspect-ratio: 1;
+			/* one height for every strip: a band's width is the column over its count, so a
+			   square would make a two-band strip two blocks the size of the Selected panel */
+			height: 6rem;
 			padding: 0;
 			border: 1px solid var(--line);
 		}
@@ -914,7 +965,6 @@
 		/* the radius goes too, or the corners meet as notches between bands */
 		.harmony:fullscreen .band-color {
 			height: 100%;
-			aspect-ratio: auto;
 			border: none;
 			border-radius: 0;
 		}
@@ -932,8 +982,8 @@
 		}
 
 		/*
-			Every strip on the page is the same builder at a different width: three bands in a
-			15rem panel, eight in the main column, forty full screen. So the band measures itself
+			Every strip on the page is the same builder at a different width: two bands in the
+			main column, seven beside them, forty full screen. So the band measures itself
 			and drops its label when a hex would be clipped by its neighbours, rather than the
 			builder guessing from a count or from screen.width.
 		*/
@@ -994,9 +1044,9 @@
 		Lucide 1.43.0, https://github.com/lucide-icons/lucide
 
 		ISC License, Copyright (c) 2026 Lucide Icons and Contributors, for every icon below except
-		monitor, moon, music, square and circle-plus, which Lucide renamed from the plus-circle the
-		notice lists. Those five are derived from Feather and carry the MIT License, Copyright (c)
-		2013-present Cole Bemis. The derived list is in the notice itself.
+		monitor, moon, music, square, trash-2 and circle-plus, which Lucide renamed from the
+		plus-circle the notice lists. Those six are derived from Feather and carry the MIT License,
+		Copyright (c) 2013-present Cole Bemis. The derived list is in the notice itself.
 
 		Both notices in full: web/LICENSE-lucide.txt in the source repo.
 	-->
@@ -1072,6 +1122,13 @@
 			<symbol id="ui-eye" viewBox="0 0 24 24">
 				<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>
 				<circle cx="12" cy="12" r="3"/>
+			</symbol>
+			<symbol id="ui-trash" viewBox="0 0 24 24">
+				<path d="M10 11v6"/>
+				<path d="M14 11v6"/>
+				<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+				<path d="M3 6h18"/>
+				<path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
 			</symbol>
 			<symbol id="ui-circle-plus" viewBox="0 0 24 24">
 				<circle cx="12" cy="12" r="10"/>
@@ -1173,7 +1230,8 @@
 	</svg>
 
 	<header>
-		<h1>wavelen</h1>
+		<!-- clickable: app.js cycles the tint attribute the rules below read -->
+		<h1 id="title">wavelen</h1>
 		<!-- Both states are in the markup and app.js hides one: the header is the first thing
 		     painted, so building either from script would flash the wrong one. -->
 		<button type="button" class="header-word" id="logged-out">log in</button>
@@ -1298,10 +1356,17 @@
 						aria-label="dense grid" aria-pressed="false">
 						<svg class="icon" aria-hidden="true"><use href="#ui-grid"/></svg>
 					</button>
-					<!-- the grid as one strip of bands, the shape the harmony panel goes full screen in -->
+					<!-- the grid as one strip of bands, the shape every strip goes full screen in -->
 					<button type="button" class="icon-button" id="saved-fullscreen" title="the colors below, full screen"
 						aria-label="the colors below, full screen">
 						<svg class="icon" aria-hidden="true"><use href="#ui-monitor"/></svg>
+					</button>
+					<!-- empties the active collection, which is not a tab's own delete: the
+					     collection stays and only its colors go -->
+					<button type="button" class="icon-button" id="collection-empty"
+						title="delete every color in this collection"
+						aria-label="delete every color in this collection">
+						<svg class="icon" aria-hidden="true"><use href="#ui-trash"/></svg>
 					</button>
 				</div>
 			</div>
@@ -1310,42 +1375,24 @@
 			<button type="button" id="load-more" hidden>load more</button>
 		</details>
 
-		<!-- The two scales of the selected color, in the main column: seven bands need the width,
-		     and a scale is not what the rotations in the aside produce. A row per scale, naming it
-		     and carrying its own full screen at the right edge, see .toolbar. -->
-		<details data-collapse-key="scales" id="scales-section" open>
-			<summary>Scales</summary>
-			<div class="toolbar">
-				<div class="row">
-					<span class="scale-name" title="lightness, dark to light">ramp</span>
-				</div>
-				<div class="row">
-					<!-- the seven steps into Saved colors, see the scales section -->
-					<button type="button" class="icon-button" id="ramp-add" title="add the ramp to this collection"
-						aria-label="add the ramp to this collection">
-						<svg class="icon" aria-hidden="true"><use href="#ui-circle-plus"/></svg>
-					</button>
-					<button type="button" class="icon-button" id="ramp-fullscreen" title="the ramp below, full screen"
-						aria-label="the ramp below, full screen">
-						<svg class="icon" aria-hidden="true"><use href="#ui-monitor"/></svg>
-					</button>
-				</div>
+		<!-- Every strip the API derives from the selection, in the main column: seven bands need the
+		     width and the labels only fit there. A pin per name, and app.js builds a block per pinned
+		     one into #strips. -->
+		<details data-collapse-key="harmony" id="harmony-section" open>
+			<summary>Harmony</summary>
+			<!-- One pin per name the API serves, in the server's own order; DERIVED in app.js is the
+			     same list, and AXIS there titles the two scales. aria-pressed is the record of what
+			     is on, and the CSS reads it. -->
+			<div class="row" id="pins">
+				<button type="button" class="pill" id="pin-complement" aria-pressed="false">complement</button>
+				<button type="button" class="pill" id="pin-analogous" aria-pressed="false">analogous</button>
+				<button type="button" class="pill" id="pin-triad" aria-pressed="false">triad</button>
+				<button type="button" class="pill" id="pin-split-complement" aria-pressed="false">split-complement</button>
+				<button type="button" class="pill" id="pin-square" aria-pressed="false">square</button>
+				<button type="button" class="pill" id="pin-ramp" aria-pressed="false">ramp</button>
+				<button type="button" class="pill" id="pin-tones" aria-pressed="false">tones</button>
 			</div>
-			<div id="ramp"></div>
-			<div class="toolbar scale-gap">
-				<div class="row">
-					<span class="scale-name" title="chroma, the gray of this lightness to the full color">
-						tones
-					</span>
-				</div>
-				<div class="row">
-					<button type="button" class="icon-button" id="tones-fullscreen" title="the tones below, full screen"
-						aria-label="the tones below, full screen">
-						<svg class="icon" aria-hidden="true"><use href="#ui-monitor"/></svg>
-					</button>
-				</div>
-			</div>
-			<div id="tones"></div>
+			<div id="strips"></div>
 		</details>
 
 		<details data-collapse-key="palette" open>
@@ -1400,21 +1447,6 @@
 					<button type="button" id="scratch-hex" title="copy"></button>
 				</div>
 			</section>
-
-			<details class="panel" data-collapse-key="harmony" open>
-				<summary>Harmony</summary>
-				<!-- One pill per harmony the API serves, in the server's own order; HARMONIES in
-				     app.js is the same list. Disabled until there is a selection, and aria-pressed
-				     marks the mode on show. -->
-				<div class="row">
-					<button type="button" class="pill" id="complement" aria-pressed="false" disabled>complement</button>
-					<button type="button" class="pill" id="analogous" aria-pressed="false" disabled>analogous</button>
-					<button type="button" class="pill" id="triad" aria-pressed="false" disabled>triad</button>
-					<button type="button" class="pill" id="split-complement" aria-pressed="false" disabled>split-complement</button>
-					<button type="button" class="pill" id="square" aria-pressed="false" disabled>square</button>
-				</div>
-				<div id="harmony"></div>
-			</details>
 
 			<details class="panel" data-collapse-key="log" open>
 				<summary>Log</summary>

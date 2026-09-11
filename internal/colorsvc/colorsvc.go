@@ -76,6 +76,17 @@ func (c *ColorSvc) DeleteColor(
 	return c.storage.DeleteColor(ctx, owned, hex)
 }
 
+// Deletes all colors from the collection.
+func (c *ColorSvc) DeleteAllColors(
+	ctx context.Context, userID user.ID, collectionID collection.ID,
+) error {
+	owned, err := c.storage.ResolveCollection(ctx, userID, collectionID)
+	if err != nil {
+		return err
+	}
+	return c.storage.DeleteAllColors(ctx, owned)
+}
+
 // ErrNotFound if no collection.
 func (c *ColorSvc) ListColors(
 	ctx context.Context, userID user.ID, collectionID collection.ID,
