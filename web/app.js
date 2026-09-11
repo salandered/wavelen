@@ -1,5 +1,7 @@
+import { labelColor, parseHex, randomDigits, savedLabel } from "./lib.js";
+
 // Everything the page knows about the service is in api.yaml. The api binary embeds this page and
-// serves it beside the API, so the path is relative and no CORS header exists anywhere.
+// serves it beside the API, so the path is relative and no CORS header exists.
 const API = "/api/v1";
 
 // "theme" is written by the inline script in <head> and stays a raw string. Everything read
@@ -477,26 +479,6 @@ async function createCollection(name, icon, accent) {
 	selectCollection(data.collection.id);
 }
 
-// The caption is one line that has to fit a swatch, so the year is 2-digit where toLocaleString's
-// is 4. The locale keeps its own order.
-const savedTime = new Intl.DateTimeFormat(undefined, {
-	year: "2-digit",
-	month: "2-digit",
-	day: "2-digit",
-	hour: "2-digit",
-	minute: "2-digit",
-	second: "2-digit",
-});
-
-// The comma between date and time is dropped, since the space already reads as the break. Through
-// formatToParts rather than off the formatted string, so only the format's own literals change.
-function savedLabel(at) {
-	return savedTime
-		.formatToParts(at)
-		.map((part) => (part.type === "literal" ? part.value.replace(",", "") : part.value))
-		.join("");
-}
-
 // ---- swatches ----
 
 // The selection: one hex and one caption, either a palette name or a saved timestamp. Marks the
@@ -507,17 +489,7 @@ let selectedLabel = "";
 // What the page opens on: the title's first tint, see the h1[data-tint="1"] rule. Not a palette
 // row, so no swatch carries the mark until the first click. The label names the source, the way
 // "picked" and "random" do.
-const DEF_SELECTION = { hex: "#b7159c", name: "title" };
-
-// Perceived brightness (the YIQ weights) picks between a black and a white label. Not a contrast
-// ratio, but one line and enough to keep every swatch readable.
-function labelColor(hex) {
-	const n = parseInt(hex.slice(1), 16);
-	const r = (n >> 16) & 0xff;
-	const g = (n >> 8) & 0xff;
-	const b = n & 0xff;
-	return (r * 299 + g * 587 + b * 114) / 1000 > 140 ? "#000" : "#fff";
-}
+const DEF_SELECTION = { hex: "#bf15a3", name: "title" };
 
 function markSelected() {
 	for (const el of document.querySelectorAll(".swatch")) {
@@ -571,13 +543,6 @@ function commitSelection(hex, label) {
 	selectedHex = hex;
 	selectedLabel = label;
 	selectionChanged();
-}
-
-// The server's own normalization, see color.ParseHex: trimmed, the '#' optional, case folded.
-// Null is a field that names no color yet.
-function parseHex(text) {
-	const digits = text.trim().replace(/^#/, "");
-	return /^[0-9a-fA-F]{6}$/.test(digits) ? `#${digits.toLowerCase()}` : null;
 }
 
 function clearSelection() {
@@ -660,6 +625,17 @@ async function toggleFullscreen(el) {
 	}
 }
 
+// The same toggle, from the button that was pressed. A press that ends full screen answers by
+// giving the page back, so the dip is taken off before it plays: the button is under the pointer
+// when the page returns, and a color dipping there reads as a swatch that was just picked. The
+// delegated listener runs in the capture phase, so the class is already on the button here.
+function toggleFullscreenFrom(button, el) {
+	if (document.fullscreenElement !== null) {
+		button.classList.remove("pressed");
+	}
+	toggleFullscreen(el);
+}
+
 // navigator.clipboard exists only in a secure context, so over plain http the property is missing
 // and reading through it throws. In an async function that is a rejection like any other.
 // The dip on a press is on every button, so a copy needs none of its own. The log line is what
@@ -692,7 +668,7 @@ function renderDetail() {
 	block.style.background = hex;
 	block.title = "full screen, click again to leave";
 	block.setAttribute("aria-label", `show ${hex} full screen`);
-	block.addEventListener("click", () => toggleFullscreen(block));
+	block.addEventListener("click", () => toggleFullscreenFrom(block, block));
 
 	const code = document.createElement("button");
 	code.type = "button";
@@ -751,12 +727,12 @@ function initScratch() {
 // The seven names the API derives from one color, in its own order out of color.HarmonyNames. One
 // endpoint answers for all of them in one shape, so one loader draws any of them. Each name is the
 // suffix of its pin's id and of the div its strip lands in.
-const DERIVED = ["complement", "analogous", "triad", "split-complement", "square", "ramp", "tones"];
+const DERIVED = ["complement", "split-complement", "triad", "analogous", "square", "ramp", "tones"];
 
 // The rotations lead their strip with the selection, since the pairing is the point. A scale is
 // seven points on an axis and the selection is not one of them, so a band for it would sit at the
 // head reading as a step out of order.
-const LEADING = new Set(["complement", "analogous", "triad", "split-complement", "square"]);
+const LEADING = new Set(["complement", "split-complement", "triad", "analogous", "square"]);
 
 // The axis a scale sweeps, which its name does not say. The pin and the strip's own label both
 // carry it as a title.
@@ -899,7 +875,8 @@ async function loadStrip(name, hex, generation) {
 }
 
 // A band selects, the way a swatch does, so a step can be picked up and worked on. The block's own
-// button is what sends the strip full screen.
+// button is what sends the strip full screen. A strip already on the page is refilled rather than
+// rebuilt, see fillStrip.
 function drawStrip(name, bands) {
 	const target = $(`strip-${name}`);
 	if (target === null) {
@@ -909,7 +886,13 @@ function drawStrip(name, bands) {
 		target.replaceChildren();
 		return;
 	}
-	target.replaceChildren(buildStrip(bands, (band) => selectColor(band, name)));
+	const onBand = (band) => selectColor(band, name);
+	const strip = target.querySelector(".harmony");
+	if (strip === null) {
+		target.replaceChildren(buildStrip(bands, onBand));
+		return;
+	}
+	fillStrip(strip, bands, onBand);
 }
 
 // The strip is already on the page, so it goes full screen where it stands. The saved grid has to
@@ -1005,38 +988,73 @@ async function showSavedFullscreen() {
 function buildStrip(hexes, onBand) {
 	const strip = document.createElement("div");
 	strip.className = "harmony";
+	fillStrip(strip, hexes, onBand);
+	return strip;
+}
+
+/*
+The colors of a strip that is already up, onto the bands it already has. A band clicked to select
+reloads every pinned strip, and a rebuilt one takes that band off the page while its press dip is
+still playing, so the band count is matched and the rest is written over what is there. A strip
+keeps its count across a selection - a triad stays three - so the loops below are the edges: a
+first fill, and the saved grid's strip, which is a page of swatches and can be any length.
+*/
+function fillStrip(strip, hexes, onBand) {
+	while (strip.children.length > hexes.length) {
+		strip.lastElementChild.remove();
+	}
+	while (strip.children.length < hexes.length) {
+		strip.append(buildBand(strip, onBand));
+	}
+
 	// every band opens the same strip, so they share one label rather than each naming its color
-	const fullscreenLabel = `show ${hexes.join(" ")} full screen`;
+	const fullscreenLabel = onBand === undefined ? `show ${hexes.join(" ")} full screen` : null;
+	for (const [index, hex] of hexes.entries()) {
+		const band = strip.children[index];
+		band.dataset.hex = hex;
 
-	for (const hex of hexes) {
-		const band = document.createElement("div");
-		band.className = "band";
-
-		const block = document.createElement("button");
-		block.type = "button";
-		block.className = "band-color";
+		const block = band.querySelector(".band-color");
 		block.style.background = hex;
-		if (onBand === undefined) {
-			block.title = "full screen, click again to leave";
-			block.setAttribute("aria-label", fullscreenLabel);
-			block.addEventListener("click", () => toggleFullscreen(strip));
-		} else {
-			block.setAttribute("aria-label", hex);
-			block.addEventListener("click", () => onBand(hex));
-		}
+		block.setAttribute("aria-label", fullscreenLabel ?? hex);
 
-		const code = document.createElement("button");
-		code.type = "button";
-		code.className = "band-hex";
+		const code = band.querySelector(".band-hex");
 		code.style.color = labelColor(hex);
 		code.textContent = hex;
-		code.title = "copy";
-		code.addEventListener("click", () => copyHex(hex));
-
-		band.append(block, code);
-		strip.append(band);
 	}
-	return strip;
+}
+
+// The listeners read the band's own dataset rather than closing over a hex: the element outlives
+// the color it was built with, see fillStrip.
+function buildBand(strip, onBand) {
+	const band = document.createElement("div");
+	band.className = "band";
+
+	const block = document.createElement("button");
+	block.type = "button";
+	block.className = "band-color";
+	if (onBand === undefined) {
+		block.title = "full screen, click again to leave";
+		block.addEventListener("click", () => toggleFullscreenFrom(block, strip));
+	} else {
+		block.addEventListener("click", () => {
+			// full screen is the strip itself, so a band in it only leaves: the selection stays
+			// where it was. A refill cannot end it the way a rebuilt strip did, see fillStrip.
+			if (document.fullscreenElement === strip) {
+				toggleFullscreenFrom(block, strip);
+				return;
+			}
+			onBand(band.dataset.hex);
+		});
+	}
+
+	const code = document.createElement("button");
+	code.type = "button";
+	code.className = "band-hex";
+	code.title = "copy";
+	code.addEventListener("click", () => copyHex(band.dataset.hex));
+
+	band.append(block, code);
+	return band;
 }
 
 // markSelected, so a swatch keeps its mark across a re-render.
@@ -1142,14 +1160,6 @@ async function loadSaved({ append = false } = {}) {
 }
 
 // ---- random values ----
-// For poking at the API by hand. Math.random is enough: nothing here is a secret, and a collision
-// is a color the account already saved, which answers 200 instead of 201.
-function randomDigits() {
-	return Math.floor(Math.random() * 0x1000000)
-		.toString(16)
-		.padStart(6, "0");
-}
-
 // ---- bulk add ----
 // Dev only. There is no bulk endpoint: these are ordinary POSTs, a few in flight at a time. All at
 // once is a burst nothing else on this page produces, one at a time is a round trip each.
@@ -1244,15 +1254,6 @@ function openAccount() {
 // well. Cleared on open and on success, since the line is only there while it has text.
 function showAccountError(message) {
 	$("account-error").textContent = message;
-}
-
-// A click on the backdrop lands on the dialog element itself, not on anything inside it.
-function closeOnBackdrop(dialog) {
-	dialog.addEventListener("click", (event) => {
-		if (event.target === dialog) {
-			dialog.close();
-		}
-	});
 }
 
 // Only Collections and Saved colors need a token. The palette and every harmony are public, so a
@@ -1568,9 +1569,6 @@ $("limit").addEventListener("change", () => {
 });
 
 $("logged-out").addEventListener("click", openAccount);
-closeOnBackdrop($("account"));
-closeOnBackdrop($("about"));
-closeOnBackdrop($("account-delete"));
 
 // The dialog closes on the token, not on the name: GET /me is a second request, and the header
 // chip renders nameless until it lands either way.

@@ -1,6 +1,8 @@
 {
 	"private": true,
+	"type": "module",
 	"scripts": {
+		"test": "node --test",
 		"lint": "eslint .",
 		"format": "prettier --write .",
 		"format:check": "prettier --check ."

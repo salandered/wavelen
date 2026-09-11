@@ -50,9 +50,9 @@ type Harmony string
 
 const (
 	Complement      Harmony = "complement"
-	Analogous       Harmony = "analogous"
-	Triad           Harmony = "triad"
 	SplitComplement Harmony = "split-complement"
+	Triad           Harmony = "triad"
+	Analogous       Harmony = "analogous"
 	Square          Harmony = "square"
 	Ramp            Harmony = "ramp"
 	Tones           Harmony = "tones"
@@ -64,9 +64,9 @@ var harmonies = [...]struct {
 	of   func(Hex) []Hex
 }{
 	{Complement, rotations(complementDeg)},
-	{Analogous, rotations(-analogousDeg, analogousDeg)},
-	{Triad, rotations(triadDeg, 2*triadDeg)},
 	{SplitComplement, rotations(splitComplementDeg, 360-splitComplementDeg)},
+	{Triad, rotations(triadDeg, 2*triadDeg)},
+	{Analogous, rotations(-analogousDeg, analogousDeg)},
 	{Square, rotations(squareDeg, 2*squareDeg, 3*squareDeg)},
 	{Ramp, ramp},
 	{Tones, tones},
@@ -108,9 +108,9 @@ func (harmony Harmony) Colors(hex Hex) []Hex {
 // A harmony turns the hue only. The rotations are the definition.
 const (
 	complementDeg      = 180
-	analogousDeg       = 30
-	triadDeg           = 120
 	splitComplementDeg = 150
+	triadDeg           = 120
+	analogousDeg       = 30
 	squareDeg          = 90
 )
 

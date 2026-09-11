@@ -609,9 +609,9 @@ components:
       description: Supported harmonies.
       enum:
         - complement
-        - analogous
-        - triad
         - split-complement
+        - triad
+        - analogous
         - square
         - ramp
         - tones
@@ -879,7 +879,7 @@ components:
         Incoming hex is not included in 'colors'.
         'colors' length fixed per harmony: 
         1 for complement,
-        2 for analogous, triad and split-complement, 
+        2 for split-complement, triad and analogous, 
         3 for square, 
         7 for ramp and tones.
       properties:
@@ -976,8 +976,7 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
           example:
             error: >-
-              unknown harmony "tetrad": one of complement, analogous, triad, split-complement,
-              square, ramp, tones
+              unknown harmony "tetrad": one of complement, split-complement, triad, ...
 
     NotFoundUser:
       description: No such user

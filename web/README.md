@@ -1,8 +1,10 @@
-Web component is mostly written by AI agents.
+# Wavelen web component
+
+_Web component is mostly written by AI agents._
 
 ## Formatting
 
-Prettier formats `index.html`, `style.css` and `app.js`.
+Prettier formats the files under `web/`.
 
 The pinned version and the config live in `web/package.json`.
 
@@ -23,14 +25,25 @@ npm run format       # rewrites
 
 ## Linting
 
-ESLint checks `app.js` against its `recommended` set.
+ESLint checks `app.js`, `lib.js` and the test file against its `recommended` set.
 
 ```sh
 npm run lint
 ```
 
 The inline script in `index.html` is not covered. ESLint reads no HTML, and the config lists
-`app.js` by name.
+the files by name.
+
+## Testing
+
+`lib.js` contains the page's helpers
+`lib.test.js` covers them with Node's own test runner.
+
+```sh
+npm test
+```
+
+`app.js` is not covered.
 
 ## Icons
 

@@ -22,8 +22,9 @@
 			}
 		</script>
 
-		<!-- defer, so the document exists when the script runs and it needs no load listener -->
-		<script defer src="/app.js"></script>
+		<!-- a module, so app.js can import lib.js. Modules are deferred, so the document exists
+		     when the script runs and it needs no load listener -->
+		<script type="module" src="/app.js"></script>
 		<link rel="stylesheet" href="/style.css" />
 	</head>
 
@@ -161,20 +162,6 @@
 						d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"
 					/>
 					<path d="m2 2 20 20" />
-				</symbol>
-				<symbol id="ui-list-checks" viewBox="0 0 24 24">
-					<path d="M13 5h8" />
-					<path d="M13 12h8" />
-					<path d="M13 19h8" />
-					<path d="m3 17 2 2 4-4" />
-					<path d="m3 7 2 2 4-4" />
-				</symbol>
-				<symbol id="ui-list-x" viewBox="0 0 24 24">
-					<path d="M16 5H3" />
-					<path d="M11 12H3" />
-					<path d="M16 19H3" />
-					<path d="m15.5 9.5 5 5" />
-					<path d="m20.5 9.5-5 5" />
 				</symbol>
 				<symbol id="ui-plus" viewBox="0 0 24 24">
 					<path d="M5 12h14" />
@@ -367,6 +354,11 @@
 				<button>create user</button>
 			</form>
 			<p class="dialog-error" id="account-error" role="alert"></p>
+			<!-- method=dialog: the submit closes it, no script. A sibling of the two forms above,
+		     since a form inside a form is not markup. -->
+			<form method="dialog" class="dialog-close">
+				<button>close</button>
+			</form>
 		</dialog>
 
 		<!-- Typing the nickname is the confirmation: a confirm() is one click away from the account
@@ -412,12 +404,12 @@
 			<p>version <span id="about-version">-</span></p>
 			<p><a href="https://github.com/salandered/wavelen">github.com/salandered/wavelen</a></p>
 			<p class="about-warn">This project is a work in progress. Your data may be lost!</p>
-			<p class="about-note">contact me: <a href="mailto:salandered@pm.me">salandered@pm.me</a></p>
+			<p class="about-note">contact: <a href="mailto:salandered@pm.me">salandered@pm.me</a></p>
 			<hr />
 			<!-- the full notices are in the comment above the sprite and in the repo -->
 			<p class="about-note">Icons: <a href="https://lucide.dev">Lucide</a>, ISC and MIT.</p>
 			<!-- method=dialog: the submit closes it, no script -->
-			<form method="dialog">
+			<form method="dialog" class="dialog-close">
 				<button>close</button>
 			</form>
 		</dialog>
@@ -486,9 +478,7 @@
 							<button>add</button>
 							<!-- type=button, or it would submit the form instead of filling the field -->
 							<button type="button" id="random-hex">random</button>
-							<button type="button" id="bulk-add" title="dev only: 10 separate POSTs">
-								add 10 random
-							</button>
+							<button type="button" id="bulk-add">add 10 random</button>
 						</form>
 						<!-- order says descending/ascending rather than newest/oldest: it applies to hex too -->
 						<!-- No labels: a cycler's value names it well enough, and the words cost the room
@@ -566,34 +556,35 @@
 						<button type="button" class="pill" id="pin-complement" aria-pressed="false">
 							complement
 						</button>
-						<button type="button" class="pill" id="pin-analogous" aria-pressed="false">
-							analogous
-						</button>
-						<button type="button" class="pill" id="pin-triad" aria-pressed="false">triad</button>
 						<button type="button" class="pill" id="pin-split-complement" aria-pressed="false">
 							split-complement
+						</button>
+						<button type="button" class="pill" id="pin-triad" aria-pressed="false">triad</button>
+						<button type="button" class="pill" id="pin-analogous" aria-pressed="false">
+							analogous
 						</button>
 						<button type="button" class="pill" id="pin-square" aria-pressed="false">square</button>
 						<button type="button" class="pill" id="pin-ramp" aria-pressed="false">ramp</button>
 						<button type="button" class="pill" id="pin-tones" aria-pressed="false">tones</button>
-						<!-- the whole row at once, at its end: a glyph each, the way a strip's controls are -->
+						<!-- the whole row at once, at its end: a word each, since the two are a shortcut
+				     through the pins beside them and not a pin of their own -->
 						<button
 							type="button"
-							class="icon-button"
+							class="bulk-pin"
 							id="pins-all"
 							title="pin every strip"
 							aria-label="pin every strip"
 						>
-							<svg class="icon" aria-hidden="true"><use href="#ui-list-checks" /></svg>
+							all
 						</button>
 						<button
 							type="button"
-							class="icon-button"
+							class="bulk-pin"
 							id="pins-none"
 							title="unpin every strip"
 							aria-label="unpin every strip"
 						>
-							<svg class="icon" aria-hidden="true"><use href="#ui-list-x" /></svg>
+							none
 						</button>
 					</div>
 					<div id="strips"></div>

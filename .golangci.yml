@@ -7,6 +7,8 @@ linters:
     - bodyclose # unclosed HTTP response bodies
     - exhaustive # experimental
   exclusions:
+    paths:
+      - web/node_modules # npm packages
     rules:
       - path: _test\.go
         linters: [errcheck, bodyclose]
@@ -15,3 +17,6 @@ formatters:
   enable:
     - gofmt
     - goimports
+  exclusions:
+    paths:
+      - web/node_modules # npm packages

@@ -85,11 +85,11 @@ Two tints and back, a click at a time. Bare values rather than tokens: they read
 either ground and belong to nothing else on the page.
 */
 h1[data-tint="1"] {
-	color: #b7159c;
+	color: #bf15a3;
 }
 
 h1[data-tint="2"] {
-	color: #358e5c;
+	color: #3daa6d;
 }
 
 /* words beside the title, not buttons among the controls */
@@ -106,14 +106,24 @@ h1[data-tint="2"] {
 .account {
 	display: flex;
 	align-items: center;
-	gap: 0.7rem;
-	padding: 0.2rem 0.35rem 0.2rem 0.85rem;
+	/* the gap between the two controls; the name keeps more room, see .who */
+	gap: 0.5rem;
+	padding: 0.2rem 0.6rem 0.2rem 0.85rem;
 	border-radius: 3px;
-	background: light-dark(rgba(0, 0, 0, 0.08), rgba(255, 255, 255, 0.1));
+	background: light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.07));
 }
 
+/* a caption, not a third control: it sits clear of the two that are */
 .who {
+	margin-right: 0.35rem;
 	font-size: 0.85rem;
+}
+
+/* the page fill, against the transparent one the base rule gives: over the box a transparent
+   button is the box itself with a border drawn on it */
+#logout,
+#account-delete-open {
+	background: Canvas;
 }
 
 #logout {
@@ -137,7 +147,7 @@ h1[data-tint="2"] {
 
 dialog {
 	min-width: 16rem;
-	padding: 1rem 1.25rem;
+	padding: 1.25rem 1.5rem;
 	border: 1px solid var(--line);
 	border-radius: 3px;
 	/* Canvas for the same reason a select does: the page fill is transparent */
@@ -177,9 +187,16 @@ dialog a {
 	color: var(--warn);
 }
 
-#about form {
+/* the close is the way out of a dialog now that a click beside one does nothing */
+.dialog-close {
 	margin-top: 1rem;
 	text-align: right;
+}
+
+/* the fields are what sets the width: at the 16rem every dialog gets, a stacked form reads as a
+   column of boxes with the dialog drawn around them */
+#account {
+	min-width: 20rem;
 }
 
 /* the account forms: fields stacked and full width, the dialog is narrow */
@@ -405,9 +422,21 @@ text with a dotted underline, a collection is a tab.
 	margin-bottom: 0.75rem;
 }
 
-/* the two bulk glyphs sit at the row's end, clear of the pills they act on */
+/* the two bulk words sit at the row's end, clear of the pills they act on */
 #pins-all {
 	margin-left: auto;
+}
+
+/* borderless and muted, like a strip block's glyphs: a bordered word in this row would be an
+   eighth pin, and a filled one would read as a pin that is on */
+.bulk-pin {
+	padding: 0.25rem 0.4rem;
+	border-color: transparent;
+	color: var(--muted);
+}
+
+.bulk-pin:hover {
+	color: var(--fg);
 }
 
 .tabs {
@@ -695,7 +724,6 @@ fill its row. A scale is seven bands and keeps the column, as the markup says.
 }
 
 .strip-block .icon-button,
-#pins .icon-button,
 #collection-new {
 	padding: 0.1rem 0.3rem;
 	font-size: 0.95rem;
@@ -703,8 +731,7 @@ fill its row. A scale is seven bands and keeps the column, as the markup says.
 	color: var(--muted);
 }
 
-.strip-block .icon-button:hover,
-#pins .icon-button:hover {
+.strip-block .icon-button:hover {
 	color: var(--fg);
 }
 
