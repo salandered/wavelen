@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -24,6 +25,15 @@ type CreateUserReq struct {
 	Nickname string `json:"nickname"`
 	Name     string `json:"name"`
 	Password string `json:"password"`
+}
+
+// keeps the data out of the log
+func (r CreateUserReq) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("nickname", r.Nickname),
+		slog.String("name", r.Name),
+		slog.String("password", redactedValue),
+	)
 }
 
 // No id: nothing uses it client-side

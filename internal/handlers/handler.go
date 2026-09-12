@@ -33,6 +33,8 @@ const (
 // Nothing large in bodies.
 const maxRequestBodyBytes = 1 << 16 // 64 kb
 
+const redactedValue = "[redacted]"
+
 type VersionResp struct {
 	Version string `json:"version"`
 }

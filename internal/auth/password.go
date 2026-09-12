@@ -24,8 +24,9 @@ var ErrUnusableHash = errors.New("unusable password hash")
 // Uses bcrypt.
 func HashPassword(plaintext string) ([]byte, error) {
 	if n := len(plaintext); n < MinPasswordLen || n > MaxPasswordLen {
-		return nil, fmt.Errorf("%w: must be %d to %d bytes, got %d",
-			ErrInvalidPassword, MinPasswordLen, MaxPasswordLen, n)
+		// the length is not reported
+		return nil, fmt.Errorf("%w: must be %d to %d bytes",
+			ErrInvalidPassword, MinPasswordLen, MaxPasswordLen)
 	}
 
 	// format is: $2a$[cost]$[22-character salt][31-character hash]

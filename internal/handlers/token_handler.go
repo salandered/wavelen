@@ -27,9 +27,25 @@ type CreateTokenReq struct {
 	Password string `json:"password"`
 }
 
+// keeps the data out of the log
+func (r CreateTokenReq) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("nickname", r.Nickname),
+		slog.String("password", redactedValue),
+	)
+}
+
 type CreateTokenResp struct {
 	Token  string    `json:"token"`
 	Expiry time.Time `json:"expiry"`
+}
+
+// keeps the data out of the log
+func (r CreateTokenResp) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("token", redactedValue),
+		slog.Time("expiry", r.Expiry),
+	)
 }
 
 func (h *TokenHandler) HandleCreateToken(w http.ResponseWriter, req *http.Request) {

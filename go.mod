@@ -6,7 +6,7 @@ require (
 	github.com/getkin/kin-openapi v0.147.0
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/jackc/pgx/v5 v5.10.0
-	github.com/salandered/httputils v0.0.1
+	github.com/salandered/httputils v0.0.2
 	github.com/salandered/slogenv v0.2.0
 	github.com/salandered/strvalid v0.4.0
 	github.com/stretchr/testify v1.12.1

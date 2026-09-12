@@ -11,12 +11,13 @@ docker-compose.yml
 # web ui: files that are not embeded in embed.go
 web/README.md
 web/LICENSE-lucide.txt
-web/images/logo.png
+web/lib.test.js
 
-# web ui: the prettier setup
+# web ui: the eslint/prettier setup
 web/node_modules/
 web/package.json
 web/package-lock.json
+web/eslint.config.mjs
 
 # credentials
 .env

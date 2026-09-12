@@ -126,8 +126,8 @@ github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 h1:o4JXh1EVt
 github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55/go.mod h1:OmDBASR4679mdNQnz2pUhc2G8CO2JrUAVFDRBDP/hJE=
 github.com/rogpeppe/go-internal v1.16.0 h1:O9DK+vNMDVGLr2BeZqmpLeMjiMNkuXfcqntWbZV6S5g=
 github.com/rogpeppe/go-internal v1.16.0/go.mod h1:DrUVZyrJU+txYW5/1kwtXQSMFio52ZOxX7yM1VHvnxs=
-github.com/salandered/httputils v0.0.1 h1:EGVFIVc9tpHv/1YE4uhihIZlT09rxlmjfkTNVtQfoGQ=
-github.com/salandered/httputils v0.0.1/go.mod h1:cv1MTHTDWtAdohO5ZSIhzxZsQlUNeQvqw3v+9dsr8XQ=
+github.com/salandered/httputils v0.0.2 h1:B2jpDsOvf7b4+c6b80x1t/QUjtmL8zoVBiHlN1jVS3Q=
+github.com/salandered/httputils v0.0.2/go.mod h1:xljsIvuuZiGNEXMrJxRjOkV14oakl/5f8yKmiFuESr8=
 github.com/salandered/slogenv v0.2.0 h1:MKiw+aUSy8RejT71tdEWRiJiYZylXiq8ViOmA8P1kJI=
 github.com/salandered/slogenv v0.2.0/go.mod h1:zhOep9ykLfWu9yw7NzpiX1INKp9/BxPwCuFXxwX2bXM=
 github.com/salandered/strvalid v0.4.0 h1:9cxAHAjuOU/8UqSJARw13WuSkbAsA2LaKaX1mWN5vW0=

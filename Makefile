@@ -90,18 +90,6 @@ lint:
 fmt:
 	golangci-lint fmt ./...
 
-## audit: all - tidy, lints, tests
-.PHONY: audit
-audit:
-	go mod tidy -diff
-	go mod verify
-	golangci-lint run ./...
-	go test -race -tags=integration ./...
-
-# ==================================================================================== #
-# TESTS
-# ==================================================================================== #
-
 ## test: unit tests
 .PHONY: test
 test:
@@ -110,6 +98,14 @@ test:
 ## test/all: unit and integration tests, needs Docker
 .PHONY: test/all
 test/all:
+	go test -race -tags=integration ./...
+
+## audit: all - tidy, lints, tests
+.PHONY: audit
+audit:
+	go mod tidy -diff
+	go mod verify
+	golangci-lint run ./...
 	go test -race -tags=integration ./...
 
 # ==================================================================================== #
