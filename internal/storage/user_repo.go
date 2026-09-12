@@ -12,12 +12,12 @@ import (
 // Fills in u.ID and u.CreatedAt. A taken nickname -> ErrDuplicateNickname.
 func (s *Postgres) CreateUser(ctx context.Context, u *user.User) error {
 	const query = `
-		INSERT INTO users (nickname, name, password_hash)
-		VALUES ($1, $2, $3)
+		INSERT INTO users (nickname, password_hash)
+		VALUES ($1, $2)
 		RETURNING id, created_at`
 
 	err := s.db.QueryRow(
-		ctx, query, u.Nickname, u.Name, u.PasswordHash,
+		ctx, query, u.Nickname, u.PasswordHash,
 	).Scan(&u.ID, &u.CreatedAt)
 
 	if err != nil {
@@ -31,14 +31,14 @@ func (s *Postgres) CreateUser(ctx context.Context, u *user.User) error {
 
 func (s *Postgres) UserByNickname(ctx context.Context, nickname string) (*user.User, error) {
 	const query = `
-		SELECT id, nickname, name, password_hash, created_at
+		SELECT id, nickname, password_hash, created_at
 		FROM users
 		WHERE nickname = $1`
 
 	var u user.User
 
 	err := s.db.QueryRow(ctx, query, nickname).
-		Scan(&u.ID, &u.Nickname, &u.Name, &u.PasswordHash, &u.CreatedAt)
+		Scan(&u.ID, &u.Nickname, &u.PasswordHash, &u.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrUserNotFound
@@ -50,13 +50,13 @@ func (s *Postgres) UserByNickname(ctx context.Context, nickname string) (*user.U
 
 func (s *Postgres) UserByID(ctx context.Context, id user.ID) (*user.User, error) {
 	const query = `
-		SELECT id, nickname, name, created_at
+		SELECT id, nickname, created_at
 		FROM users
 		WHERE id = $1`
 
 	var u user.User
 
-	err := s.db.QueryRow(ctx, query, id).Scan(&u.ID, &u.Nickname, &u.Name, &u.CreatedAt)
+	err := s.db.QueryRow(ctx, query, id).Scan(&u.ID, &u.Nickname, &u.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrUserNotFound

@@ -666,17 +666,11 @@ components:
 
     CreateUserRequest:
       type: object
-      required: [nickname, name, password]
+      required: [nickname, password]
       additionalProperties: false
       properties:
         nickname:
           $ref: "#/components/schemas/Nickname"
-        name:
-          type: string
-          minLength: 1
-          maxLength: 60
-          description: Length is counted in runes, after trimming.
-          example: Olya Lovelace
         password:
           $ref: "#/components/schemas/Password"
 
@@ -720,16 +714,13 @@ components:
 
     User:
       type: object
-      required: [nickname, name, created_at]
+      required: [nickname, created_at]
       properties:
         nickname:
           type: string
           description: The stored form.
           pattern: "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$"
           example: salandered-123
-        name:
-          type: string
-          example: Olya Lovelace
         created_at:
           type: string
           format: date-time

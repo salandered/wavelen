@@ -11,7 +11,7 @@ import (
 )
 
 func (s *StorageSuite) TestCreateUserFillsInIDAndCreatedAt() {
-	u := user.User{Nickname: "olya", Name: "Olya Lovelace", PasswordHash: stubPasswordHash}
+	u := user.User{Nickname: "olya", PasswordHash: stubPasswordHash}
 
 	// when
 	err := s.storage.CreateUser(s.ctx(), &u)
@@ -23,17 +23,17 @@ func (s *StorageSuite) TestCreateUserFillsInIDAndCreatedAt() {
 }
 
 func (s *StorageSuite) TestCreateUserAssignsDistinctIDs() {
-	olya := s.createUser("olya", "Olya")
-	grace := s.createUser("grace", "Grace")
+	olya := s.createUser("olya")
+	grace := s.createUser("grace")
 
 	s.Require().NotEqual(olya, grace)
 }
 
 func (s *StorageSuite) TestCreateUserRejectsTakenNickname() {
-	s.createUser("olya", "Olya")
+	s.createUser("olya")
 
 	// when
-	u := user.User{Nickname: "olya", Name: "Olya Again", PasswordHash: stubPasswordHash}
+	u := user.User{Nickname: "olya", PasswordHash: stubPasswordHash}
 	err := s.storage.CreateUser(s.ctx(), &u)
 
 	// then
@@ -41,10 +41,10 @@ func (s *StorageSuite) TestCreateUserRejectsTakenNickname() {
 }
 
 func (s *StorageSuite) TestCreateUserNicknameUniquenessIgnoresCase() {
-	s.createUser("olya", "Olya")
+	s.createUser("olya")
 
 	// when
-	u := user.User{Nickname: "OLYA", Name: "Olya Again", PasswordHash: stubPasswordHash}
+	u := user.User{Nickname: "OLYA", PasswordHash: stubPasswordHash}
 	err := s.storage.CreateUser(s.ctx(), &u)
 
 	// then
@@ -53,7 +53,7 @@ func (s *StorageSuite) TestCreateUserNicknameUniquenessIgnoresCase() {
 }
 
 func (s *StorageSuite) TestUserByIDReturnsAccountWithoutPasswordHash() {
-	id := s.createUser("olya", "Olya Lovelace")
+	id := s.createUser("olya")
 
 	// when
 	u, err := s.storage.UserByID(s.ctx(), id)
@@ -62,7 +62,6 @@ func (s *StorageSuite) TestUserByIDReturnsAccountWithoutPasswordHash() {
 	s.Require().NoError(err)
 	s.Require().Equal(id, u.ID)
 	s.Require().Equal("olya", u.Nickname)
-	s.Require().Equal("Olya Lovelace", u.Name)
 	s.Require().WithinDuration(time.Now(), u.CreatedAt, time.Minute)
 	// the query does not select the column
 	s.Require().Empty(u.PasswordHash)
@@ -76,7 +75,7 @@ func (s *StorageSuite) TestUserByIDUnknownIDReturnsNotFound() {
 
 // Proving the cascade schema rules
 func (s *StorageSuite) TestDeleteUserDeletesCollectionsColorsTokens() {
-	userID, defCollection := s.createUserAndCollection("olya", "Olya")
+	userID, defCollection := s.createUserAndCollection("olya")
 
 	second, err := s.storage.CreateCollection(s.ctx(), userID, newCollection("Work", false))
 	s.Require().NoError(err)
@@ -100,8 +99,8 @@ func (s *StorageSuite) TestDeleteUserDeletesCollectionsColorsTokens() {
 }
 
 func (s *StorageSuite) TestDeleteUserLeavesAnotherAccount() {
-	olya, olyaCollection := s.createUserAndCollection("olya", "Olya")
-	grace, graceCollection := s.createUserAndCollection("grace", "Grace")
+	olya, olyaCollection := s.createUserAndCollection("olya")
+	grace, graceCollection := s.createUserAndCollection("grace")
 
 	s.addColors(olyaCollection, "#112233")
 	s.addColors(graceCollection, "#445566")
@@ -118,11 +117,11 @@ func (s *StorageSuite) TestDeleteUserLeavesAnotherAccount() {
 }
 
 func (s *StorageSuite) TestDeleteUserReleasesTheNickname() {
-	id := s.createUser("olya", "Olya")
+	id := s.createUser("olya")
 	s.Require().NoError(s.storage.DeleteUser(s.ctx(), id))
 
 	// when
-	again := user.User{Nickname: "olya", Name: "Someone Else", PasswordHash: stubPasswordHash}
+	again := user.User{Nickname: "olya", PasswordHash: stubPasswordHash}
 	err := s.storage.CreateUser(s.ctx(), &again)
 
 	// then

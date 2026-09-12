@@ -35,7 +35,6 @@ func (s *E2ESuite) TestAuthLifecycleFromSignupToDeletion() {
 	s.step("sign up", func() {
 		resp := s.post("/api/v1/users", map[string]string{
 			"nickname": s.nickname,
-			"name":     "E2E",
 			"password": testPassword,
 		})
 		s.requireStatus(resp, http.StatusCreated)
@@ -67,12 +66,10 @@ func (s *E2ESuite) TestAuthLifecycleFromSignupToDeletion() {
 		var me struct {
 			User struct {
 				Nickname string `json:"nickname"`
-				Name     string `json:"name"`
 			} `json:"user"`
 		}
 		s.jsonDecode(resp, &me)
 		s.Require().Equal(s.nickname, me.User.Nickname)
-		s.Require().Equal("E2E", me.User.Name)
 	})
 
 	s.step("log out", func() {

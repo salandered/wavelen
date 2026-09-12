@@ -48,29 +48,3 @@ func TestNormalizeNicknameRejectsMalformedInput(t *testing.T) {
 		})
 	}
 }
-
-func TestNormalizeNameTrimsSurroundingWhitespace(t *testing.T) {
-	got, err := user.NormalizeName("  Olya Lovelace \n")
-	require.NoError(t, err)
-	require.Equal(t, "Olya Lovelace", got)
-}
-
-func TestNormalizeNameRejectsEmptyAndOverlong(t *testing.T) {
-	for name, in := range map[string]string{
-		"empty":          "",
-		"whitespace":     "   ",
-		"over max runes": strings.Repeat("a", user.MaxNameLen+1),
-	} {
-		t.Run(name, func(t *testing.T) {
-			_, err := user.NormalizeName(in)
-			require.ErrorContains(t, err, "invalid name")
-		})
-	}
-}
-
-func TestNormalizeNameCountsRunesNotBytes(t *testing.T) {
-	// N two-byte runes is 2N bytes
-	got, err := user.NormalizeName(strings.Repeat("é", user.MaxNameLen))
-	require.NoError(t, err)
-	require.Len(t, []rune(got), user.MaxNameLen)
-}

@@ -32,8 +32,8 @@ curl $HOST/api/v1/version
 
 ```sh
 # signup
-curl -X POST $HOST/api/v1/users -d '{"nickname":"alice","name":"A","password":"correct-horse"}'
-# {"user":{"nickname":"alice", "name":"A", "created_at":"..."}}
+curl -X POST $HOST/api/v1/users -d '{"nickname":"alice","password":"correct-horse"}'
+# {"user":{"nickname":"alice", "created_at":"..."}}
 
 # login
 curl -X POST $HOST/api/v1/tokens -d '{"nickname":"alice","password":"correct-horse"}'
@@ -43,7 +43,7 @@ TOKEN="<token from above>"
 
 # who am i
 curl $HOST/api/v1/me -H "Authorization: Bearer $TOKEN"
-# {"user":{"nickname":"alice", "name":"A", "created_at":"..."}}
+# {"user":{"nickname":"alice", "created_at":"..."}}
 
 # log out
 curl -X DELETE $HOST/api/v1/tokens -H "Authorization: Bearer $TOKEN"

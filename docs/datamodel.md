@@ -9,7 +9,6 @@ erDiagram
     users {
         bigserial id PK
         citext nickname UK "login identifier, case insensitive"
-        text name "free-form display name"
         bytea password_hash "bcrypt"
         timestamptz created_at
     }

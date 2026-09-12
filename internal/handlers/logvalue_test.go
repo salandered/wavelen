@@ -10,7 +10,7 @@ import (
 const secretInTest = "correct horse battery"
 
 func TestCreateUserReqLogValueRedactsPassword(t *testing.T) {
-	req := CreateUserReq{Nickname: "olya", Name: "Olya", Password: secretInTest}
+	req := CreateUserReq{Nickname: "olya", Password: secretInTest}
 
 	logged := req.LogValue().String()
 

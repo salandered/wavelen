@@ -28,7 +28,6 @@ type UserHandler struct {
 
 type CreateUserReq struct {
 	Nickname string `json:"nickname"`
-	Name     string `json:"name"`
 	Password string `json:"password"`
 }
 
@@ -36,7 +35,6 @@ type CreateUserReq struct {
 func (r CreateUserReq) LogValue() slog.Value {
 	return slog.GroupValue(
 		slog.String("nickname", r.Nickname),
-		slog.String("name", r.Name),
 		slog.String("password", redactedValue),
 	)
 }
@@ -44,7 +42,6 @@ func (r CreateUserReq) LogValue() slog.Value {
 // No id: nothing uses it client-side
 type UserResp struct {
 	Nickname  string    `json:"nickname"`
-	Name      string    `json:"name"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -70,19 +67,13 @@ func (h *UserHandler) HandleCreateUser(w http.ResponseWriter, req *http.Request)
 		writeRequestError(ctx, w, err)
 		return
 	}
-	name, err := user.NormalizeName(data.Name)
-	if err != nil {
-		writeRequestError(ctx, w, err)
-		return
-	}
-
 	hash, err := auth.HashPassword(data.Password)
 	if err != nil {
 		writeRequestError(ctx, w, err)
 		return
 	}
 
-	u := user.User{Nickname: nickname, Name: name, PasswordHash: hash}
+	u := user.User{Nickname: nickname, PasswordHash: hash}
 	if err := h.UserSvc.CreateUser(ctx, &u); err != nil {
 		writeStorageError(ctx, w, err)
 		return
@@ -186,7 +177,6 @@ func contentDisposition(nickname string, ts time.Time) string {
 func userToResp(u *user.User) UserResp {
 	return UserResp{
 		Nickname:  u.Nickname,
-		Name:      u.Name,
 		CreatedAt: u.CreatedAt.UTC(),
 	}
 }

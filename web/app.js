@@ -47,12 +47,12 @@ function writeStored(key, value) {
 }
 
 // ---- session ----
-// The session: the token and its expiry from POST /tokens, the name and the nickname from GET /me,
-// and the id of the collection the saved grid is showing. The last three are stored rather than
-// re-fetched, so a reload renders without a request.
+// The session: the token and its expiry from POST /tokens, the nickname from GET /me, and the id
+// of the collection the saved grid is showing. The last two are stored rather than re-fetched, so
+// a reload renders without a request.
 //
-// They are safe stale: the name is a caption, the id is checked against the list before it is
-// used, and the nickname is compared against what was typed into a field the account's owner is
+// They are safe stale: the id is checked against the list before it is used, and the nickname is a
+// caption plus the word compared against what was typed into a field the account's owner is
 // looking at.
 //
 // See web-wavelen-context.md, "Storage", for why the token is in localStorage.
@@ -71,7 +71,6 @@ function loadSession() {
 		&& typeof stored === "object"
 		&& typeof stored.token === "string"
 		&& typeof stored.expiry === "string"
-		&& typeof stored.name === "string"
 		&& Date.parse(stored.expiry) > Date.now();
 
 	session = usable ? stored : null;
@@ -80,29 +79,29 @@ function loadSession() {
 	}
 }
 
-function startSession(token, expiry, name) {
-	session = { token, expiry, name };
+function startSession(token, expiry) {
+	session = { token, expiry };
 	resetCollections(); // the previous account's list and active id belong to nothing now
 	writeStored(SESSION_KEY, session);
 	renderSession();
 }
 
-// Both arrive one request after the token, see login(). The nickname is not a caption: the
-// delete dialog compares what was typed against it, and only GET /me carries it.
-function setSessionUser(name, nickname) {
-	session = { ...session, name, nickname };
+// It arrives one request after the token, see login(). It is the caption in the Account panel,
+// and the delete dialog compares what was typed against it. Only GET /me carries it.
+function setSessionNickname(nickname) {
+	session = { ...session, nickname };
 	writeStored(SESSION_KEY, session);
 	renderSession();
 }
 
-// A session stored before the nickname was kept has a token and no nickname, and stays usable,
-// so the one caller that needs it asks for it. Nothing else on the page does.
+// A session whose GET /me never landed has a token and no nickname, and stays usable. The caption
+// renders without one, so the delete dialog, which cannot, asks for it.
 async function sessionNickname() {
 	if (typeof session?.nickname === "string" && session.nickname !== "") {
 		return session.nickname;
 	}
 	const { data } = await call("GET", "/me");
-	setSessionUser(data.user.name, data.user.nickname);
+	setSessionNickname(data.user.nickname);
 	return data.user.nickname;
 }
 
@@ -1372,20 +1371,21 @@ function renderSession() {
 		return;
 	}
 	// empty while GET /me is in flight, and after it failed
-	$("who").textContent = session.name || "logged in";
+	$("who").textContent = session.nickname || "logged in";
 }
 
 // Two requests: the token, then the account it belongs to. GET /me is authenticated, so the session
-// has to exist before the name can be asked for, and the panel renders nameless until it lands.
+// has to exist before the stored nickname can be asked for, and the panel renders nameless until it
+// lands.
 async function login(nickname, password) {
 	const { data } = await call("POST", "/tokens", { nickname, password });
-	startSession(data.token, data.expiry, "");
+	startSession(data.token, data.expiry);
 	showAccountError("");
 	$("account").close();
 
 	const { data: me } = await call("GET", "/me");
-	setSessionUser(me.user.name, me.user.nickname);
-	setStatus(`logged in as ${me.user.name}`);
+	setSessionNickname(me.user.nickname);
+	setStatus(`logged in as ${me.user.nickname}`);
 	await loadSaved();
 }
 
@@ -1679,7 +1679,7 @@ $("limit").addEventListener("change", () => {
 // the button, not the row around it: a click beside it is not a click on the control
 $("login-open").addEventListener("click", openAccount);
 
-// The dialog closes on the token, not on the name: GET /me is a second request, and the panel
+// The dialog closes on the token, not on the nickname: GET /me is a second request, and the panel
 // renders nameless until it lands either way.
 $("login-form").addEventListener("submit", async (event) => {
 	event.preventDefault();
@@ -1699,15 +1699,10 @@ $("signup-form").addEventListener("submit", async (event) => {
 	const nickname = $("new-nick").value;
 	const password = $("new-password").value;
 	try {
-		const { data } = await call("POST", "/users", {
-			nickname,
-			name: $("new-name").value,
-			password,
-		});
-		setStatus(`${data.user.name} created`);
+		const { data } = await call("POST", "/users", { nickname, password });
+		setStatus(`${data.user.nickname} created`);
 		await login(nickname, password);
 		$("new-nick").value = "";
-		$("new-name").value = "";
 		$("new-password").value = "";
 	} catch (err) {
 		showAccountError(err.message);

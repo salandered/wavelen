@@ -9,8 +9,6 @@ import (
 type ID int64
 
 const (
-	MinNameLen     = 1
-	MaxNameLen     = 60
 	MinNicknameLen = 3
 	MaxNicknameLen = 30
 )
@@ -31,16 +29,9 @@ var nicknameCfg = strvalid.Config{
 	EchoValue: false,
 }
 
-var nameCfg = strvalid.UnicodeConfig{
-	Subject:  "name",
-	MinRunes: MinNameLen,
-	MaxRunes: MaxNameLen,
-}
-
 type User struct {
 	ID           ID
 	Nickname     string // the login identifier, unique
-	Name         string // free-form, for display
 	PasswordHash []byte // bcrypt hash
 	CreatedAt    time.Time
 }
@@ -53,13 +44,4 @@ func NormalizeNickname(s string) (string, error) {
 		return "", err
 	}
 	return nick, nil
-}
-
-// NormalizeName trims s.
-func NormalizeName(s string) (string, error) {
-	name := strvalid.Normalize(s, strvalid.NormalizeConfig{TrimSpaces: true, Lowercase: false})
-	if err := strvalid.ValidateUnicode(name, nameCfg); err != nil {
-		return "", err
-	}
-	return name, nil
 }

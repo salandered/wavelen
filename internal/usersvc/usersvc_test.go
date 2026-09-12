@@ -38,7 +38,7 @@ func (s *SignupSuite) SetupTest() {
 func (s *SignupSuite) TestCreateUserAlsoCreatesOneDefaultCollection() {
 	ctx := s.ctx()
 
-	u := user.User{Nickname: "olya", Name: "Olya", PasswordHash: []byte("stub")}
+	u := user.User{Nickname: "olya", PasswordHash: []byte("stub")}
 
 	// when
 	s.Require().NoError(usersvc.New(s.store).CreateUser(ctx, &u))
@@ -57,11 +57,11 @@ func (s *SignupSuite) TestTakenNicknameThenNoNewUserNoDefCollection() {
 	ctx := s.ctx()
 	svc := usersvc.New(s.store)
 
-	first := user.User{Nickname: "olya", Name: "Olya", PasswordHash: []byte("stub")}
+	first := user.User{Nickname: "olya", PasswordHash: []byte("stub")}
 	s.Require().NoError(svc.CreateUser(ctx, &first))
 
 	// when
-	second := user.User{Nickname: "olya", Name: "Someone Else", PasswordHash: []byte("stub")}
+	second := user.User{Nickname: "olya", PasswordHash: []byte("stub")}
 	err := svc.CreateUser(ctx, &second)
 
 	// then
@@ -74,9 +74,9 @@ func (s *SignupSuite) TestEveryAccountGetsItsOwnCollection() {
 	ctx := s.ctx()
 	svc := usersvc.New(s.store)
 
-	olya := user.User{Nickname: "olya", Name: "Olya", PasswordHash: []byte("stub")}
+	olya := user.User{Nickname: "olya", PasswordHash: []byte("stub")}
 	s.Require().NoError(svc.CreateUser(ctx, &olya))
-	grace := user.User{Nickname: "grace", Name: "Grace", PasswordHash: []byte("stub")}
+	grace := user.User{Nickname: "grace", PasswordHash: []byte("stub")}
 	s.Require().NoError(svc.CreateUser(ctx, &grace))
 
 	olyaCollection, _ := s.defaultCollection(ctx, olya.ID)

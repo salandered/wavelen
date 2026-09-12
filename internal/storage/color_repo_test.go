@@ -14,7 +14,7 @@ var unknownCollection = collection.ID(
 	uuid.MustParse("00000000-0000-7000-8000-00000000dead"))
 
 func (s *StorageSuite) TestAddColorReportsCreatedOnTheFirstInsert() {
-	_, collectionID := s.createUserAndCollection("olya", "Olya")
+	_, collectionID := s.createUserAndCollection("olya")
 
 	// when
 	created, err := s.storage.AddColor(s.ctx(), collectionID, "#ff0000")
@@ -25,7 +25,7 @@ func (s *StorageSuite) TestAddColorReportsCreatedOnTheFirstInsert() {
 }
 
 func (s *StorageSuite) TestAddColorReportsNotCreatedOnARepeat() {
-	_, collectionID := s.createUserAndCollection("olya", "Olya")
+	_, collectionID := s.createUserAndCollection("olya")
 	_, err := s.storage.AddColor(s.ctx(), collectionID, "#ff0000")
 	s.Require().NoError(err)
 
@@ -58,7 +58,7 @@ func (s *StorageSuite) TestCountColorsIsZeroForAnUnknownCollection() {
 }
 
 func (s *StorageSuite) TestCountColors() {
-	_, graceCollection := s.createUserAndCollection("grace", "Grace")
+	_, graceCollection := s.createUserAndCollection("grace")
 	s.addColors(graceCollection, "#ff0000", "#00ff00", "#e0d253")
 
 	// when
@@ -70,7 +70,7 @@ func (s *StorageSuite) TestCountColors() {
 }
 
 func (s *StorageSuite) TestHasColorOk() {
-	_, collectionID := s.createUserAndCollection("olya", "Olya")
+	_, collectionID := s.createUserAndCollection("olya")
 	s.addColors(collectionID, "#ff0000")
 
 	// when
@@ -82,7 +82,7 @@ func (s *StorageSuite) TestHasColorOk() {
 }
 
 func (s *StorageSuite) TestHasColorNotOk() {
-	_, collectionID := s.createUserAndCollection("olya", "Olya")
+	_, collectionID := s.createUserAndCollection("olya")
 	s.addColors(collectionID, "#ff0000")
 
 	// when
@@ -101,7 +101,7 @@ func (s *StorageSuite) TestHasColorIsFalseForAnUnknownCollection() {
 }
 
 func (s *StorageSuite) TestDeleteColorOk() {
-	_, collectionID := s.createUserAndCollection("olya", "Olya")
+	_, collectionID := s.createUserAndCollection("olya")
 	s.addColors(collectionID, "#ff0000", "#00ff00")
 
 	// when
@@ -116,7 +116,7 @@ func (s *StorageSuite) TestDeleteColorOk() {
 }
 
 func (s *StorageSuite) TestDeleteColorTheCollectionDoesNotHave() {
-	_, collectionID := s.createUserAndCollection("olya", "Olya")
+	_, collectionID := s.createUserAndCollection("olya")
 	s.addColors(collectionID, "#ff0000")
 
 	// when
@@ -133,8 +133,8 @@ func (s *StorageSuite) TestDeleteColorFromAnUnknownCollection() {
 }
 
 func (s *StorageSuite) TestDeleteAllColorsEmptiesSpecifiedCollection() {
-	_, olyaCollection := s.createUserAndCollection("olya", "Olya")
-	_, graceCollection := s.createUserAndCollection("grace", "Grace")
+	_, olyaCollection := s.createUserAndCollection("olya")
+	_, graceCollection := s.createUserAndCollection("grace")
 	s.addColors(olyaCollection, "#ff0000", "#00ff00", "#e0d253")
 	s.addColors(graceCollection, "#ff0000")
 
@@ -154,13 +154,13 @@ func (s *StorageSuite) TestDeleteAllColorsEmptiesSpecifiedCollection() {
 }
 
 func (s *StorageSuite) TestDeleteAllColorsFromEmptyCollection() {
-	_, collectionID := s.createUserAndCollection("olya", "Olya")
+	_, collectionID := s.createUserAndCollection("olya")
 
 	s.Require().NoError(s.storage.DeleteAllColors(s.ctx(), collectionID))
 }
 
 func (s *StorageSuite) TestAddColorConstraintRejectsInvalidHex() {
-	_, collectionID := s.createUserAndCollection("olya", "Olya")
+	_, collectionID := s.createUserAndCollection("olya")
 
 	for _, hex := range []color.Hex{"#FF0000", "ff0000", "#fff", ""} {
 		s.Run(string(hex), func() {
@@ -171,7 +171,7 @@ func (s *StorageSuite) TestAddColorConstraintRejectsInvalidHex() {
 }
 
 func (s *StorageSuite) TestListColorsReturnsNewestFirst() {
-	_, collectionID := s.createUserAndCollection("olya", "Olya")
+	_, collectionID := s.createUserAndCollection("olya")
 	s.addColors(collectionID, "#ff0000", "#00ff00", "#0000ff")
 
 	// when
@@ -215,7 +215,7 @@ var sortCases = []struct {
 }
 
 func (s *StorageSuite) TestListColorsOrdersByTheRequestedSortAndOrder() {
-	_, collectionID := s.createUserAndCollection("olya", "Olya")
+	_, collectionID := s.createUserAndCollection("olya")
 	s.addColors(collectionID, "#ff0000", "#00ff00", "#0000ff", "#123456")
 
 	for _, c := range sortCases {
@@ -231,7 +231,7 @@ func (s *StorageSuite) TestListColorsOrdersByTheRequestedSortAndOrder() {
 }
 
 func (s *StorageSuite) TestListColorsPagingVisitsEveryRowExactlyOnceInEveryOrder() {
-	_, collectionID := s.createUserAndCollection("olya", "Olya")
+	_, collectionID := s.createUserAndCollection("olya")
 	s.addColors(collectionID, "#ff0000", "#00ff00", "#0000ff", "#123456")
 
 	for _, c := range sortCases {
@@ -247,7 +247,7 @@ func (s *StorageSuite) TestListColorsPagingVisitsEveryRowExactlyOnceInEveryOrder
 
 // user takes the collection, then the collection takes its colors
 func (s *StorageSuite) TestDeletingAUserCascadesToTheirColors() {
-	userID, collectionID := s.createUserAndCollection("olya", "Olya")
+	userID, collectionID := s.createUserAndCollection("olya")
 	_, err := s.storage.AddColor(s.ctx(), collectionID, "#ff0000")
 	s.Require().NoError(err)
 

@@ -17,7 +17,7 @@ func (s *StorageSuite) TestExportCollectionsForUnknownUserIsEmptyNoError() {
 }
 
 func (s *StorageSuite) TestExportCollectionsReturnsOneCollectionWithOneColor() {
-	userID, defaultID := s.createUserAndCollection("olya", "Olya")
+	userID, defaultID := s.createUserAndCollection("olya")
 	s.addColors(defaultID, "#ff0000")
 
 	got, err := s.storage.ExportCollections(s.ctx(), userID)
@@ -30,7 +30,7 @@ func (s *StorageSuite) TestExportCollectionsReturnsOneCollectionWithOneColor() {
 
 // unreachable in prod: every user has at least one def collection
 func (s *StorageSuite) TestExportCollectionsForUserWithoutCollectionsIsEmptyNoError() {
-	u := user.User{Nickname: "olya", Name: "Olya", PasswordHash: stubPasswordHash}
+	u := user.User{Nickname: "olya", PasswordHash: stubPasswordHash}
 	s.Require().NoError(s.storage.CreateUser(s.ctx(), &u))
 
 	got, err := s.storage.ExportCollections(s.ctx(), u.ID)
@@ -41,7 +41,7 @@ func (s *StorageSuite) TestExportCollectionsForUserWithoutCollectionsIsEmptyNoEr
 }
 
 func (s *StorageSuite) TestExportCollectionsOrdersCollectionsOldestFirst() {
-	userID, defaultID := s.createUserAndCollection("olya", "Olya")
+	userID, defaultID := s.createUserAndCollection("olya")
 	sunset, err := s.storage.CreateCollection(s.ctx(), userID, newCollection("Sunset", false))
 	s.Require().NoError(err)
 	ocean, err := s.storage.CreateCollection(s.ctx(), userID, newCollection("Ocean", false))
@@ -56,7 +56,7 @@ func (s *StorageSuite) TestExportCollectionsOrdersCollectionsOldestFirst() {
 }
 
 func (s *StorageSuite) TestExportCollectionsGroupsColorsByCollectionOldestFirst() {
-	userID, defaultID := s.createUserAndCollection("olya", "Olya")
+	userID, defaultID := s.createUserAndCollection("olya")
 	sunset, err := s.storage.CreateCollection(s.ctx(), userID, newCollection("Sunset", false))
 	s.Require().NoError(err)
 	s.addColors(defaultID, "#ff0000", "#00ff00")
@@ -79,7 +79,7 @@ func (s *StorageSuite) TestExportCollectionsGroupsColorsByCollectionOldestFirst(
 }
 
 func (s *StorageSuite) TestExportCollectionsKeepsCollectionWithNoColors() {
-	userID, defaultID := s.createUserAndCollection("olya", "Olya")
+	userID, defaultID := s.createUserAndCollection("olya")
 	_, err := s.storage.CreateCollection(s.ctx(), userID, newCollection("Empty", false))
 	s.Require().NoError(err)
 	s.addColors(defaultID, "#ff0000")
@@ -94,8 +94,8 @@ func (s *StorageSuite) TestExportCollectionsKeepsCollectionWithNoColors() {
 }
 
 func (s *StorageSuite) TestExportCollectionsSkipsAnotherUserRows() {
-	olyaID, olyaCollection := s.createUserAndCollection("olya", "Olya")
-	_, graceCollection := s.createUserAndCollection("grace", "Grace")
+	olyaID, olyaCollection := s.createUserAndCollection("olya")
+	_, graceCollection := s.createUserAndCollection("grace")
 	s.addColors(olyaCollection, "#ff0000")
 	s.addColors(graceCollection, "#00ff00")
 

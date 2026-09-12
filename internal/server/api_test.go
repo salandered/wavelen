@@ -187,7 +187,6 @@ func (s *APISuite) TestRequestIDIsGeneratedAndClientHeaderIgnored() {
 func (s *APISuite) TestCreateUserReturnsCreated() {
 	resp := s.post("/api/v1/users", handlers.CreateUserReq{
 		Nickname: "olya",
-		Name:     "Olya Lovelace",
 		Password: testPassword,
 	})
 	s.Require().Equal(http.StatusCreated, resp.StatusCode)
@@ -195,26 +194,22 @@ func (s *APISuite) TestCreateUserReturnsCreated() {
 	var out handlers.CreateUserResp
 	s.decode(resp, &out)
 	s.Require().Equal("olya", out.User.Nickname)
-	s.Require().Equal("Olya Lovelace", out.User.Name)
 	s.Require().Equal(stubTime.UTC(), out.User.CreatedAt)
 }
 
-func (s *APISuite) TestCreateUserPassesNormalizedFieldsToStorage() {
+func (s *APISuite) TestCreateUserPassesNormalizedNicknameToStorage() {
 	resp := s.post("/api/v1/users", handlers.CreateUserReq{
 		Nickname: "  Olya  ",
-		Name:     "  Olya  ",
 		Password: testPassword,
 	})
 	s.Require().Equal(http.StatusCreated, resp.StatusCode)
 
 	s.Require().Equal("olya", s.storage.gotUser.Nickname)
-	s.Require().Equal("Olya", s.storage.gotUser.Name)
 }
 
 func (s *APISuite) TestCreateUserAlsoCreatesTheDefaultCollection() {
 	resp := s.post("/api/v1/users", handlers.CreateUserReq{
 		Nickname: "olya",
-		Name:     "Olya",
 		Password: testPassword,
 	})
 	s.Require().Equal(http.StatusCreated, resp.StatusCode)
@@ -228,7 +223,7 @@ func (s *APISuite) TestCreateUserDuplicateNicknameReturnsConflict() {
 	s.storage.createErr = storage.ErrDuplicateNickname
 
 	resp := s.post("/api/v1/users", handlers.CreateUserReq{
-		Nickname: "olya", Name: "Olya", Password: testPassword,
+		Nickname: "olya", Password: testPassword,
 	})
 	s.Require().Equal(http.StatusConflict, resp.StatusCode)
 	s.Require().Equal("nickname already taken", s.errorMessage(resp))
@@ -237,7 +232,7 @@ func (s *APISuite) TestCreateUserDuplicateNicknameReturnsConflict() {
 func (s *APISuite) TestGetMeReturnsTheAccountTheTokenBelongsTo() {
 	s.storage.tokenUser = 7
 	s.storage.userByID = &user.User{
-		ID: 7, Nickname: "olya", Name: "Olya Lovelace", CreatedAt: stubTime,
+		ID: 7, Nickname: "olya", CreatedAt: stubTime,
 	}
 
 	resp := s.get("/api/v1/me")
@@ -247,7 +242,6 @@ func (s *APISuite) TestGetMeReturnsTheAccountTheTokenBelongsTo() {
 	var out handlers.MeResp
 	s.decode(resp, &out)
 	s.Require().Equal("olya", out.User.Nickname)
-	s.Require().Equal("Olya Lovelace", out.User.Name)
 	s.Require().Equal(stubTime.UTC(), out.User.CreatedAt)
 	// the id came from the token, the request carried none
 	s.Require().Equal(user.ID(7), s.storage.gotUserID)
@@ -309,7 +303,7 @@ func (s *APISuite) TestDeleteMeUnknownUserReturnsNotFound() {
 func (s *APISuite) TestExportReturnsAccountAndItsCollections() {
 	s.storage.tokenUser = 7
 	s.storage.userByID = &user.User{
-		ID: 7, Nickname: "olya", Name: "Olya Lovelace", CreatedAt: stubTime,
+		ID: 7, Nickname: "olya", CreatedAt: stubTime,
 	}
 	s.storage.exported = []storage.CltWithColors{{
 		Clt:    stubCollection(),
@@ -446,15 +440,15 @@ func (s *APISuite) TestCreateTokenAnswersTheSameForWrongPasswordAndUnknownNickna
 
 func (s *APISuite) TestCreateUserRejectsBadInput() {
 	tests := map[string]string{
-		"invalid nickname": `{"nickname":"olya lovelace","name":"Olya","password":"correct horse battery"}`,
-		"short nickname":   `{"nickname":"ol","name":"Olya","password":"correct horse battery"}`,
-		"empty name":       `{"nickname":"olya","name":"   ","password":"correct horse battery"}`,
-		"short password":   `{"nickname":"olya","name":"Olya","password":"short"}`,
-		"missing password": `{"nickname":"olya","name":"Olya"}`,
-		"unknown field":    `{"nickname":"olya","name":"Olya","admin":true}`,
+		"invalid nickname": `{"nickname":"olya lovelace","password":"correct horse battery"}`,
+		"short nickname":   `{"nickname":"ol","password":"correct horse battery"}`,
+		"short password":   `{"nickname":"olya","password":"short"}`,
+		"missing password": `{"nickname":"olya"}`,
+		"unknown field":    `{"nickname":"olya","password":"correct horse battery","admin":true}`,
+		"dropped name":     `{"nickname":"olya","name":"Olya","password":"correct horse battery"}`,
 		"empty body":       ``,
 		"not an object":    `["olya"]`,
-		"two objects":      `{"nickname":"a","name":"A"}{"nickname":"c","name":"C"}`,
+		"two objects":      `{"nickname":"a"}{"nickname":"c"}`,
 	}
 	for name, body := range tests {
 		s.Run(name, func() {

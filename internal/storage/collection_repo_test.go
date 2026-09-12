@@ -10,7 +10,7 @@ import (
 // Create
 
 func (s *StorageSuite) TestCreateCollectionReturnsGeneratedIDAndCreatedAt() {
-	userID := s.createUser("olya", "Olya")
+	userID := s.createUser("olya")
 
 	col, err := s.storage.CreateCollection(s.ctx(), userID, newCollection("Sunset", false))
 
@@ -29,7 +29,7 @@ func (s *StorageSuite) TestCreateCollectionForUnknownUser() {
 
 // collections_one_default_per_user
 func (s *StorageSuite) TestCreateSecondDefaultForOneUser() {
-	userID, _ := s.createUserAndCollection("olya", "Olya")
+	userID, _ := s.createUserAndCollection("olya")
 
 	_, err := s.storage.CreateCollection(s.ctx(), userID, newCollection("Another", true))
 
@@ -37,8 +37,8 @@ func (s *StorageSuite) TestCreateSecondDefaultForOneUser() {
 }
 
 func (s *StorageSuite) TestTwoUsersHaveDefaultClt() {
-	_, olyaCollection := s.createUserAndCollection("olya", "Olya")
-	_, graceCollection := s.createUserAndCollection("grace", "Grace")
+	_, olyaCollection := s.createUserAndCollection("olya")
+	_, graceCollection := s.createUserAndCollection("grace")
 
 	s.Require().NotEqual(olyaCollection, graceCollection)
 }
@@ -46,7 +46,7 @@ func (s *StorageSuite) TestTwoUsersHaveDefaultClt() {
 // List and count
 
 func (s *StorageSuite) TestListCollectionsReturnsOldestFirstStartingWithDefaultClt() {
-	userID, defaultID := s.createUserAndCollection("olya", "Olya")
+	userID, defaultID := s.createUserAndCollection("olya")
 	sunset, err := s.storage.CreateCollection(s.ctx(), userID, newCollection("Sunset", false))
 	s.Require().NoError(err)
 	ocean, err := s.storage.CreateCollection(s.ctx(), userID, newCollection("Ocean", false))
@@ -63,8 +63,8 @@ func (s *StorageSuite) TestListCollectionsReturnsOldestFirstStartingWithDefaultC
 }
 
 func (s *StorageSuite) TestListCollectionsSkipsAnotherUserClts() {
-	olyaID, olyaCollection := s.createUserAndCollection("olya", "Olya")
-	_, graceCollection := s.createUserAndCollection("grace", "Grace")
+	olyaID, olyaCollection := s.createUserAndCollection("olya")
+	_, graceCollection := s.createUserAndCollection("grace")
 
 	got, err := s.storage.ListCollections(s.ctx(), olyaID)
 
@@ -81,7 +81,7 @@ func (s *StorageSuite) TestListCollectionsForUnknownUserIsEmpty() {
 }
 
 func (s *StorageSuite) TestCountCollectionsCountsTheDefault() {
-	userID, _ := s.createUserAndCollection("olya", "Olya")
+	userID, _ := s.createUserAndCollection("olya")
 	_, err := s.storage.CreateCollection(s.ctx(), userID, newCollection("Sunset", false))
 	s.Require().NoError(err)
 
@@ -101,7 +101,7 @@ func (s *StorageSuite) TestCountCollectionsZeroForUnknownUser() {
 // Read one
 
 func (s *StorageSuite) TestCollectionByID() {
-	userID, collectionID := s.createUserAndCollection("olya", "Olya")
+	userID, collectionID := s.createUserAndCollection("olya")
 
 	col, err := s.storage.CollectionByID(s.ctx(), userID, collectionID)
 
@@ -113,8 +113,8 @@ func (s *StorageSuite) TestCollectionByID() {
 }
 
 func (s *StorageSuite) TestCollectionByIDAnotherUserOwns() {
-	olyaID, _ := s.createUserAndCollection("olya", "Olya")
-	_, graceCollection := s.createUserAndCollection("grace", "Grace")
+	olyaID, _ := s.createUserAndCollection("olya")
+	_, graceCollection := s.createUserAndCollection("grace")
 
 	_, err := s.storage.CollectionByID(s.ctx(), olyaID, graceCollection)
 
@@ -122,7 +122,7 @@ func (s *StorageSuite) TestCollectionByIDAnotherUserOwns() {
 }
 
 func (s *StorageSuite) TestCollectionByIDUnknownCollection() {
-	userID := s.createUser("olya", "Olya")
+	userID := s.createUser("olya")
 
 	_, err := s.storage.CollectionByID(s.ctx(), userID, unknownCollection)
 
@@ -132,7 +132,7 @@ func (s *StorageSuite) TestCollectionByIDUnknownCollection() {
 // Resolve and lock
 
 func (s *StorageSuite) TestResolveCollectionAnswersWithTheSameID() {
-	userID, collectionID := s.createUserAndCollection("olya", "Olya")
+	userID, collectionID := s.createUserAndCollection("olya")
 
 	got, err := s.storage.ResolveCollection(s.ctx(), userID, collectionID)
 
@@ -141,8 +141,8 @@ func (s *StorageSuite) TestResolveCollectionAnswersWithTheSameID() {
 }
 
 func (s *StorageSuite) TestResolveCollectionAnotherUserOwns() {
-	olyaID, _ := s.createUserAndCollection("olya", "Olya")
-	_, graceCollection := s.createUserAndCollection("grace", "Grace")
+	olyaID, _ := s.createUserAndCollection("olya")
+	_, graceCollection := s.createUserAndCollection("grace")
 
 	_, err := s.storage.ResolveCollection(s.ctx(), olyaID, graceCollection)
 
@@ -150,7 +150,7 @@ func (s *StorageSuite) TestResolveCollectionAnotherUserOwns() {
 }
 
 func (s *StorageSuite) TestLockCollectionAnswersWithTheSameID() {
-	userID, collectionID := s.createUserAndCollection("olya", "Olya")
+	userID, collectionID := s.createUserAndCollection("olya")
 
 	got, err := s.storage.LockCollection(s.ctx(), userID, collectionID)
 
@@ -159,8 +159,8 @@ func (s *StorageSuite) TestLockCollectionAnswersWithTheSameID() {
 }
 
 func (s *StorageSuite) TestLockCollectionAnotherUserOwns() {
-	olyaID, _ := s.createUserAndCollection("olya", "Olya")
-	_, graceCollection := s.createUserAndCollection("grace", "Grace")
+	olyaID, _ := s.createUserAndCollection("olya")
+	_, graceCollection := s.createUserAndCollection("grace")
 
 	_, err := s.storage.LockCollection(s.ctx(), olyaID, graceCollection)
 
@@ -176,7 +176,7 @@ func (s *StorageSuite) TestLockCollectionUnknownCollection() {
 // Delete
 
 func (s *StorageSuite) TestDeleteCollectionCascadesToItsColors() {
-	userID, collectionID := s.createUserAndCollection("olya", "Olya")
+	userID, collectionID := s.createUserAndCollection("olya")
 	s.addColors(collectionID, "#ff0000", "#00ff00")
 
 	// when
@@ -194,8 +194,8 @@ func (s *StorageSuite) TestDeleteCollectionCascadesToItsColors() {
 }
 
 func (s *StorageSuite) TestDeleteCollectionAnotherUserOwns() {
-	olyaID, _ := s.createUserAndCollection("olya", "Olya")
-	graceID, graceCollection := s.createUserAndCollection("grace", "Grace")
+	olyaID, _ := s.createUserAndCollection("olya")
+	graceID, graceCollection := s.createUserAndCollection("grace")
 
 	// when
 	err := s.storage.DeleteCollection(s.ctx(), olyaID, graceCollection)
@@ -206,7 +206,7 @@ func (s *StorageSuite) TestDeleteCollectionAnotherUserOwns() {
 }
 
 func (s *StorageSuite) TestDeleteCollectionUnknownCollection() {
-	userID := s.createUser("olya", "Olya")
+	userID := s.createUser("olya")
 
 	err := s.storage.DeleteCollection(s.ctx(), userID, unknownCollection)
 

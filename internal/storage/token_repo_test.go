@@ -11,25 +11,24 @@ import (
 )
 
 func (s *StorageSuite) TestUserByNicknameReturnsTheStoredHash() {
-	s.createUser("olya", "Olya")
+	s.createUser("olya")
 
 	// when
 	u, err := s.storage.UserByNickname(s.ctx(), "olya")
 
 	// then
 	s.Require().NoError(err)
-	s.Require().Equal("Olya", u.Name)
 	s.Require().Equal(stubPasswordHash, u.PasswordHash)
 }
 
 func (s *StorageSuite) TestUserByNicknameMatchesRegardlessOfCase() {
 	// the column is citext, the lookup does not lowercase
-	s.createUser("olya", "Olya")
+	s.createUser("olya")
 
 	u, err := s.storage.UserByNickname(s.ctx(), "OLYA")
 
 	s.Require().NoError(err)
-	s.Require().Equal("Olya", u.Name)
+	s.Require().Equal("olya", u.Nickname)
 }
 
 func (s *StorageSuite) TestUserByNicknameReportsAnUnknownNickname() {
@@ -39,7 +38,7 @@ func (s *StorageSuite) TestUserByNicknameReportsAnUnknownNickname() {
 }
 
 func (s *StorageSuite) TestAnInsertedTokenResolvesToItsOwner() {
-	id := s.createUser("olya", "Olya")
+	id := s.createUser("olya")
 	tok := auth.NewToken(id, time.Hour)
 	s.Require().NoError(s.storage.InsertToken(s.ctx(), tok))
 
@@ -52,7 +51,7 @@ func (s *StorageSuite) TestAnInsertedTokenResolvesToItsOwner() {
 }
 
 func (s *StorageSuite) TestAnExpiredTokenIsIndistinguishableFromAnUnknownOne() {
-	id := s.createUser("olya", "Olya")
+	id := s.createUser("olya")
 	expired := auth.NewToken(id, -time.Minute)
 	s.Require().NoError(s.storage.InsertToken(s.ctx(), expired))
 
@@ -74,7 +73,7 @@ func (s *StorageSuite) TestATokenForAnUnknownUserIsRejected() {
 }
 
 func (s *StorageSuite) TestDeletedTokenStopsResolving() {
-	id := s.createUser("olya", "Olya")
+	id := s.createUser("olya")
 	kept := auth.NewToken(id, time.Hour)
 	revoked := auth.NewToken(id, time.Hour)
 	s.Require().NoError(s.storage.InsertToken(s.ctx(), kept))

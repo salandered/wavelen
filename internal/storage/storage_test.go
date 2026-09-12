@@ -39,7 +39,7 @@ func (s *StorageSuite) SetupTest() {
 // Tx tests
 
 func (s *StorageSuite) TestInTxCommitsWhenCallbackReturnsNil() {
-	_, collectionID := s.createUserAndCollection("olya", "Olya")
+	_, collectionID := s.createUserAndCollection("olya")
 
 	// when
 	err := s.storage.InTx(s.ctx(), func(tx storage.Storage) error {
@@ -55,7 +55,7 @@ func (s *StorageSuite) TestInTxCommitsWhenCallbackReturnsNil() {
 }
 
 func (s *StorageSuite) TestInTxRollsbackAllWritesWhenCallbackFails() {
-	_, collectionID := s.createUserAndCollection("olya", "Olya")
+	_, collectionID := s.createUserAndCollection("olya")
 	sentinel := errors.New("callback gave up")
 
 	// when
@@ -106,16 +106,14 @@ func newCollection(name string, isDefault bool) collection.CreateParams {
 	}
 }
 
-func (s *StorageSuite) createUser(nickname, name string) user.ID {
-	userID, _ := s.createUserAndCollection(nickname, name)
+func (s *StorageSuite) createUser(nickname string) user.ID {
+	userID, _ := s.createUserAndCollection(nickname)
 	return userID
 }
 
 // An account and its def collection
-func (s *StorageSuite) createUserAndCollection(
-	nickname, name string,
-) (user.ID, collection.ID) {
-	u := user.User{Nickname: nickname, Name: name, PasswordHash: stubPasswordHash}
+func (s *StorageSuite) createUserAndCollection(nickname string) (user.ID, collection.ID) {
+	u := user.User{Nickname: nickname, PasswordHash: stubPasswordHash}
 	s.Require().NoError(s.storage.CreateUser(s.ctx(), &u))
 
 	col, err := s.storage.CreateCollection(

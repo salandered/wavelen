@@ -88,7 +88,7 @@ const stubCollectionName = "Main"
 
 // The account behind the test token.
 func stubUser() *user.User {
-	return &user.User{ID: 1, Nickname: "olya", Name: "Olya Lovelace", CreatedAt: stubTime}
+	return &user.User{ID: 1, Nickname: "olya", CreatedAt: stubTime}
 }
 
 // The default collection every account is signed up with.

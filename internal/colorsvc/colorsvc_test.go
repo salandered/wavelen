@@ -135,7 +135,7 @@ func (s *QuotaSuite) ctx(d time.Duration) context.Context {
 func (s *QuotaSuite) createUser() (user.ID, collection.ID) {
 	ctx := s.ctx(10 * time.Second)
 
-	u := user.User{Nickname: "olya", Name: "Olya", PasswordHash: []byte("stub")}
+	u := user.User{Nickname: "olya", PasswordHash: []byte("stub")}
 	s.Require().NoError(s.store.CreateUser(ctx, &u))
 
 	col, err := s.store.CreateCollection(ctx, u.ID, collection.CreateParams{

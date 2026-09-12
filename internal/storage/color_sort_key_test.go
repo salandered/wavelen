@@ -7,7 +7,7 @@ import (
 )
 
 func (s *StorageSuite) TestAddColorStoresTheKeyItSortsBy() {
-	_, collectionID := s.createUserAndCollection("olya", "Olya")
+	_, collectionID := s.createUserAndCollection("olya")
 	s.addColors(collectionID, "#ff0000", "#123456")
 
 	rows, err := s.pool.Query(s.ctx(),

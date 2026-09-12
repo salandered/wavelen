@@ -261,7 +261,7 @@ func (s *CollectionSuite) ctxFor(d time.Duration) context.Context {
 
 // Create an account with the default collection.
 func (s *CollectionSuite) createUser(nickname string) user.ID {
-	u := user.User{Nickname: nickname, Name: nickname, PasswordHash: []byte("stub")}
+	u := user.User{Nickname: nickname, PasswordHash: []byte("stub")}
 	s.Require().NoError(usersvc.New(s.store).CreateUser(s.ctx(), &u))
 	return u.ID
 }

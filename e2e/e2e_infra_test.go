@@ -98,7 +98,6 @@ func (s *E2ESuite) signUpAndLogIn() {
 
 	resp := s.post("/api/v1/users", map[string]string{
 		"nickname": s.nickname,
-		"name":     "E2E",
 		"password": testPassword,
 	})
 	s.requireStatus(resp, http.StatusCreated)
