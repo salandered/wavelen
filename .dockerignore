@@ -33,12 +33,12 @@ coverage.*
 *.coverprofile
 
 # docs / configs / ci
+# LICENSE is not here: the runtime stage copies it into the image
 dev/
 .github/
 __docs/
 docs/
 README.md
-LICENSE
 Makefile
 .golangci.yml
 .markdownlint.yaml

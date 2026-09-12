@@ -24,6 +24,12 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 FROM alpine:3.22
 RUN apk add --no-cache ca-certificates
 
+# the image is published, so the terms and the `Required Notice:` line ship with the binaries.
+# SPDX has no id for PolyForm Shield, hence the LicenseRef- form.
+LABEL org.opencontainers.image.licenses="LicenseRef-PolyForm-Shield-1.0.0" \
+	org.opencontainers.image.source="https://github.com/salandered/wavelen"
+COPY LICENSE /LICENSE
+
 # run as a non-root user
 RUN addgroup -S wavelen && adduser -S -G wavelen wavelen
 USER wavelen
