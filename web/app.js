@@ -9,9 +9,11 @@ const API = "/api/v1";
 const DETAILS_KEY = "details_open";
 const ZEN_KEY = "zen";
 const DENSE_KEY = "dense";
+const PALETTE_DENSE_KEY = "palette_dense";
 const PINNED_KEY = "pinned";
 const SESSION_KEY = "session";
 const CONTROLS_KEY = "controls";
+const SELECTION_KEY = "selection";
 
 const $ = (id) => document.getElementById(id);
 
@@ -45,11 +47,13 @@ function writeStored(key, value) {
 }
 
 // ---- session ----
-// Five fields: the token and its expiry from POST /tokens, the name and the nickname from GET /me,
+// The session: the token and its expiry from POST /tokens, the name and the nickname from GET /me,
 // and the id of the collection the saved grid is showing. The last three are stored rather than
-// re-fetched so a reload renders without a request, and all three are safe stale - the name is a
-// caption, the id is checked against the list before it is used, and the nickname is compared
-// against what was typed into a field the account's owner is looking at.
+// re-fetched, so a reload renders without a request.
+//
+// They are safe stale: the name is a caption, the id is checked against the list before it is
+// used, and the nickname is compared against what was typed into a field the account's owner is
+// looking at.
 //
 // See web-wavelen-context.md, "Storage", for why the token is in localStorage.
 
@@ -84,7 +88,7 @@ function startSession(token, expiry, name) {
 }
 
 // Both arrive one request after the token, see login(). The nickname is not a caption: the
-// delete dialog compares what was typed against it, and GET /me is where it can be had.
+// delete dialog compares what was typed against it, and only GET /me carries it.
 function setSessionUser(name, nickname) {
 	session = { ...session, name, nickname };
 	writeStored(SESSION_KEY, session);
@@ -151,8 +155,8 @@ async function call(method, path, body) {
 
 // ---- log ----
 
-// The last few things that happened, newest first. In memory only: it says what this page just did,
-// which would be a lie after a reload.
+// The last few things that happened, newest first. In memory only: the entries cover this page
+// since it loaded, so a reload starts an empty panel.
 const LOG_LIMIT = 10;
 const logEntries = [];
 
@@ -491,6 +495,21 @@ let selectedLabel = "";
 // "picked" and "random" do.
 const DEF_SELECTION = { hex: "#bf15a3", name: "title" };
 
+// The selection survives a reload, so the page comes back on the color that was being looked at
+// rather than on the title's tint. A hex that no longer parses falls through to DEF_SELECTION, the
+// way a stored control outside CONTROL_VALUES does.
+//
+// A dropped selection is stored as null and opens on DEF_SELECTION too: restoring the empty state
+// would put the three blank panels back, which is what DEF_SELECTION exists to avoid.
+function storedSelection() {
+	const stored = readStoredObject(SELECTION_KEY);
+	const hex = typeof stored.hex === "string" ? parseHex(stored.hex) : null;
+	if (hex === null || typeof stored.name !== "string") {
+		return DEF_SELECTION;
+	}
+	return { hex, name: stored.name };
+}
+
 function markSelected() {
 	for (const el of document.querySelectorAll(".swatch")) {
 		el.classList.toggle("selected", el.dataset.hex === selectedHex);
@@ -517,25 +536,31 @@ function swatch(hex, label) {
 	return el;
 }
 
-// The picker and the hex field mirror the selection, so both land on a color chosen anywhere else
-// and can nudge it. Each of them is also a producer that already holds the value, so it writes the
-// other one and not itself: a write into the picker while its dialog is open fights the dialog, and
-// a write into the field moves the caret. Swatches and the random button write both.
-function selectColor(hex, label) {
-	$("pick").value = hex;
-	setSelection(hex, label);
+// The inputs that hold a hex: the two pickers and the add form's field, which is what "add" saves.
+// They mirror the selection, so each lands on a color chosen anywhere else and can nudge it.
+const HEX_INPUTS = ["pick", "add-pick", "hex"];
+
+// A producer already holds the value, so it writes the others and not itself: a write into a
+// picker while its dialog is open fights the dialog for the value, and a write into the field
+// moves the caret. Passing no id writes all three, which is what a swatch or a button wants.
+function writeHexInputs(hex, from) {
+	for (const id of HEX_INPUTS) {
+		if (id !== from) {
+			$(id).value = hex;
+		}
+	}
 }
 
-// the picker's path
-function setSelection(hex, label) {
-	$("hex").value = hex; // the add form's field, so "add" saves what the panels are showing
+// Swatches, the random button and a paste: none of them is one of the inputs, so all three follow.
+function selectColor(hex, label) {
+	writeHexInputs(hex);
 	commitSelection(hex, label);
 }
 
-// the field's path
-function selectTyped(hex) {
-	$("pick").value = hex;
-	commitSelection(hex, "typed");
+// one input's own path
+function selectFrom(id, hex, label) {
+	writeHexInputs(hex, id);
+	commitSelection(hex, label);
 }
 
 // Every producer comes through here, so the inputs and the panels beside them cannot disagree.
@@ -556,6 +581,10 @@ function selectionChanged() {
 	markSelected();
 	renderDetail();
 	$("pick").disabled = selectedHex === null;
+
+	// every producer ends here, so this is the one place the reload has to read back
+	const stored = selectedHex === null ? null : { hex: selectedHex, name: selectedLabel };
+	writeStored(SELECTION_KEY, stored);
 
 	// a strip built for the previous color would be wrong, so every pinned one follows the
 	// selection or empties with it
@@ -612,7 +641,7 @@ function renderEmpty(container, message) {
 }
 
 // The click is the user gesture the Fullscreen API needs, but an iframe without allowfullscreen or
-// a browser policy can still refuse. Nothing is broken by a refusal, so it is only reported.
+// a browser policy can still refuse. A refusal breaks nothing, so it is only reported.
 async function toggleFullscreen(el) {
 	try {
 		if (document.fullscreenElement === null) {
@@ -625,10 +654,10 @@ async function toggleFullscreen(el) {
 	}
 }
 
-// The same toggle, from the button that was pressed. A press that ends full screen answers by
-// giving the page back, so the dip is taken off before it plays: the button is under the pointer
-// when the page returns, and a color dipping there reads as a swatch that was just picked. The
-// delegated listener runs in the capture phase, so the class is already on the button here.
+// The same toggle, from the button that was pressed. A press that ends full screen gives the page
+// back at once, so the dip comes off before it plays: the button is under the pointer when the
+// page returns, and a color dipping there reads as a swatch that was just picked. The delegated
+// listener runs in the capture phase, so the class is already on the button here.
 function toggleFullscreenFrom(button, el) {
 	if (document.fullscreenElement !== null) {
 		button.classList.remove("pressed");
@@ -647,6 +676,25 @@ async function copyHex(hex) {
 	} catch (err) {
 		setStatus(`could not copy - ${err.message}`, true);
 	}
+}
+
+// The read is a permission in some browsers and the property is missing outside a secure context,
+// which is a rejection like any other. A clipboard that is not a hex says so rather than landing
+// in the field: the field would clear the selection, and the button would look like it did nothing.
+async function pasteHex() {
+	let text;
+	try {
+		text = await navigator.clipboard.readText();
+	} catch (err) {
+		setStatus(`could not read the clipboard - ${err.message}`, true);
+		return;
+	}
+	const hex = parseHex(text);
+	if (hex === null) {
+		setStatus("the clipboard is not a hex color", true);
+		return;
+	}
+	selectColor(hex, "pasted");
 }
 
 // One panel for both grids, since the selection they share is one hex.
@@ -688,9 +736,10 @@ function renderDetail() {
 }
 
 // ---- color pickers ----
-// Two <input type="color">, and the dialog belongs to the browser in both. The one in the Selected
-// panel mirrors the selection and nudges it: what it produces is a selection, the same as a swatch
-// click. The one in the Picker panel is a scratch pad and touches nothing else on the page.
+// Three <input type="color">, and the dialog belongs to the browser in all of them. The one in the
+// Selected panel nudges the selection and the one in the add row starts one, so what both produce
+// is a selection, the same as a swatch click. The one in the Picker panel is a scratch pad and
+// touches nothing else on the page.
 //
 // A drag reports every color it passes through, and with a harmony on screen each selection is a
 // request. So the selection waits for the drag to go quiet.
@@ -698,14 +747,19 @@ const PICK_QUIET = 200;
 
 let pickTimer = null;
 
+// One timer for both: a pointer is in one dialog at a time, so the gesture that lands last is the
+// one to commit.
 function initPicker() {
-	// input reports each step of a drag, change the committed value. Which of them a browser sends
-	// and how often varies, so both schedule the same commit and the timer collapses the gesture.
-	for (const type of ["input", "change"]) {
-		$("pick").addEventListener(type, () => {
-			clearTimeout(pickTimer);
-			pickTimer = setTimeout(() => setSelection($("pick").value, "picked"), PICK_QUIET);
-		});
+	for (const id of ["pick", "add-pick"]) {
+		// input reports each step of a drag, change the committed value. Which of them a browser
+		// sends and how often varies, so both schedule the same commit and the timer collapses the
+		// gesture.
+		for (const type of ["input", "change"]) {
+			$(id).addEventListener(type, () => {
+				clearTimeout(pickTimer);
+				pickTimer = setTimeout(() => selectFrom(id, $(id).value, "picked"), PICK_QUIET);
+			});
+		}
 	}
 }
 
@@ -724,7 +778,7 @@ function initScratch() {
 
 // ---- derived strips ----
 
-// The seven names the API derives from one color, in its own order out of color.HarmonyNames. One
+// The names the API derives from one color, in its own order out of color.HarmonyNames. One
 // endpoint answers for all of them in one shape, so one loader draws any of them. Each name is the
 // suffix of its pin's id and of the div its strip lands in.
 const DERIVED = ["complement", "split-complement", "triad", "analogous", "square", "ramp", "tones"];
@@ -744,9 +798,9 @@ const AXIS = {
 // What the page opens on, which is what it showed before the pins: one rotation and both scales.
 const DEF_PINNED = ["complement", "ramp", "tones"];
 
-// The bands each strip on screen was built from, by name: { hex, bands }. The hex is what lets a
-// pin come back without a request, and what keeps an older selection's colors off the page and out
-// of an add.
+// Each strip on screen keeps the bands it was built from, by name: { hex, bands }. The hex is what
+// lets a pin come back without a request, and what keeps an older selection's colors off the page
+// and out of an add.
 const stripColors = {};
 
 // Same guard as loadSaved, one number for the whole section: the pins stay live while a request is
@@ -756,7 +810,7 @@ let stripGeneration = 0;
 // A closed section asks for nothing. What it missed while closed is what it loads when it opens.
 let stripsStale = false;
 
-// The pinned names, always in DERIVED order: the strips read top to bottom the way the pins read
+// The pinned names, in DERIVED order: the strips read top to bottom the way the pins read
 // left to right, whatever order they were pinned in.
 let pinned = [];
 
@@ -773,8 +827,9 @@ function togglePin(name) {
 	applyPinned(pinned.includes(name) ? pinned.filter((other) => other !== name) : [...pinned, name]);
 }
 
-// A block per pinned name, built here rather than declared in the markup: which of the seven are on
-// is the user's. Every block is the same three things, so the two scales stopped being special.
+// A block per pinned name, built here rather than declared in the markup: which of them are on is
+// the user's. Every block is the same label, buttons and strip, so a scale is built like a
+// rotation.
 function renderStrips() {
 	if (pinned.length === 0) {
 		renderEmpty($("strips"), "nothing pinned");
@@ -796,7 +851,11 @@ function stripBlock(name) {
 	named.className = "row";
 	const label = document.createElement("span");
 	label.className = "strip-name";
-	label.textContent = name;
+	// the same glyph the pin carries, inside the label: the two are one name, not a row of two
+	if (LEADING.has(name)) {
+		label.append(spriteSvg(`ui-h-${name}`, "icon strip-glyph"));
+	}
+	label.append(name);
 	if (AXIS[name] !== undefined) {
 		label.title = AXIS[name];
 	}
@@ -955,29 +1014,68 @@ async function addStrip(name, button) {
 }
 
 // The saved grid as the same strip, straight to full screen. It is the swatches on screen, pages
-// loaded so far in their sort order, so what goes full screen is what the grid shows. The strip
-// lives off stage in <body> only while it is up: it has no panel of its own.
-async function showSavedFullscreen() {
+// loaded so far in their sort order, so what goes full screen is what the grid shows.
+function showSavedFullscreen() {
 	const hexes = [...document.querySelectorAll("#saved .swatch")].map((el) => el.dataset.hex);
 	if (hexes.length === 0) {
 		setStatus("nothing to show", true);
 		return;
 	}
-	const strip = buildStrip(hexes);
-	strip.classList.add("offstage");
-	document.body.append(strip);
+	showOffstage(buildStrip(hexes));
+}
 
-	// leaving full screen, by Escape or by a band click, is when the element goes
+// The palette full screen: the grid on screen, cloned. A strip of bands has nowhere to put a
+// name, and the name is what a palette cell is for. The clone drops the listeners with it, so a
+// swatch there selects nothing and a click only leaves, the way a band does.
+//
+// Dense whatever the toggle says, unlike the saved strip, which is the swatches on screen. The
+// roomy track is 9rem cells against a 49.5rem column, and a screen takes eight of those across:
+// 100 colors then want thirteen rows, and a row is too short for the two lines a cell holds. Ten
+// across is the count that puts the whole set on one screen with room for the names.
+function showPaletteFullscreen() {
+	const grid = $("palette");
+	if (grid.querySelector(".swatch") === null) {
+		setStatus("nothing to show", true);
+		return;
+	}
+	const copy = grid.cloneNode(true);
+	copy.classList.add("dense");
+	copy.removeAttribute("id"); // two of an id, and $("palette") could answer with this one
+
+	// Inert, like the listeners the clone dropped. "use #xxxxxx" names something a click there
+	// does not do, and the selection is a mark on the page, not on a screen of colors - without
+	// the hex a later markSelected cannot put the ring back either.
+	for (const el of copy.querySelectorAll(".swatch")) {
+		el.classList.remove("selected");
+		el.removeAttribute("title");
+		delete el.dataset.hex;
+	}
+	copy.addEventListener("click", (event) => {
+		const swatch = event.target.closest(".swatch");
+		if (swatch !== null) {
+			toggleFullscreenFrom(swatch, copy);
+		}
+	});
+	showOffstage(copy);
+}
+
+// An element that is on the page only to be full screen: off stage in <body> while it is up, and
+// gone when it comes down. Neither the saved strip nor the palette copy has a block of its own.
+async function showOffstage(el) {
+	el.classList.add("offstage");
+	document.body.append(el);
+
+	// leaving full screen, by Escape or by a click inside, is when the element goes
 	document.addEventListener("fullscreenchange", function onLeave() {
 		if (document.fullscreenElement === null) {
 			document.removeEventListener("fullscreenchange", onLeave);
-			strip.remove();
+			el.remove();
 		}
 	});
 	try {
-		await strip.requestFullscreen();
+		await el.requestFullscreen();
 	} catch (err) {
-		strip.remove();
+		el.remove();
 		setStatus(`full screen refused - ${err.message}`, true);
 	}
 }
@@ -996,7 +1094,7 @@ function buildStrip(hexes, onBand) {
 The colors of a strip that is already up, onto the bands it already has. A band clicked to select
 reloads every pinned strip, and a rebuilt one takes that band off the page while its press dip is
 still playing, so the band count is matched and the rest is written over what is there. A strip
-keeps its count across a selection - a triad stays three - so the loops below are the edges: a
+keeps its count across a selection (a triad stays three), so the loops below are the edges: a
 first fill, and the saved grid's strip, which is a page of swatches and can be any length.
 */
 function fillStrip(strip, hexes, onBand) {
@@ -1033,7 +1131,8 @@ function buildBand(strip, onBand) {
 	block.type = "button";
 	block.className = "band-color";
 	if (onBand === undefined) {
-		block.title = "full screen, click again to leave";
+		// no title: this strip is built off stage and goes straight up, so the tip would only
+		// ever be read over a screen the click leaves
 		block.addEventListener("click", () => toggleFullscreenFrom(block, strip));
 	} else {
 		block.addEventListener("click", () => {
@@ -1173,7 +1272,7 @@ async function addRandomColors() {
 	}
 
 	// Resolved once, before any worker starts. A failed lookup ends the run here rather than
-	// failing all twenty adds with the same message.
+	// failing every add with the same message.
 	let path;
 	try {
 		path = await savedColorsPath();
@@ -1333,15 +1432,22 @@ function zenOn() {
 	return document.documentElement.classList.contains("zen");
 }
 
-// The palette carries .dense in the markup, so only the saved grid is toggled here.
-function applyDense(on) {
-	$("saved").classList.toggle("dense", on);
-	$("saved-dense").setAttribute("aria-pressed", String(on));
-	writeStored(DENSE_KEY, on);
+// Both grids take the shape from a toggle of their own, and they open in different ones: the
+// palette is dense in the markup and saved colors is not. The grid id names the button and the
+// stored key, so one function does both.
+const DENSE_GRIDS = {
+	saved: { key: DENSE_KEY, def: false },
+	palette: { key: PALETTE_DENSE_KEY, def: true },
+};
+
+function applyDense(grid, on) {
+	$(grid).classList.toggle("dense", on);
+	$(`${grid}-dense`).setAttribute("aria-pressed", String(on));
+	writeStored(DENSE_GRIDS[grid].key, on);
 }
 
-function denseOn() {
-	return $("saved").classList.contains("dense");
+function denseOn(grid) {
+	return $(grid).classList.contains("dense");
 }
 
 // Every listing control and the values the API accepts, mirroring the markup. Anything not listed
@@ -1531,7 +1637,7 @@ $("hex").addEventListener("input", () => {
 			clearSelection();
 		}
 	} else if (hex !== selectedHex) {
-		selectTyped(hex);
+		selectFrom("hex", hex, "typed");
 	}
 });
 
@@ -1553,6 +1659,8 @@ $("random-hex").addEventListener("click", () => {
 	selectColor("#" + randomDigits(), "random");
 });
 
+$("paste-hex").addEventListener("click", pasteHex);
+
 for (const tab of ACCOUNT_TABS) {
 	$(`tab-${tab}`).addEventListener("click", () => selectAccountTab(tab));
 }
@@ -1568,10 +1676,11 @@ $("limit").addEventListener("change", () => {
 	loadSaved();
 });
 
-$("logged-out").addEventListener("click", openAccount);
+// the button, not the row around it: a click beside it is not a click on the control
+$("login-open").addEventListener("click", openAccount);
 
-// The dialog closes on the token, not on the name: GET /me is a second request, and the header
-// chip renders nameless until it lands either way.
+// The dialog closes on the token, not on the name: GET /me is a second request, and the panel
+// renders nameless until it lands either way.
 $("login-form").addEventListener("submit", async (event) => {
 	event.preventDefault();
 	try {
@@ -1717,9 +1826,12 @@ $("collection-new").addEventListener("click", () => {
 $("collection-empty").addEventListener("click", emptyCollection);
 $("collection-delete").addEventListener("click", deleteCollection);
 
-$("saved-dense").addEventListener("click", () => applyDense(!denseOn()));
+for (const grid of Object.keys(DENSE_GRIDS)) {
+	$(`${grid}-dense`).addEventListener("click", () => applyDense(grid, !denseOn(grid)));
+}
 
 $("saved-fullscreen").addEventListener("click", showSavedFullscreen);
+$("palette-fullscreen").addEventListener("click", showPaletteFullscreen);
 
 // No debounce, unlike the picker in the aside: this only writes a style property.
 $("collection-accent").addEventListener("input", renderIconChoice);
@@ -1762,7 +1874,9 @@ $("add-form").addEventListener("submit", async (event) => {
 
 renderThemeButton(currentTheme());
 applyZen(readStored(ZEN_KEY, false) === true);
-applyDense(readStored(DENSE_KEY, false) === true);
+for (const [grid, { key, def }] of Object.entries(DENSE_GRIDS)) {
+	applyDense(grid, readStored(key, def) === true);
+}
 initCollapsibleSections();
 loadSession(); // before renderSession and the first loadSaved, both of which read it
 initControls(); // before the cyclers below, which label themselves from data-value
@@ -1790,8 +1904,10 @@ $("harmony-section").addEventListener("toggle", () => {
 // stored value that is not an array is dropped, the way a stored control outside CONTROL_VALUES is.
 const storedPinned = readStored(PINNED_KEY, DEF_PINNED);
 applyPinned(Array.isArray(storedPinned) ? storedPinned : DEF_PINNED);
-// fills the Selected panel and every pinned strip, one request each
-selectColor(DEF_SELECTION.hex, DEF_SELECTION.name);
+// fills the Selected panel and every pinned strip, one request each. The grids mark the swatch
+// themselves once they land, see renderSwatches.
+const opening = storedSelection();
+selectColor(opening.hex, opening.name);
 renderLog(); // same, until something happens
 renderIconPicker(); // reads the sprite once, before anything can select out of it
 renderCollections(); // the empty list, until the first response replaces it

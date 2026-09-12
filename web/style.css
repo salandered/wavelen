@@ -21,8 +21,8 @@
 }
 
 /*
-Zen mode: every hex the page writes over a color, the header, and the accent on a
-collection tab.
+Zen mode: every hex the page writes over a color, the name in the Account panel, the
+header, and the accent on a collection tab.
 
 visibility, not display, for the labels: they keep their box, so hiding them doesn't
 resize a swatch or a band. With display:none the grid rows collapse to the min-height
@@ -32,7 +32,9 @@ below and the strips lose their captions' room.
 :root.zen .detail-hex,
 :root.zen .detail-label,
 :root.zen .band-hex,
-:root.zen #scratch-hex {
+:root.zen #scratch-hex,
+/* the name in the Account panel: a word beside its two controls, which stay */
+:root.zen .who {
 	visibility: hidden;
 }
 
@@ -58,7 +60,7 @@ html:has(:fullscreen) {
 
 body {
 	font-family: system-ui, sans-serif;
-	max-width: 60rem;
+	max-width: 66rem;
 	margin: 2rem auto;
 	padding: 0 1rem;
 	color: var(--fg);
@@ -74,7 +76,6 @@ header {
 h1 {
 	font-size: 1.25rem;
 	margin: 0;
-	margin-right: auto;
 	cursor: pointer;
 	/* a second click inside the double-click window selects the word otherwise */
 	user-select: none;
@@ -92,7 +93,16 @@ h1[data-tint="2"] {
 	color: #3daa6d;
 }
 
-/* words beside the title, not buttons among the controls */
+/* What the page is, at the weight of a note: the title carries the name and this qualifies it.
+   The auto margin sits here rather than on the h1, so the pair keeps the left edge together and
+   about keeps the right one. */
+.beta {
+	margin-right: auto;
+	font-size: 0.8rem;
+	color: var(--muted);
+}
+
+/* a word beside the title, not a button among the controls */
 .header-word {
 	border-color: transparent;
 	color: var(--muted);
@@ -102,43 +112,22 @@ h1[data-tint="2"] {
 	color: var(--fg);
 }
 
-/* the name and its log out in one tinted box, the one filled thing in the header */
-.account {
-	display: flex;
-	align-items: center;
-	/* the gap between the two controls; the name keeps more room, see .who */
-	gap: 0.5rem;
-	padding: 0.2rem 0.6rem 0.2rem 0.85rem;
-	border-radius: 3px;
-	background: light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.07));
-}
-
 /* a caption, not a third control: it sits clear of the two that are */
 .who {
 	margin-right: 0.35rem;
 	font-size: 0.85rem;
+	/* a name can run past the row without a space to break at, and the panel is 15rem */
+	overflow-wrap: anywhere;
 }
 
-/* the page fill, against the transparent one the base rule gives: over the box a transparent
-   button is the box itself with a border drawn on it */
+/* both glyphs carry the weight the collection row gives its two: muted until reached */
 #logout,
 #account-delete-open {
-	background: Canvas;
-}
-
-#logout {
 	color: var(--muted);
 }
 
 #logout:hover {
 	color: var(--fg);
-}
-
-/* same weight as the collection trash: muted in the row, --error once reached */
-#account-delete-open {
-	padding: 0.2rem;
-	font-size: 0.95rem;
-	color: var(--muted);
 }
 
 #account-delete-open:hover {
@@ -321,8 +310,8 @@ aside {
 
 /*
    The UA stylesheet hides [hidden] with display:none, which any display declared here
-   outranks - #logged-in is a flex row, so it stayed on screen logged out. Several elements
-   are toggled through el.hidden, so the rule has to win outright.
+   outranks. #logged-in is a flex row, so without the !important it stays on screen logged
+   out. Several elements are toggled through el.hidden, so the rule has to win outright.
 */
 [hidden] {
 	display: none !important;
@@ -371,8 +360,8 @@ button {
 
 /*
 The transparent background above is wrong for a select: the browser paints the popup
-and cannot paint it transparent, so it came out light while the inherited color stayed
-light. Canvas and CanvasText resolve against color-scheme, which the theme button
+and cannot paint it transparent, so the popup comes out light while the inherited color
+stays light. Canvas and CanvasText resolve against color-scheme, which the theme button
 flips.
 */
 select,
@@ -489,7 +478,7 @@ needs none of this.
 
 /* seven monospace characters and room for a caret, so the toolbar keeps to one line */
 #hex {
-	width: 6.5rem;
+	width: 4.5rem;
 	font-family: ui-monospace, monospace;
 }
 
@@ -547,10 +536,6 @@ below shows. The summary already draws a line, so the strip is pulled up toward 
 	white-space: nowrap;
 }
 
-.collection.active .collection-name {
-	font-weight: 600;
-}
-
 /* the trigger for the create form, a glyph at the end of the strip */
 #collection-new {
 	margin-left: 0.25rem;
@@ -582,7 +567,7 @@ below shows. The summary already draws a line, so the strip is pulled up toward 
 
 /*
 The stroke settings are the same for every glyph in the sprite, so they sit here
-rather than on 27 <symbol>s. currentColor is what lets a parent tint a whole icon:
+rather than on every <symbol>. currentColor is what lets a parent tint a whole icon:
 the chip sets its color to the collection's accent.
 */
 .icon {
@@ -685,6 +670,12 @@ input[type="color"] {
 	height: 1.9rem;
 }
 
+/* narrower than the two in the aside: it sits in a row of controls, not beside one */
+#add-pick {
+	width: 2.5rem;
+	height: 1.9rem;
+}
+
 .detail-adjust {
 	margin: 0.5rem 0 0;
 }
@@ -695,8 +686,16 @@ input[type="color"] {
 
 /* names the strip under it, at the weight a label carries */
 .strip-name {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
 	color: var(--muted);
 	font-size: 0.85rem;
+}
+
+/* a step over the type it sits in: the marks on the rim are the part that has to read */
+.strip-glyph {
+	font-size: 1rem;
 }
 
 /*
@@ -744,7 +743,8 @@ fill its row. A scale is seven bands and keeps the column, as the markup says.
 	line-height: 1;
 }
 
-#saved-dense[aria-pressed="true"] {
+#saved-dense[aria-pressed="true"],
+#palette-dense[aria-pressed="true"] {
 	background: light-dark(rgba(0, 0, 0, 0.14), rgba(255, 255, 255, 0.18));
 }
 
@@ -754,10 +754,25 @@ step apart read as one row of buttons, so the off state keeps the border every o
 control has and the on state is the only filled thing in the row.
 */
 .pill {
-	padding: 0.25rem 0.7rem;
+	display: inline-flex;
+	align-items: center;
+	/* the glyph is taller than the 0.85rem word, so a scale's line box takes the same height
+	   and the row of pins stays even */
+	--pin-height: 1.3rem;
+	line-height: var(--pin-height);
+	padding: 0.2rem 0.7rem;
 	border-radius: 999px;
 	background: light-dark(rgba(0, 0, 0, 0.02), rgba(255, 255, 255, 0.03));
 	color: var(--muted);
+}
+
+.pill .icon {
+	font-size: var(--pin-height);
+}
+
+/* a rotation is its glyph alone: an even pad over a square glyph, so the pill is a circle */
+.pill:has(.icon) {
+	padding: 0.2rem;
 }
 
 .pill:hover {
@@ -784,12 +799,14 @@ control has and the on state is the only filled thing in the row.
 
 /*
 Five across. There is no border-box reset, so max-width is body's content box: the
-grids get 60rem less the aside and the gap, which is 43.5rem. Five of these need
-41.6rem and a sixth would need 50rem, so auto-fill settles on five.
+grids get 66rem less the aside and the gap, which is 49.5rem. Five of these need
+47.6rem and a sixth would need 56rem, so auto-fill settles on five. The floor is what
+holds the count at the full width - the room went into the cells, not into a sixth
+column.
 */
 .grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
 	gap: 0.4rem;
 }
 
@@ -798,9 +815,10 @@ grids get 60rem less the aside and the gap, which is 43.5rem. Five of these need
 	flex-direction: column;
 	gap: 0.1rem;
 	/* a floor for the shortest labels, the two lines are taller than this anyway */
-	min-height: 3.2rem;
+	min-height: 4rem;
 	padding: 0.6rem 0.5rem;
-	border: 1px solid var(--line);
+	/* the shared control border reads as a hairline around the color; the gap is the edge */
+	border: none;
 	text-align: left;
 	font-family: ui-monospace, monospace;
 	font-size: 0.75rem;
@@ -808,8 +826,9 @@ grids get 60rem less the aside and the gap, which is 43.5rem. Five of these need
 
 /*
 A dense grid: ten cells to a row and no gap, the whole set as one block. A name wider
-than its cell is cut, and the Selected panel spells out whichever one was clicked. The
-palette is always this, Saved colors takes it from a toggle.
+than its cell is cut, and the Selected panel spells out whichever one was clicked. Each
+grid has a toggle for it and they open in different shapes: the palette in this one,
+saved colors on the track above.
 */
 .dense {
 	grid-template-columns: repeat(10, minmax(0, 1fr));
@@ -823,14 +842,20 @@ palette is always this, Saved colors takes it from a toggle.
 	aspect-ratio: 5 / 4;
 	min-height: 0;
 	padding: 0.35rem 0.4rem;
-	/* the border goes with the gap, or two 1px edges meet as a lattice over the colors */
-	border: none;
-	/* the shared control radius too: four rounded corners meet as a notch of page */
+	/* the shared control radius goes: four rounded corners meet as a notch of page */
 	border-radius: 0;
 }
 
 #saved.dense .label {
 	display: none;
+}
+
+/*
+With the caption gone the cell is its hex alone, and it sits at the bottom, where a
+harmony band puts its own. One child left in the flex column, so the end is enough.
+*/
+#saved.dense .swatch {
+	justify-content: flex-end;
 }
 
 /* positioned, so the ring paints over the neighbours it now overlaps */
@@ -851,6 +876,23 @@ at the top of the file: same specificity, so the rule that comes later wins.
 	.dense {
 		grid-template-columns: repeat(5, minmax(0, 1fr));
 	}
+}
+
+/*
+A grid full screen: the palette copy, see showPaletteFullscreen, which is dense there
+whatever the page is. The rows share the height rather than the cells keeping their
+ratio, so the whole set is one screen and nothing scrolls. The type goes up with the
+cell, the way a band's hex does.
+*/
+.grid:fullscreen {
+	height: 100%;
+	grid-auto-rows: 1fr;
+}
+
+.grid:fullscreen .swatch {
+	aspect-ratio: auto;
+	min-height: 0;
+	font-size: 1rem;
 }
 
 /*
@@ -978,15 +1020,15 @@ radius survive it: the color comes out letterboxed, hairlined and round-cornered
 }
 
 .harmony .band-color {
-	/* border-box for the same reason .detail-color needs it */
-	box-sizing: border-box;
 	display: block;
 	width: 100%;
 	/* one height for every strip: a band's width is the column over its count, so a
    square would make a two-band strip two blocks the size of the Selected panel */
 	height: 6rem;
 	padding: 0;
-	border: 1px solid var(--line);
+	/* the shared control border reads as a hairline around the color, the way it did on a
+	   swatch; the gap between bands is the edge */
+	border: none;
 }
 
 /* full width, so the whole bottom of a band is the copy target */
@@ -1014,10 +1056,9 @@ radius survive it: the color comes out letterboxed, hairlined and round-cornered
 	gap: 0;
 }
 
-/* the radius goes too, or the corners meet as notches between bands */
+/* the radius goes with the gap, or the corners meet as notches between bands */
 .harmony:fullscreen .band-color {
 	height: 100%;
-	border: none;
 	border-radius: 0;
 }
 
@@ -1059,6 +1100,11 @@ builder guessing from a count or from screen.width.
 .harmony:fullscreen .band-hex {
 	bottom: 1.5rem;
 	font-size: 1.25rem;
+	/*
+	Nothing acts while a strip fills the screen. Not a target, so a click on the hex
+	reaches the color under it and leaves, and the copy tooltip has nothing to hover.
+	*/
+	pointer-events: none;
 }
 
 /* the answer to a press, on the button itself: a dip and back */

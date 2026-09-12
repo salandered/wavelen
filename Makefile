@@ -90,6 +90,16 @@ lint:
 fmt:
 	golangci-lint fmt ./...
 
+## web/lint: report lint issues under web/
+.PHONY: web/lint
+web/lint:
+	npm --prefix web run lint
+
+## web/fmt: format the files under web/
+.PHONY: web/fmt
+web/fmt:
+	npm --prefix web run format
+
 ## test: unit tests
 .PHONY: test
 test:
@@ -106,6 +116,8 @@ audit:
 	go mod tidy -diff
 	go mod verify
 	golangci-lint run ./...
+	npm --prefix web run lint
+	npm --prefix web test
 	go test -race -tags=integration ./...
 
 # ==================================================================================== #

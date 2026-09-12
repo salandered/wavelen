@@ -54,9 +54,13 @@ Adding a collection icon is a `<symbol>` in `web/index.html` and a slug in `inte
 
 Some other icons are used for the UI as well.
 
-All icons are from the Lucide toolkit.
+The five harmony icons, one per rotation, are drawn for this page: the color wheel with the
+hues that rotation picks marked on its rim. The ramp and tones pins carry their name only.
+Every other icon is from the Lucide toolkit.
 
 ### License
+
+The harmony icons are under this project's own license.
 
 Lucide 1.43.0, https://github.com/lucide-icons/lucide
 

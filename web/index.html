@@ -33,17 +33,20 @@
 		Every glyph the page draws. An i- symbol is a collection icon, and this is the only place
 		that set is written down for the page: app.js builds the picker by reading these ids back
 		out. Adding one is a <symbol> here, a slug in internal/icon and a value in the api.yaml
-		enum. A ui- symbol is one the page uses for itself, which the picker skips and the API has
-		never heard of.
+		enum. A ui- symbol is one the page uses for itself, which the picker skips and internal/icon
+		does not hold.
+
+		The ui-h- symbols are drawn for this page and are under its own license. Every other
+		glyph below is Lucide.
 
 		Lucide 1.43.0, https://github.com/lucide-icons/lucide
 
-		ISC License, Copyright (c) 2026 Lucide Icons and Contributors, for every icon below except
-		monitor, moon, music, plus, square, trash-2 and circle-plus, which Lucide renamed from the
-		plus-circle the notice lists. Those seven are derived from Feather and carry the MIT
-		License, Copyright (c) 2013-present Cole Bemis. The derived list is in the notice itself.
+		ISC License, Copyright (c) 2026 Lucide Icons and Contributors, for every Lucide icon here
+		except clipboard, log-out, monitor, moon, music, plus, square, trash-2 and circle-plus
+		(the notice lists it under the old name plus-circle). Those are derived from Feather and
+		carry the MIT License, Copyright (c) 2013-present Cole Bemis. 
 
-		Both notices in full: web/LICENSE-lucide.txt in the source repo.
+		Verbatim license: web/LICENSE-lucide.txt.
 	-->
 		<svg id="icon-sprite" aria-hidden="true" hidden>
 			<defs>
@@ -173,6 +176,59 @@
 					/>
 					<path d="m5.082 11.09 8.828 8.828" />
 				</symbol>
+				<symbol id="ui-clipboard" viewBox="0 0 24 24">
+					<rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+					<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+				</symbol>
+				<symbol id="ui-shuffle" viewBox="0 0 24 24">
+					<path d="m18 14 4 4-4 4" />
+					<path d="m18 2 4 4-4 4" />
+					<path d="M2 18h1.973a4 4 0 0 0 3.3-1.7l5.454-8.6a4 4 0 0 1 3.3-1.7H22" />
+					<path d="M2 6h1.972a4 4 0 0 1 3.6 2.2" />
+					<path d="M22 18h-6.041a4 4 0 0 1-3.3-1.8l-.359-.45" />
+				</symbol>
+				<symbol id="ui-log-out" viewBox="0 0 24 24">
+					<path d="m16 17 5-5-5-5" />
+					<path d="M21 12H9" />
+					<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+				</symbol>
+				<!--
+					ui-h- is the harmony set, one per name in LEADING, and the only glyphs here that
+					are not Lucide. A mark is filled rather than stroked and says so on the shape:
+					.icon sets fill and stroke on the <svg>, which a shape inherits only when it
+					carries no attribute of its own. square is turned 22.5deg off the quarters and
+					analogous is spread to 55deg rather than its own 30, both on purpose.
+				-->
+				<symbol id="ui-h-complement" viewBox="0 0 24 24">
+					<circle cx="12" cy="12" r="8.2" />
+					<circle cx="12" cy="3.8" r="2.8" fill="currentColor" stroke="none" />
+					<circle cx="12" cy="20.2" r="2.8" fill="currentColor" stroke="none" />
+				</symbol>
+				<symbol id="ui-h-split-complement" viewBox="0 0 24 24">
+					<circle cx="12" cy="12" r="8.2" />
+					<circle cx="12" cy="3.8" r="2.8" fill="currentColor" stroke="none" />
+					<circle cx="16.1" cy="19.1" r="2.8" fill="currentColor" stroke="none" />
+					<circle cx="7.9" cy="19.1" r="2.8" fill="currentColor" stroke="none" />
+				</symbol>
+				<symbol id="ui-h-triad" viewBox="0 0 24 24">
+					<circle cx="12" cy="12" r="8.2" />
+					<circle cx="12" cy="3.8" r="2.8" fill="currentColor" stroke="none" />
+					<circle cx="19.1" cy="16.1" r="2.8" fill="currentColor" stroke="none" />
+					<circle cx="4.9" cy="16.1" r="2.8" fill="currentColor" stroke="none" />
+				</symbol>
+				<symbol id="ui-h-analogous" viewBox="0 0 24 24">
+					<circle cx="12" cy="12" r="8.2" />
+					<circle cx="5.28" cy="7.3" r="2.8" fill="currentColor" stroke="none" />
+					<circle cx="12" cy="3.8" r="2.8" fill="currentColor" stroke="none" />
+					<circle cx="18.72" cy="7.3" r="2.8" fill="currentColor" stroke="none" />
+				</symbol>
+				<symbol id="ui-h-square" viewBox="0 0 24 24">
+					<circle cx="12" cy="12" r="8.2" />
+					<circle cx="15.14" cy="4.42" r="2.8" fill="currentColor" stroke="none" />
+					<circle cx="19.58" cy="15.14" r="2.8" fill="currentColor" stroke="none" />
+					<circle cx="8.86" cy="19.58" r="2.8" fill="currentColor" stroke="none" />
+					<circle cx="4.42" cy="8.86" r="2.8" fill="currentColor" stroke="none" />
+				</symbol>
 				<symbol id="i-gem" viewBox="0 0 24 24">
 					<path d="M10.5 3 8 9l4 13 4-13-2.5-6" />
 					<path
@@ -277,23 +333,9 @@
 		<header>
 			<!-- clickable: app.js cycles the tint attribute the rules below read -->
 			<h1 id="title">wavelen</h1>
-			<!-- Both states are in the markup and app.js hides one: the header is the first thing
-		     painted, so building either from script would flash the wrong one. -->
-			<button type="button" class="header-word" id="logged-out">log in</button>
-			<span class="account" id="logged-in" hidden>
-				<!-- filled from GET /me, not from the typed nickname, which is unnormalized -->
-				<span class="who" id="who"></span>
-				<button type="button" id="logout">log out</button>
-				<button
-					type="button"
-					class="icon-button"
-					id="account-delete-open"
-					title="delete this account and everything in it"
-					aria-label="delete this account and everything in it"
-				>
-					<svg class="icon" aria-hidden="true"><use href="#ui-trash" /></svg>
-				</button>
-			</span>
+			<!-- beside the h1, not inside it: it is not part of the name, and a click on the title
+		     steps a tint this word has no business taking -->
+			<span class="beta">beta</span>
 			<button type="button" class="header-word" id="about-open">about</button>
 		</header>
 
@@ -474,10 +516,29 @@
 					<!-- the add row and the listing controls on one line, see .toolbar -->
 					<div class="toolbar">
 						<form class="row" id="add-form">
+							<!-- a starting point for the field beside it; the dialog is the browser's -->
+							<input type="color" id="add-pick" value="#808080" aria-label="pick a color to add" />
 							<input id="hex" placeholder="#ff00aa" aria-label="hex color" />
 							<button>add</button>
-							<!-- type=button, or it would submit the form instead of filling the field -->
-							<button type="button" id="random-hex">random</button>
+							<!-- type=button, or these would submit the form instead of filling the field -->
+							<button
+								type="button"
+								class="icon-button"
+								id="paste-hex"
+								title="paste a hex from the clipboard"
+								aria-label="paste a hex from the clipboard"
+							>
+								<svg class="icon" aria-hidden="true"><use href="#ui-clipboard" /></svg>
+							</button>
+							<button
+								type="button"
+								class="icon-button"
+								id="random-hex"
+								title="random"
+								aria-label="random color"
+							>
+								<svg class="icon" aria-hidden="true"><use href="#ui-shuffle" /></svg>
+							</button>
 							<button type="button" id="bulk-add">add 10 random</button>
 						</form>
 						<!-- order says descending/ascending rather than newest/oldest: it applies to hex too -->
@@ -493,7 +554,7 @@
 								<option value="50">50</option>
 								<option value="100">100</option>
 							</select>
-							<!-- the shape the palette is always in, see .dense -->
+							<!-- the shape the palette opens in, see .dense -->
 							<button
 								type="button"
 								class="icon-button"
@@ -551,19 +612,59 @@
 					<summary>Harmony</summary>
 					<!-- One pin per name the API serves, in the server's own order; DERIVED in app.js is the
 			     same list, and AXIS there titles the two scales. aria-pressed is the record of what
-			     is on, and the CSS reads it. -->
+			     is on, and the CSS reads it. A rotation is its glyph alone, so its name is in the
+			     title and the label; the two scales have no glyph and are the word. -->
 					<div class="row" id="pins">
-						<button type="button" class="pill" id="pin-complement" aria-pressed="false">
-							complement
+						<button
+							type="button"
+							class="pill"
+							id="pin-complement"
+							aria-pressed="false"
+							title="complement"
+							aria-label="complement"
+						>
+							<svg class="icon" aria-hidden="true"><use href="#ui-h-complement" /></svg>
 						</button>
-						<button type="button" class="pill" id="pin-split-complement" aria-pressed="false">
-							split-complement
+						<button
+							type="button"
+							class="pill"
+							id="pin-split-complement"
+							aria-pressed="false"
+							title="split-complement"
+							aria-label="split-complement"
+						>
+							<svg class="icon" aria-hidden="true"><use href="#ui-h-split-complement" /></svg>
 						</button>
-						<button type="button" class="pill" id="pin-triad" aria-pressed="false">triad</button>
-						<button type="button" class="pill" id="pin-analogous" aria-pressed="false">
-							analogous
+						<button
+							type="button"
+							class="pill"
+							id="pin-triad"
+							aria-pressed="false"
+							title="triad"
+							aria-label="triad"
+						>
+							<svg class="icon" aria-hidden="true"><use href="#ui-h-triad" /></svg>
 						</button>
-						<button type="button" class="pill" id="pin-square" aria-pressed="false">square</button>
+						<button
+							type="button"
+							class="pill"
+							id="pin-analogous"
+							aria-pressed="false"
+							title="analogous"
+							aria-label="analogous"
+						>
+							<svg class="icon" aria-hidden="true"><use href="#ui-h-analogous" /></svg>
+						</button>
+						<button
+							type="button"
+							class="pill"
+							id="pin-square"
+							aria-pressed="false"
+							title="square"
+							aria-label="square"
+						>
+							<svg class="icon" aria-hidden="true"><use href="#ui-h-square" /></svg>
+						</button>
 						<button type="button" class="pill" id="pin-ramp" aria-pressed="false">ramp</button>
 						<button type="button" class="pill" id="pin-tones" aria-pressed="false">tones</button>
 						<!-- the whole row at once, at its end: a word each, since the two are a shortcut
@@ -594,12 +695,34 @@
 					<!-- the name the CSS Color spec uses, and what internal/palette holds: the 100 named
 			     colors -->
 					<summary>CSS named colors</summary>
-					<!-- the palette is 100 fixed rows, so it sorts but never pages. The toolbar puts the
+					<!-- the palette is 100 fixed rows, so it sorts but doesn't page. The toolbar puts the
 			     one row on the right, where the saved section keeps its listing controls. -->
 					<div class="toolbar">
 						<div class="row">
 							<button type="button" id="palette-sort" data-value="name" title="sort by"></button>
 							<button type="button" id="palette-order" data-value="asc" title="order"></button>
+							<!-- the roomy shape the saved grid opens in, see .dense -->
+							<button
+								type="button"
+								class="icon-button"
+								id="palette-dense"
+								title="dense grid"
+								aria-label="dense grid"
+								aria-pressed="true"
+							>
+								<svg class="icon" aria-hidden="true"><use href="#ui-grid" /></svg>
+							</button>
+							<!-- the grid itself full screen, names and all, not the strip of bands the
+					     saved grid goes up as -->
+							<button
+								type="button"
+								class="icon-button"
+								id="palette-fullscreen"
+								title="the colors below, full screen"
+								aria-label="the colors below, full screen"
+							>
+								<svg class="icon" aria-hidden="true"><use href="#ui-monitor" /></svg>
+							</button>
 						</div>
 					</div>
 					<div class="grid dense" id="palette"></div>
@@ -607,6 +730,39 @@
 			</main>
 
 			<aside>
+				<!-- Both states are in the markup and app.js hides one: a state built from script
+			     would flash the wrong one before the first paint. -->
+				<section class="panel">
+					<h2 class="panel-title">Account</h2>
+					<!-- a row for the one button as well, so the panels below don't move when the
+				     state swaps -->
+					<div class="row" id="logged-out">
+						<button type="button" id="login-open">log in</button>
+					</div>
+					<div class="row" id="logged-in" hidden>
+						<!-- filled from GET /me, not from the typed nickname, which is unnormalized -->
+						<span class="who" id="who"></span>
+						<button
+							type="button"
+							class="icon-button"
+							id="logout"
+							title="log out"
+							aria-label="log out"
+						>
+							<svg class="icon" aria-hidden="true"><use href="#ui-log-out" /></svg>
+						</button>
+						<button
+							type="button"
+							class="icon-button"
+							id="account-delete-open"
+							title="delete this account and everything in it"
+							aria-label="delete this account and everything in it"
+						>
+							<svg class="icon" aria-hidden="true"><use href="#ui-trash" /></svg>
+						</button>
+					</div>
+				</section>
+
 				<section class="panel">
 					<h2 class="panel-title">View</h2>
 					<div class="row">
