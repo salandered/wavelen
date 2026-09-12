@@ -40,6 +40,7 @@ var (
 	collectionsPath = "/api/v1/me/collections"
 	collectionPath  = collectionsPath + "/" + stubCollectionID.String()
 	savedColorsPath = collectionPath + "/colors"
+	exportPath      = "/api/v1/me/export"
 )
 
 const (
@@ -259,7 +260,7 @@ func (s *APISuite) TestGetMeWithoutCredentialsIsUnauthorized() {
 	s.Require().Zero(s.storage.gotUserID)
 }
 
-// Unreachable in production, tokens cascade with the user.
+// Unreachable in prod, tokens cascade with the user.
 func (s *APISuite) TestGetMeUnknownUserReturnsNotFound() {
 	s.storage.idErr = storage.ErrUserNotFound
 
@@ -298,6 +299,81 @@ func (s *APISuite) TestDeleteMeUnknownUserReturnsNotFound() {
 	s.storage.deleteErr = storage.ErrUserNotFound
 
 	resp := s.del("/api/v1/me")
+
+	s.Require().Equal(http.StatusNotFound, resp.StatusCode)
+	s.Require().Equal("user not found", s.errorMessage(resp))
+}
+
+// Export
+
+func (s *APISuite) TestExportReturnsAccountAndItsCollections() {
+	s.storage.tokenUser = 7
+	s.storage.userByID = &user.User{
+		ID: 7, Nickname: "olya", Name: "Olya Lovelace", CreatedAt: stubTime,
+	}
+	s.storage.exported = []storage.CltWithColors{{
+		Clt:    stubCollection(),
+		Colors: []color.Color{{Hex: "#ff0000", CreatedAt: stubTime}},
+	}}
+
+	resp := s.get(exportPath)
+
+	s.Require().Equal(http.StatusOK, resp.StatusCode)
+
+	var out handlers.ExportResp
+	s.decode(resp, &out)
+	s.Require().Equal(1, out.Format)
+	s.Require().Equal("olya", out.User.Nickname)
+	s.Require().Equal(stubTime.UTC(), out.User.CreatedAt)
+	s.Require().Len(out.Collections, 1)
+	s.Require().Equal(stubCollectionID.String(), out.Collections[0].ID)
+	s.Require().True(out.Collections[0].IsDefault)
+	s.Require().Equal(
+		[]handlers.SavedColorResp{{Hex: "#ff0000", CreatedAt: stubTime.UTC()}},
+		out.Collections[0].Colors,
+	)
+	// the id came from the token
+	s.Require().Equal(user.ID(7), s.storage.gotUserID)
+}
+
+func (s *APISuite) TestExportRendersCollectionWithNoColorsAsEmptyArray() {
+	s.storage.userByID = stubUser()
+	s.storage.exported = []storage.CltWithColors{{Clt: stubCollection()}}
+
+	resp := s.get(exportPath)
+
+	s.Require().Equal(http.StatusOK, resp.StatusCode)
+	s.Require().Contains(s.body(resp), `"colors":[]`)
+}
+
+func (s *APISuite) TestExportReadsAccountAndCollectionsInOneTransaction() {
+	s.storage.userByID = stubUser()
+
+	s.get(exportPath)
+
+	s.Require().Equal(1, s.storage.inTxCalls)
+}
+
+func (s *APISuite) TestExportNamesDownloadAfterNickname() {
+	s.storage.userByID = stubUser()
+
+	resp := s.get(exportPath)
+
+	s.Require().Contains(resp.Header.Get("Content-Disposition"), `filename="wavelen-olya-`)
+}
+
+func (s *APISuite) TestExportWithoutCredentialsReadsNothing() {
+	resp := s.sendAs(http.MethodGet, exportPath, nil, "")
+
+	s.Require().Equal(http.StatusUnauthorized, resp.StatusCode)
+	s.Require().Zero(s.storage.inTxCalls)
+}
+
+// Unreachable in prod, tokens cascade with the user
+func (s *APISuite) TestExportUnknownUserReturnsNotFound() {
+	s.storage.idErr = storage.ErrUserNotFound
+
+	resp := s.get(exportPath)
 
 	s.Require().Equal(http.StatusNotFound, resp.StatusCode)
 	s.Require().Equal("user not found", s.errorMessage(resp))
@@ -926,8 +1002,6 @@ func (s *APISuite) TestHarmonyOfAGrayAnswersWithThatGray() {
 	}
 }
 
-// An unknown harmony is a JSON 404 rather than the static handler's plain text one, and the body
-// says what the caller could have asked for.
 func (s *APISuite) TestUnknownHarmonyIsNotFoundAndListsThem() {
 	resp := s.get("/api/v1/colors/ff0000/tetrad")
 
@@ -939,9 +1013,7 @@ func (s *APISuite) TestUnknownHarmonyIsNotFoundAndListsThem() {
 	}
 }
 
-// Same path rule as DELETE. The hex is read before the harmony, so a bad one answers 400 even
-// where the harmony is unknown too.
-func (s *APISuite) TestHarmonyRejectsAMalformedHexInThePath() {
+func (s *APISuite) TestHarmonyRejectsMalformedHexInThePath() {
 	for _, path := range []string{
 		"/api/v1/colors/%23ff0000/complement",
 		"/api/v1/colors/%23ff0000/triad",

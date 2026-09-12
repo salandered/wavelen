@@ -49,6 +49,8 @@ type mockStorage struct {
 	userByID    *user.User
 	idErr       error
 	deleteErr   error
+	exported    []storage.CltWithColors
+	exportErr   error
 	// token
 	tokenUser      user.ID
 	tokenErr       error
@@ -83,6 +85,23 @@ var otherCollectionID = collection.ID(
 	uuid.MustParse("0199aaaa-7777-7777-8888-aaaaaaaaaaaa"))
 
 const stubCollectionName = "Main"
+
+// The account behind the test token.
+func stubUser() *user.User {
+	return &user.User{ID: 1, Nickname: "olya", Name: "Olya Lovelace", CreatedAt: stubTime}
+}
+
+// The default collection every account is signed up with.
+func stubCollection() collection.Collection {
+	return collection.Collection{
+		ID:         stubCollectionID,
+		Name:       stubCollectionName,
+		IconSlug:   collection.DefIconSlug,
+		IconAccent: collection.DefIconAccent,
+		IsDefault:  true,
+		CreatedAt:  stubTime,
+	}
+}
 
 func newMockStorage() *mockStorage {
 	// tokenUser - the color tests get their user id from the token
@@ -126,6 +145,13 @@ func (s *mockStorage) DeleteUser(_ context.Context, id user.ID) error {
 	s.gotUserID = id
 	s.deleteUserCalls++
 	return s.deleteErr
+}
+
+func (s *mockStorage) ExportCollections(
+	_ context.Context, userID user.ID,
+) ([]storage.CltWithColors, error) {
+	s.gotUserID = userID
+	return s.exported, s.exportErr
 }
 
 func (s *mockStorage) LockUser(_ context.Context, id user.ID) error {

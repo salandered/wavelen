@@ -61,6 +61,8 @@ func newMux(s storage.Storage, cfg HandlerConfig) *http.ServeMux {
 	mux.Handle("GET /api/v1/me", authed(users.HandleGetMe))
 	// delete the accoubt
 	mux.Handle("DELETE /api/v1/me", authed(users.HandleDeleteMe))
+	// export the account data
+	mux.Handle("GET /api/v1/me/export", authed(users.HandleExport))
 
 	//// user's data
 	mux.Handle("GET /api/v1/me/collections", authed(collections.HandleListCollections))

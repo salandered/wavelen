@@ -51,6 +51,10 @@ type ColorRepo interface {
 	DeleteAllColors(ctx context.Context, cltID collection.ID) error
 }
 
+type ExportRepo interface {
+	ExportCollections(ctx context.Context, userID user.ID) ([]CltWithColors, error)
+}
+
 type HealthRepo interface {
 	Ping(ctx context.Context) error
 }
@@ -60,6 +64,7 @@ type Storage interface {
 	TokenRepo
 	CollectionRepo
 	ColorRepo
+	ExportRepo
 	HealthRepo
 
 	// Runs fn against a Storage bound to one transaction.

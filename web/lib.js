@@ -44,3 +44,9 @@ export function randomDigits() {
 		.toString(16)
 		.padStart(6, "0");
 }
+
+// The download name comes from the response's Content-Disposition, so the page keeps no second
+// copy of the server's format. Only the quoted form is parsed, which is what the API sends.
+export function exportFilename(disposition) {
+	return /filename="([^"]+)"/.exec(disposition ?? "")?.[1] ?? "wavelen-export.json";
+}

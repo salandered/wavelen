@@ -211,6 +211,32 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/v1/me/export:
+    get:
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      summary: Account data as a JSON document
+      description: The account, its collections and colors.
+      responses:
+        "200":
+          description: The export
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/XRequestId"
+            Content-Disposition:
+              $ref: "#/components/headers/ExportDisposition"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExportResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFoundUser"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/v1/me/collections:
     get:
       tags: [Collections]
@@ -566,6 +592,13 @@ components:
         minimum: 0
       example: 1
 
+    ExportDisposition:
+      description: >-
+        The filename a client would use.
+      schema:
+        type: string
+      example: 'attachment; filename="wavelen-salandered-123-20260912T143005Z.json"'
+
     HarmonyCacheControl:
       description: >-
         A harmony depends on the URL and the formula, the formula only changes with a deploy.
@@ -826,6 +859,38 @@ components:
           type: string
           format: date-time
           example: "2026-08-22T13:37:08.825023Z"
+
+    ExportCollection:
+      allOf:
+        - $ref: "#/components/schemas/Collection"
+        - type: object
+          required: [colors]
+          properties:
+            colors:
+              type: array
+              description: Empty for a collection holding no colors.
+              items:
+                $ref: "#/components/schemas/SavedColor"
+
+    ExportResponse:
+      type: object
+      required: [format, exported_at, user, collections]
+      properties:
+        format:
+          type: integer
+          description: The export format version.
+          example: 1
+        exported_at:
+          type: string
+          format: date-time
+          example: "2026-09-12T13:37:08.688203Z"
+        user:
+          $ref: "#/components/schemas/User"
+        collections:
+          type: array
+          description: Oldest first.
+          items:
+            $ref: "#/components/schemas/ExportCollection"
 
     CursorMetadata:
       type: object

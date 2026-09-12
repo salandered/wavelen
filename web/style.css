@@ -120,12 +120,14 @@ h1[data-tint="2"] {
 	overflow-wrap: anywhere;
 }
 
-/* both glyphs carry the weight the collection row gives its two: muted until reached */
+/* the glyphs carry the weight the collection row gives its two: muted until reached */
+#export,
 #logout,
 #account-delete-open {
 	color: var(--muted);
 }
 
+#export:hover,
 #logout:hover {
 	color: var(--fg);
 }

@@ -1,4 +1,4 @@
-import { labelColor, parseHex, randomDigits, savedLabel } from "./lib.js";
+import { exportFilename, labelColor, parseHex, randomDigits, savedLabel } from "./lib.js";
 
 // Everything the page knows about the service is in api.yaml. The api binary embeds this page and
 // serves it beside the API, so the path is relative and no CORS header exists.
@@ -150,7 +150,7 @@ async function call(method, path, body) {
 	if (!res.ok) {
 		throw new Error(`${res.status} - ${data?.error ?? text}`);
 	}
-	return { status: res.status, data };
+	return { status: res.status, headers: res.headers, data };
 }
 
 // ---- log ----
@@ -1713,6 +1713,30 @@ $("signup-form").addEventListener("submit", async (event) => {
 		showAccountError(err.message);
 		setStatus(err.message, true);
 	}
+});
+
+// Not an <a href> and not a window.open: the token is a header and not a cookie, so the browser
+// would ask for this unauthenticated and land on a 401. The answer is fetched like every other
+// request and handed back to the browser as a blob.
+$("export").addEventListener("click", async () => {
+	let answer;
+	try {
+		answer = await call("GET", "/me/export");
+	} catch (err) {
+		setStatus(err.message, true);
+		return;
+	}
+	// the page is served by the API, so the header is readable without an expose header
+	const name = exportFilename(answer.headers.get("Content-Disposition"));
+	const url = URL.createObjectURL(
+		new Blob([JSON.stringify(answer.data, null, 2)], { type: "application/json" }),
+	);
+	const link = document.createElement("a");
+	link.href = url;
+	link.download = name;
+	link.click();
+	URL.revokeObjectURL(url);
+	setStatus(`exported ${name}`);
 });
 
 // The endpoint revokes this token and leaves the account's others alone. Dropping the local copy

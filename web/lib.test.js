@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { labelColor, parseHex, randomDigits, savedLabel } from "./lib.js";
+import { exportFilename, labelColor, parseHex, randomDigits, savedLabel } from "./lib.js";
 
 test("parseHex accepts optional hash and folds case", () => {
 	assert.equal(parseHex("#FF00AA"), "#ff00aa");
@@ -66,4 +66,18 @@ test("randomDigits answers something parseHex accepts", () => {
 		const digits = randomDigits();
 		assert.equal(parseHex(digits), `#${digits}`);
 	}
+});
+
+test("exportFilename takes the name the server sent", () => {
+	assert.equal(
+		exportFilename('attachment; filename="wavelen-olya-20260912T143005Z.json"'),
+		"wavelen-olya-20260912T143005Z.json",
+	);
+});
+
+test("exportFilename falls back when the header is missing or unquoted", () => {
+	assert.equal(exportFilename(null), "wavelen-export.json");
+	assert.equal(exportFilename(""), "wavelen-export.json");
+	assert.equal(exportFilename("attachment"), "wavelen-export.json");
+	assert.equal(exportFilename("attachment; filename=wavelen.json"), "wavelen-export.json");
 });

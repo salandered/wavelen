@@ -42,7 +42,8 @@
 		Lucide 1.43.0, https://github.com/lucide-icons/lucide
 
 		ISC License, Copyright (c) 2026 Lucide Icons and Contributors, for every Lucide icon here
-		except clipboard, log-out, monitor, moon, music, plus, square, trash-2 and circle-plus
+		except clipboard, download, log-out, monitor, moon, music, plus, square, trash-2 and
+		circle-plus
 		(the notice lists it under the old name plus-circle). Those are derived from Feather and
 		carry the MIT License, Copyright (c) 2013-present Cole Bemis. 
 
@@ -191,6 +192,11 @@
 					<path d="m16 17 5-5-5-5" />
 					<path d="M21 12H9" />
 					<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+				</symbol>
+				<symbol id="ui-download" viewBox="0 0 24 24">
+					<path d="M12 15V3" />
+					<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+					<path d="m7 10 5 5 5-5" />
 				</symbol>
 				<!--
 					ui-h- is the harmony set, one per name in LEADING, and the only glyphs here that
@@ -742,6 +748,15 @@
 					<div class="row" id="logged-in" hidden>
 						<!-- filled from GET /me, not from the typed nickname, which is unnormalized -->
 						<span class="who" id="who"></span>
+						<button
+							type="button"
+							class="icon-button"
+							id="export"
+							title="download this account as a JSON file"
+							aria-label="download this account as a JSON file"
+						>
+							<svg class="icon" aria-hidden="true"><use href="#ui-download" /></svg>
+						</button>
 						<button
 							type="button"
 							class="icon-button"
