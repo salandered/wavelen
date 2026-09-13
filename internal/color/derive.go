@@ -2,17 +2,7 @@ package color
 
 import "math"
 
-// -- MATH IS AI GENERATED --
-// I don't understand most of it
-// --------------------------
-
-// What each entry of the harmony table in color.go runs. Each takes one color and answers with
-// others near it, and each asks the gamut search for the result rather than clamping channels.
-
-// Ramp sweeps lightness instead of turning the hue. Below rampDarkest sRGB holds almost no chroma
-// at any hue, so the clamp strips the hue out and every input converges on the same tinted near
-// black. The range starts where the steps stay apart, and 7 of them keep neighbours a tenth of
-// lightness apart, which is where each one reads as a different color.
+// Sweeps lightness across a fixed hue, avoiding extreme gamut edges
 const (
 	rampSteps     = 7
 	rampDarkest   = 0.3
@@ -20,8 +10,16 @@ const (
 	rampLightStep = (rampLightest - rampDarkest) / (rampSteps - 1)
 )
 
-// Turns the hue by deg, then finds the closest color sRGB can actually show.
-func rotate(h Hex, deg float64) Hex {
+// Turns the hue by deg on space's wheel.
+func rotate(space Space, h Hex, deg float64) Hex {
+	if space == HSL {
+		return rotateHSL(h, deg)
+	}
+	return rotateOkLCh(h, deg)
+}
+
+// Turns the hue by deg in OkLCh, then finds the closest color sRGB can actually show.
+func rotateOkLCh(h Hex, deg float64) Hex {
 	if len(h) != HexLen {
 		return h
 	}
@@ -30,7 +28,7 @@ func rotate(h Hex, deg float64) Hex {
 
 	chroma := math.Hypot(a, b)
 	if chroma < neutralChroma {
-		return h // the same cutoff perceptualSortKey groups neutrals by
+		return h // perceptualSortKey groups neutrals by this cutoff too
 	}
 
 	// Trig wraps on its own, so nothing has to normalize the angle back into a range.
@@ -40,15 +38,31 @@ func rotate(h Hex, deg float64) Hex {
 }
 
 /*
+Turns the hue by deg on the HSL wheel.
+Adjusts hue within HSL space without requiring gamut fitting.
+The neutral gate is the one rotateOkLCh uses rather than a saturation of zero, so the same colors
+count as having no hue worth turning on either wheel.
+*/
+func rotateHSL(h Hex, deg float64) Hex {
+	if len(h) != HexLen {
+		return h
+	}
+
+	_, a, b := hexToOklab(h)
+	if math.Hypot(a, b) < neutralChroma {
+		return h
+	}
+
+	hue, saturation, lightness := hexToHSL(h)
+	return hslToHex(hue+deg, saturation, lightness)
+}
+
+/*
 h as a scale of rampSteps colors: hue held, lightness swept, chroma clamped to what the hue holds
 at each step.
 
-Clamping chroma is the opposite trade from fitToSRGB, which is why this doesn't call it. Holding
-chroma snaps most steps back onto the few lightnesses that carry it, so 7 requests answer with 3
-colors. A scale needs its lightnesses more than it needs one chroma.
-
-A neutral has near zero chroma to clamp, so it ramps to grays without a special case. h is in its
-own ramp only if its lightness lands on a step: the scale is near the input, not through it.
+A neutral has near zero chroma to clamp, so it ramps to grays without a special case.
+h is in its own ramp only if its lightness lands on a step.
 */
 func ramp(h Hex) []Hex {
 	out := make([]Hex, rampSteps)
@@ -78,11 +92,11 @@ h as a scale of toneSteps colors: hue and lightness held, chroma swept from 0 up
 sRGB holds at that lightness. A tone is a color mixed with a gray of its own lightness, so step 0
 is that gray and the last step is h's hue at its most saturated.
 
-Nothing has to leave the gamut, so this doesn't call fitToSRGB. maxChromaAt gives the ceiling
+Nothing leaves gamut, so no call to [fitToSRGB]. [maxChromaAt] gives the ceiling
 and every step is below it by construction.
 
-A neutral has no hue to sweep: unitHue would read an angle out of the rounding and answer a
-scale in an invented hue, so the same cutoff the rotations gate on returns h repeated instead.
+A neutral has no hue to sweep. [unitHue] would read an angle out of the rounding and answer a scale
+in an invented hue, so this gates on the cutoff the rotations use and returns h repeated instead.
 */
 func tones(h Hex) []Hex {
 	out := make([]Hex, toneSteps)
@@ -92,7 +106,6 @@ func tones(h Hex) []Hex {
 		lightness, a, b = hexToOklab(h)
 	}
 
-	// A value ParseHex would reject leaves a and b at zero, so one gate covers it too.
 	if math.Hypot(a, b) < neutralChroma {
 		for i := range out {
 			out[i] = h

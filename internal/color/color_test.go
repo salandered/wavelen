@@ -9,7 +9,7 @@ import (
 
 var neutrals = []color.Hex{"#000000", "#696969", "#808080", "#d3d3d3", "#ffffff"}
 
-// Test only what ParseHex adds, not strvalid.
+// test only what ParseHex adds, not strvalid.
 func TestParseHexNormalizes(t *testing.T) {
 	got, err := color.ParseHex("  FF0000 ")
 
@@ -24,23 +24,25 @@ func TestParseHexRejectsMalformed(t *testing.T) {
 	require.Empty(t, got)
 }
 
-func TestHarmonyOfNeutralIsTheNeutral(t *testing.T) {
+func TestHarmonyOfNeutralIsNeutral(t *testing.T) {
 	for _, name := range color.HarmonyNames() {
 		if name == color.Ramp {
-			continue // the one harmony that answers a neutral with other neutrals
+			continue // ramp answers a neutral with other neutrals
 		}
-		t.Run(string(name), func(t *testing.T) {
-			for _, h := range neutrals {
-				for _, got := range name.Colors(h) {
-					require.Equal(t, h, got)
+		for _, space := range []color.Space{color.OKLab, color.HSL} {
+			t.Run(string(name)+"/"+string(space), func(t *testing.T) {
+				for _, h := range neutrals {
+					for _, got := range name.Colors(space, h) {
+						require.Equal(t, h, got)
+					}
 				}
-			}
-		})
+			})
+		}
 	}
 }
 
 func TestUnknownHarmonyHasNoColors(t *testing.T) {
-	require.Nil(t, color.Harmony("tetrad").Colors("#ff0000"))
+	require.Nil(t, color.Harmony("tetrad").Colors(color.OKLab, "#ff0000"))
 }
 
 func TestParseHarmonyAcceptsEveryType(t *testing.T) {
@@ -75,6 +77,6 @@ func TestHarmonyNamesAreUniqueAndApplyEach(t *testing.T) {
 	for _, name := range names {
 		require.False(t, seen[name], name)
 		seen[name] = true
-		require.NotEmpty(t, name.Colors("#ff0000"))
+		require.NotEmpty(t, name.Colors(color.OKLab, "#ff0000"))
 	}
 }

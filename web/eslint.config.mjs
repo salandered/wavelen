@@ -2,8 +2,8 @@ import js from "@eslint/js";
 import globals from "globals";
 import { defineConfig } from "eslint/config";
 
-// app.js and lib.js are ES modules, loaded by the one <script type="module"> in index.html. The
-// inline script in index.html is not linted, eslint reads no HTML.
+// app.js and lib.js are ES modules, loaded by the one <script type="module"> in index.html.
+// The inline script in index.html is not linted, eslint reads no HTML.
 export default defineConfig([
 	{
 		files: ["app.js", "lib.js"],

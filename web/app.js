@@ -1,11 +1,9 @@
 import { exportFilename, labelColor, parseHex, randomDigits, savedLabel } from "./lib.js";
 
-// Everything the page knows about the service is in api.yaml. The api binary embeds this page and
-// serves it beside the API, so the path is relative and no CORS header exists.
+// comes from the spec api.yaml.
 const API = "/api/v1";
 
-// "theme" is written by the inline script in <head> and stays a raw string. Everything read
-// through readStored below is JSON, so the two don't share a key.
+// "theme" stays a raw string and is not among these. Everything read through readStored is JSON.
 const DETAILS_KEY = "details_open";
 const ZEN_KEY = "zen";
 const DENSE_KEY = "dense";
@@ -18,8 +16,7 @@ const SELECTION_KEY = "selection";
 const $ = (id) => document.getElementById(id);
 
 // ---- browser storage ----
-// Optional everywhere: a private window or blocked site data leaves the page working without
-// preferences.
+// Every key is optional, see web-wavelen-context.md "Storage".
 
 function readStored(key, fallback) {
 	try {
@@ -30,8 +27,7 @@ function readStored(key, fallback) {
 	}
 }
 
-// A stored JSON object, or {} for anything else in the key. Two callers keep a map under one key,
-// and a hand-edited value is dropped here rather than hit later.
+// A stored JSON object, or {} for anything else in the key. Two callers keep a map under one key.
 function readStoredObject(key) {
 	const stored = readStored(key, null);
 	const usable = stored !== null && typeof stored === "object" && !Array.isArray(stored);
@@ -42,25 +38,27 @@ function writeStored(key, value) {
 	try {
 		localStorage.setItem(key, JSON.stringify(value));
 	} catch {
-		// nothing to do, the preference doesn't survive the reload
+		// nothing, the preference doesn't survive the reload
 	}
 }
 
 // ---- session ----
-// The session: the token and its expiry from POST /tokens, the nickname from GET /me, and the id
-// of the collection the saved grid is showing. The last two are stored rather than re-fetched, so
-// a reload renders without a request.
+// The session:
+// - token and its expiry from POST /tokens
+// - nickname from GET /me
+// - id of the collection the saved grid is showing.
+// The last two are stored (not re-fetched) => a reload renders without a request.
 //
-// They are safe stale: the id is checked against the list before it is used, and the nickname is a
-// caption plus the word compared against what was typed into a field the account's owner is
-// looking at.
+// They are safe stale. The id is checked against the list before it is used.
+// The nickname has two uses:
+// the caption in the Account panel, the word the delete dialog checks the typed name against.
 //
-// See web-wavelen-context.md, "Storage", for why the token is in localStorage.
+// See web-wavelen-context.md "Storage".
 
 let session = null;
 
-// An expired session is dropped rather than sent, which only saves the doomed request. The 401
-// handling in request() is the actual check.
+// An expired session is dropped rather than sent, which only saves a request
+// that would answer 401. The 401 handling in request() is the actual check.
 //
 // The collection id is not validated here: pickCollection compares it against the list the account
 // has, so anything else in the key falls through to the default.
@@ -81,7 +79,7 @@ function loadSession() {
 
 function startSession(token, expiry) {
 	session = { token, expiry };
-	resetCollections(); // the previous account's list and active id belong to nothing now
+	resetCollections(); // previous account's list and active id belong to nothing now
 	writeStored(SESSION_KEY, session);
 	renderSession();
 }
@@ -94,8 +92,10 @@ function setSessionNickname(nickname) {
 	renderSession();
 }
 
-// A session whose GET /me never landed has a token and no nickname, and stays usable. The caption
-// renders without one, so the delete dialog, which cannot, asks for it.
+// A session whose GET /me did not land has a token and no nickname, and stays usable.
+// The caption renders without a nickname.
+// The delete dialog can't do that (it checks the typed name), so it fetches a nickname.
+
 async function sessionNickname() {
 	if (typeof session?.nickname === "string" && session.nickname !== "") {
 		return session.nickname;
@@ -105,8 +105,8 @@ async function sessionNickname() {
 	return data.user.nickname;
 }
 
-// Local only. Revoking is the caller's business: logout does it, an expiry or a 401 means it is
-// already done.
+// Local only.
+// Revoking is left to the caller: logout does it, an expiry or a 401 means it is already done.
 function endSession() {
 	session = null;
 	resetCollections();
@@ -116,11 +116,11 @@ function endSession() {
 
 // ---- requests ----
 
-// Errors come back as {"error": "..."}, but a proxy or a panic can still produce a non-JSON body
-// with an error status, so the body is read as text and parsed opportunistically.
+// Errors come back as {"error": "..."}, but proxy or panic can produce a non-JSON body
+// with an error status. So we read the body as text and then try to parse.
 //
-// The token goes on every request once there is one, public paths included. They ignore it, and
-// one rule here beats a flag at each call site.
+// The token goes on every request when there is one, public paths included.
+// A public path ignores it, so there is one rule here, not a list.
 async function call(method, path, body) {
 	const options = { method, headers: {} };
 	if (session !== null) {
@@ -140,9 +140,9 @@ async function call(method, path, body) {
 		// leaves data null, the raw text is what the error below reports
 	}
 
-	// There is no refresh, so a 401 with a token in hand means that token is finished: expired, or
-	// revoked here or from another tab. Going back to logged out beats leaving controls that
-	// answer 401 on every click.
+	// There is no refresh, a 401 with a token in hand means that token is finished:
+	// expired, or revoked here or from another tab.
+	// Going back to logged out.
 	if (res.status === 401 && session !== null) {
 		endSession();
 	}
@@ -163,7 +163,7 @@ const logEntries = [];
 // The bulk run uses it to rewrite one line rather than fill the panel with its progress.
 function pushLog(message, { failed = false, transient = false } = {}) {
 	if (message === "") {
-		return; // nothing happened, and an empty entry would push a real one out of the panel
+		return; // nothing happened
 	}
 	if (logEntries[0]?.transient) {
 		logEntries.shift();
@@ -196,7 +196,7 @@ function setProgress(message) {
 	pushLog(message, { transient: true });
 }
 
-// /me/... resolves the user from the token server-side, so this only stops a logged out click from
+// /me/... resolves the user from the token server-side. This stops a logged out click from
 // sending a request that could only answer 401.
 function requireSession() {
 	if (session === null) {
@@ -207,9 +207,9 @@ function requireSession() {
 }
 
 // ---- collections ----
-// Every saved-colors path carries a collection id, so the page asks GET /me/collections for one.
+// Every saved-colors path carries a collection id, so the page reads GET /me/collections for it.
 // The list is fetched once per session and kept, so a create or a delete edits the local copy
-// rather than re-asking. See web-wavelen-context.md, "Collections".
+// (not re-fetching). See web-wavelen-context.md "Collections".
 
 let collections = [];
 let activeCollection = null;
@@ -219,7 +219,7 @@ let collectionsRequest = null;
 
 function ensureCollections() {
 	collectionsRequest ??= loadCollections().catch((err) => {
-		// cleared, so the next click asks again instead of replaying the failure
+		// cleared, the next click retries instead of replaying the failure
 		collectionsRequest = null;
 		renderEmpty($("collections"), err.message);
 		throw err;
@@ -234,7 +234,7 @@ async function loadCollections() {
 	renderCollections();
 }
 
-// The stored one if the account still has it, else the default, else the oldest, else null.
+// The stored one if the account still has it (or default or oldest or null).
 function pickCollection(preferred) {
 	const found =
 		collections.find((c) => c.id === preferred)
@@ -257,7 +257,7 @@ async function savedColorsPath() {
 }
 
 // The id goes in the session, not under a preference key: it names a row only this account owns,
-// so it has to die when the session does.
+// so it has to die when the session dies.
 function setActiveCollection(id) {
 	activeCollection = id;
 	session = { ...session, collection: id };
@@ -265,8 +265,8 @@ function setActiveCollection(id) {
 	renderCollections();
 }
 
-// Switching invalidates the cursor, which was minted against the rows of the collection being
-// left. loadSaved without append drops it.
+// Switching collections invalidates the cursor because it belongs to the old collection.
+// A non-appended load clears it.
 function selectCollection(id) {
 	if (id === activeCollection) {
 		return;
@@ -276,8 +276,8 @@ function selectCollection(id) {
 	loadSaved();
 }
 
-// The next login unhides the section before its own request lands, which would otherwise show one
-// account the previous one's list.
+// The next login unhides the section before its request completes.
+// Clear the old list so it cannot appear under the new account.
 function resetCollections() {
 	collections = [];
 	activeCollection = null;
@@ -286,24 +286,21 @@ function resetCollections() {
 }
 
 // ---- collection icons ----
-// The set is the sprite in index.html and nowhere else on this page: the picker is built by reading
-// the symbol ids back out. The server holds the same list in internal/icon and answers 400 for a
-// slug outside it.
+// The picker uses the symbols defined in index.html.
+// The server keeps the same list in internal/icon and rejects unknown slugs with 400.
 const DEF_ICON = "square";
-const DEF_ACCENT = "#808080";
 
 let selectedIcon = DEF_ICON;
 
-// i- only: the sprite also holds ui- glyphs the page uses for itself, and internal/icon answers
-// 400 for a slug it does not have.
+// 'i-' only: the sprite also holds 'ui-' glyphs the page uses for itself.
 function iconNames() {
 	return [...document.querySelectorAll("#icon-sprite symbol[id^='i-']")].map((symbol) =>
 		symbol.id.replace(/^i-/, ""),
 	);
 }
 
-// An <svg> is not an HTML element, so it and its <use> are created in the SVG namespace or the
-// browser parses them as unknown tags and draws nothing.
+// Create SVG elements in the SVG namespace.
+// Otherwise the browser treats them as unknown HTML elements and renders nothing.
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 function spriteSvg(id, className) {
@@ -351,8 +348,8 @@ function selectIcon(name) {
 	renderIconChoice();
 }
 
-// Both the trigger and the grid carry the accent, so the glyphs are compared in the color a create
-// at this moment would use.
+// Apply the current accent to both the trigger and the grid.
+// This previews the color a newly created collection would get.
 function renderIconChoice() {
 	const accent = $("collection-accent").value;
 	$("icon-picker").style.color = accent;
@@ -368,8 +365,8 @@ function renderIconChoice() {
 	$("icon-trigger").setAttribute("aria-label", `collection icon: ${selectedIcon}`);
 }
 
-// aria-expanded is the only record of whether the menu is up. The [hidden] rule turns `hidden`
-// into display:none, so the grid can declare a display of its own.
+// aria-expanded is the source of truth for the menu state.
+// [hidden] hides the grid when it is closed, while CSS controls its display when open.
 function openIconMenu(open) {
 	$("icon-trigger").setAttribute("aria-expanded", String(open));
 	$("icon-picker").hidden = !open;
@@ -379,10 +376,8 @@ function iconMenuOpen() {
 	return $("icon-trigger").getAttribute("aria-expanded") === "true";
 }
 
-// One tab per collection, and the tab only selects: the delete is the trash in the listing row,
-// beside the eraser, and both act on the active one. The default is not marked on its tab; its
-// title says so, and the trash is disabled while it is the active one, since the server refuses
-// that delete with a 409.
+// One tab per collection, and the tab only selects.
+// The trash is disabled while the default is the active one (server would refuse).
 function renderCollections() {
 	const active = collections.find((c) => c.id === activeCollection);
 	$("collection-delete").disabled = active === undefined || active.is_default;
@@ -404,9 +399,8 @@ function renderCollections() {
 			name.title = col.id === activeCollection ? showing : `show ${col.name}`;
 			name.addEventListener("click", () => selectCollection(col.id));
 
-			// an account made before the icon existed has neither field, so both fall back
-			const glyph = iconSvg(col.icon ?? DEF_ICON, "icon collection-icon");
-			glyph.style.color = col.accent ?? DEF_ACCENT;
+			const glyph = iconSvg(col.icon, "icon collection-icon");
+			glyph.style.color = col.accent;
 			const text = document.createElement("span");
 			text.className = "name";
 			text.textContent = col.name;
@@ -417,9 +411,8 @@ function renderCollections() {
 	);
 }
 
-// One of the two controls that destroy rows the page is not showing: the delete cascades to the
-// colors and there is no account recovery. Hence the confirm, which deleting a swatch does not get.
-// It takes the active collection, the one the grid is showing, so what goes is on screen.
+// Confirm before deleting the active collection.
+// The active collection is the one currently shown in the grid.
 async function deleteCollection() {
 	if (!requireSession()) {
 		return;
@@ -427,7 +420,7 @@ async function deleteCollection() {
 	await ensureCollections();
 	const col = collections.find((c) => c.id === activeCollection);
 	if (col === undefined || col.is_default) {
-		return; // the button is disabled in both cases, see renderCollections
+		return; // button is disabled in both cases, see renderCollections
 	}
 	if (!confirm(`delete ${col.name} and every color in it?`)) {
 		return;
@@ -436,7 +429,7 @@ async function deleteCollection() {
 		await call("DELETE", `/me/collections/${col.id}`);
 		collections = collections.filter((c) => c.id !== col.id);
 		setStatus(`deleted ${col.name}`);
-		// the grid is showing a collection that no longer exists
+		// grid is showing a collection that no longer exists
 		setActiveCollection(pickCollection(null));
 		await loadSaved();
 	} catch (err) {
@@ -444,14 +437,13 @@ async function deleteCollection() {
 	}
 }
 
-// The other one: the collection pages, so what goes includes colors no grid on screen has. The
-// collection itself stays, which is the whole difference between this and the delete above.
+// The collection itself stays here.
 async function emptyCollection() {
 	if (!requireSession()) {
 		return;
 	}
 
-	// resolved before the question, so the name in it is the collection the request will hit
+	// resolved before the question
 	let path;
 	try {
 		path = await savedColorsPath();
@@ -475,7 +467,7 @@ async function emptyCollection() {
 
 // The list is ordered oldest first, which is where a new row belongs.
 async function createCollection(name, icon, accent) {
-	await ensureCollections(); // the row goes onto a list, so there has to be one
+	await ensureCollections();
 	const { data } = await call("POST", "/me/collections", { name, icon, accent });
 	collections.push(data.collection);
 	setStatus(`${data.collection.name} created`);
@@ -484,8 +476,9 @@ async function createCollection(name, icon, accent) {
 
 // ---- swatches ----
 
-// The selection: one hex and one caption, either a palette name or a saved timestamp. Marks the
-// swatch in both grids and fills the aside. Dropped as soon as the hex field says something else.
+// The selection contains a hex value and a label.
+// It marks matching swatches and fills the detail panel.
+// Clear it when the hex field no longer matches.
 let selectedHex = null;
 let selectedLabel = "";
 
@@ -495,11 +488,11 @@ let selectedLabel = "";
 const DEF_SELECTION = { hex: "#bf15a3", name: "title" };
 
 // The selection survives a reload, so the page comes back on the color that was being looked at
-// rather than on the title's tint. A hex that no longer parses falls through to DEF_SELECTION, the
-// way a stored control outside CONTROL_VALUES does.
+// rather than on the title's tint. A hex that no longer parses falls through to DEF_SELECTION
+// (similar to a stored control outside CONTROL_VALUES).
 //
 // A dropped selection is stored as null and opens on DEF_SELECTION too: restoring the empty state
-// would put the three blank panels back, which is what DEF_SELECTION exists to avoid.
+// would put the three blank panels back, DEF_SELECTION exists to avoid that.
 function storedSelection() {
 	const stored = readStoredObject(SELECTION_KEY);
 	const hex = typeof stored.hex === "string" ? parseHex(stored.hex) : null;
@@ -539,9 +532,9 @@ function swatch(hex, label) {
 // They mirror the selection, so each lands on a color chosen anywhere else and can nudge it.
 const HEX_INPUTS = ["pick", "add-pick", "hex"];
 
-// A producer already holds the value, so it writes the others and not itself: a write into a
-// picker while its dialog is open fights the dialog for the value, and a write into the field
-// moves the caret. Passing no id writes all three, which is what a swatch or a button wants.
+// Update every input except the one that produced the value.
+// Writing back into it would fight an open picker dialog, or move the caret in the field.
+// With no source id, update all three inputs.
 function writeHexInputs(hex, from) {
 	for (const id of HEX_INPUTS) {
 		if (id !== from) {
@@ -550,7 +543,7 @@ function writeHexInputs(hex, from) {
 	}
 }
 
-// Swatches, the random button and a paste: none of them is one of the inputs, so all three follow.
+// Swatches, the random button and a paste: none of them is one of the inputs, all three follow.
 function selectColor(hex, label) {
 	writeHexInputs(hex);
 	commitSelection(hex, label);
@@ -575,23 +568,24 @@ function clearSelection() {
 	selectionChanged();
 }
 
-// Both aside panels show the selected color, so nothing moves only one of them.
+// Both detail panels depend on the same selection, so update them together.
 function selectionChanged() {
 	markSelected();
 	renderDetail();
 	$("pick").disabled = selectedHex === null;
 
-	// every producer ends here, so this is the one place the reload has to read back
+	// this is the one place the reload has to read back (every producer ends here)
 	const stored = selectedHex === null ? null : { hex: selectedHex, name: selectedLabel };
 	writeStored(SELECTION_KEY, stored);
 
-	// a strip built for the previous color would be wrong, so every pinned one follows the
-	// selection or empties with it
+	// every pinned strip follows the selection or empties with it (one built for the previous
+	// color would be wrong)
 	showStrips();
 }
 
-// A saved swatch carries a delete control, a palette one does not. Siblings inside a cell, not one
-// inside the other: the cell is what the grid lays out and what the hover rule keys off.
+// Saved swatches also have a delete button; palette swatches do not.
+// Keep the swatch and delete button as siblings inside the cell.
+// The grid and hover styles are applied to the cell.
 function savedSwatch(hex, label) {
 	const cell = document.createElement("div");
 	cell.className = "cell";
@@ -600,7 +594,7 @@ function savedSwatch(hex, label) {
 	remove.type = "button";
 	remove.className = "remove";
 	remove.textContent = "×";
-	remove.style.color = labelColor(hex); // it sits on the color, like the hex does
+	remove.style.color = labelColor(hex); // it sits on the color, like the hex
 	remove.title = `delete ${hex}`;
 	remove.setAttribute("aria-label", `delete ${hex}`);
 	remove.addEventListener("click", () => deleteColor(hex, cell, remove));
@@ -609,10 +603,9 @@ function savedSwatch(hex, label) {
 	return cell;
 }
 
-// The path takes the six digits bare: api.yaml rejects a '#' however it is escaped, and an
-// unescaped one would be a fragment and never leave the browser.
+// The path takes the six digits: api.yaml rejects a '#' (even if escaped).
 //
-// The cell is dropped rather than the list reloaded, since a reload would drop every appended page.
+// The cell is dropped rather than the list reloaded (a reload would drop every appended page).
 // The cursor survives a delete: it is a value compared against, not a reference to a row.
 async function deleteColor(hex, cell, button) {
 	if (!requireSession()) {
@@ -639,8 +632,8 @@ function renderEmpty(container, message) {
 	container.replaceChildren(p);
 }
 
-// The click is the user gesture the Fullscreen API needs, but an iframe without allowfullscreen or
-// a browser policy can still refuse. A refusal breaks nothing, so it is only reported.
+// Every full screen path comes through here, see web-wavelen-context.md "Full screen".
+// An iframe without allowfullscreen or a browser policy can refuse.
 async function toggleFullscreen(el) {
 	try {
 		if (document.fullscreenElement === null) {
@@ -653,10 +646,8 @@ async function toggleFullscreen(el) {
 	}
 }
 
-// The same toggle, from the button that was pressed. A press that ends full screen gives the page
-// back at once, so the dip comes off before it plays: the button is under the pointer when the
-// page returns, and a color dipping there reads as a swatch that was just picked. The delegated
-// listener runs in the capture phase, so the class is already on the button here.
+// Use the button that was pressed.
+// The delegated capture listener has already added the "pressed" class, so remove it before toggling.
 function toggleFullscreenFrom(button, el) {
 	if (document.fullscreenElement !== null) {
 		button.classList.remove("pressed");
@@ -665,9 +656,9 @@ function toggleFullscreenFrom(button, el) {
 }
 
 // navigator.clipboard exists only in a secure context, so over plain http the property is missing
-// and reading through it throws. In an async function that is a rejection like any other.
-// The dip on a press is on every button, so a copy needs none of its own. The log line is what
-// separates a copy that failed from one that went through.
+// and reading through it throws. In an async function that is a rejection.
+// The dip on a press is on every button, so a copy needs none of its own.
+// The log line separates a copy that failed from one that went through.
 async function copyHex(hex) {
 	try {
 		await navigator.clipboard.writeText(hex);
@@ -677,9 +668,9 @@ async function copyHex(hex) {
 	}
 }
 
-// The read is a permission in some browsers and the property is missing outside a secure context,
-// which is a rejection like any other. A clipboard that is not a hex says so rather than landing
-// in the field: the field would clear the selection, and the button would look like it did nothing.
+// Clipboard access may fail due to permissions or an insecure context.
+// Report invalid clipboard contents instead of putting them in the field.
+// Otherwise the field would clear the current selection without giving useful feedback.
 async function pasteHex() {
 	let text;
 	try {
@@ -740,8 +731,8 @@ function renderDetail() {
 // is a selection, the same as a swatch click. The one in the Picker panel is a scratch pad and
 // touches nothing else on the page.
 //
-// A drag reports every color it passes through, and with a harmony on screen each selection is a
-// request. So the selection waits for the drag to go quiet.
+// A color picker emits many values during a drag.
+// Harmony changes trigger requests, so wait until the drag pauses before committing the selection.
 const PICK_QUIET = 200;
 
 let pickTimer = null;
@@ -750,9 +741,8 @@ let pickTimer = null;
 // one to commit.
 function initPicker() {
 	for (const id of ["pick", "add-pick"]) {
-		// input reports each step of a drag, change the committed value. Which of them a browser
-		// sends and how often varies, so both schedule the same commit and the timer collapses the
-		// gesture.
+		// Browsers differ in how they emit input and change events during a drag.
+		// Treat both events the same and use one timer to collapse the gesture into a single commit.
 		for (const type of ["input", "change"]) {
 			$(id).addEventListener(type, () => {
 				clearTimeout(pickTimer);
@@ -777,36 +767,40 @@ function initScratch() {
 
 // ---- derived strips ----
 
-// The names the API derives from one color, in its own order out of color.HarmonyNames. One
+// The API derives these names from one color, in its own order out of color.HarmonyNames. One
 // endpoint answers for all of them in one shape, so one loader draws any of them. Each name is the
 // suffix of its pin's id and of the div its strip lands in.
 const DERIVED = ["complement", "split-complement", "triad", "analogous", "square", "ramp", "tones"];
 
-// The rotations lead their strip with the selection, since the pairing is the point. A scale is
-// seven points on an axis and the selection is not one of them, so a band for it would sit at the
-// head reading as a step out of order.
+// Rotations include the selected color as their first band.
+// Scales contain seven axis values and do not include the selected color.
+// Adding it would make the scale appear out of order.
 const LEADING = new Set(["complement", "split-complement", "triad", "analogous", "square"]);
 
-// The axis a scale sweeps, which its name does not say. The pin and the strip's own label both
+// A scale sweeps an axis, and its name leaves that out. The pin and the strip's own label both
 // carry it as a title.
 const AXIS = {
 	ramp: "lightness, dark to light",
 	tones: "chroma, the gray of this lightness to the full color",
 };
 
-// What the page opens on, which is what it showed before the pins: one rotation and both scales.
+// The page opens on one rotation and both scales, the set it showed before the pins.
 const DEF_PINNED = ["complement", "ramp", "tones"];
 
-// Each strip on screen keeps the bands it was built from, by name: { hex, bands }. The hex is what
-// lets a pin come back without a request, and what keeps an older selection's colors off the page
-// and out of an add.
+function harmonySpace() {
+	return readControl("space");
+}
+
+// Cache each strip as { hex, space, bands }.
+// Reuse it when the selection and color space have not changed.
+// This also prevents stale bands from appearing or being added.
 const stripColors = {};
 
 // Same guard as loadSaved, one number for the whole section: the pins stay live while a request is
 // out, so an earlier response landing later must not replace a fresher strip.
 let stripGeneration = 0;
 
-// A closed section asks for nothing. What it missed while closed is what it loads when it opens.
+// A closed section sends no request. Opening it loads what it missed.
 let stripsStale = false;
 
 // The pinned names, in DERIVED order: the strips read top to bottom the way the pins read
@@ -826,9 +820,8 @@ function togglePin(name) {
 	applyPinned(pinned.includes(name) ? pinned.filter((other) => other !== name) : [...pinned, name]);
 }
 
-// A block per pinned name, built here rather than declared in the markup: which of them are on is
-// the user's. Every block is the same label, buttons and strip, so a scale is built like a
-// rotation.
+// Build one block for each pinned harmony.
+// The same structure works for both rotations and scales.
 function renderStrips() {
 	if (pinned.length === 0) {
 		renderEmpty($("strips"), "nothing pinned");
@@ -889,8 +882,8 @@ function iconButton(symbol, label, onClick) {
 	return button;
 }
 
-// A pin whose bands were derived from the color already selected is drawn from memory: the request
-// would answer what stripColors holds.
+// stripColors keeps the last bands drawn for each pin. A pin is redrawn from them without a
+// request when both selection and wheel hasn't changed.
 function showStrips() {
 	if (!$("harmony-section").open) {
 		stripsStale = true;
@@ -899,28 +892,32 @@ function showStrips() {
 	stripsStale = false;
 
 	const generation = ++stripGeneration;
+	const space = harmonySpace();
 	for (const name of pinned) {
 		if (selectedHex === null) {
 			delete stripColors[name];
 			drawStrip(name, null);
-		} else if (stripColors[name]?.hex === selectedHex) {
+		} else if (stripColors[name]?.hex === selectedHex && stripColors[name].space === space) {
 			drawStrip(name, stripColors[name].bands);
 		} else {
-			loadStrip(name, selectedHex, generation);
+			loadStrip(name, selectedHex, space, generation);
 		}
 	}
 }
 
-async function loadStrip(name, hex, generation) {
+async function loadStrip(name, hex, space, generation) {
 	try {
+		// A rotation names its wheel even when it is the server's default: the bare URL is cached
+		// immutable and has already meant two wheels. A scale holds the hue and keeps that URL.
+		const wheel = LEADING.has(name) ? `?space=${space}` : "";
 		// bare six digits in the path, same rule as the delete above
-		const { data } = await call("GET", `/colors/${hex.slice(1)}/${name}`);
+		const { data } = await call("GET", `/colors/${hex.slice(1)}/${name}${wheel}`);
 		if (generation !== stripGeneration) {
-			return; // a later selection owns the section now
+			return; // a newer selection is current
 		}
 		// the answer is the normalized hex asked about, the name, and the colors it derives
 		const bands = LEADING.has(name) ? [data.hex, ...data.colors] : data.colors;
-		stripColors[name] = { hex, bands };
+		stripColors[name] = { hex, space, bands };
 		drawStrip(name, bands);
 	} catch (err) {
 		if (generation !== stripGeneration) {
@@ -932,9 +929,8 @@ async function loadStrip(name, hex, generation) {
 	}
 }
 
-// A band selects, the way a swatch does, so a step can be picked up and worked on. The block's own
-// button is what sends the strip full screen. A strip already on the page is refilled rather than
-// rebuilt, see fillStrip.
+// A band selects (same as swatch), so a step can be picked up and worked on.
+// A strip already on the page is refilled (not rebuilt), see fillStrip.
 function drawStrip(name, bands) {
 	const target = $(`strip-${name}`);
 	if (target === null) {
@@ -953,8 +949,7 @@ function drawStrip(name, bands) {
 	fillStrip(strip, bands, onBand);
 }
 
-// The strip is already on the page, so it goes full screen where it stands. The saved grid has to
-// build one first, since a grid of cells is not a strip.
+// The strip is already on the page, so it goes full screen where it stands.
 function showStripFullscreen(name) {
 	const strip = $(`strip-${name}`)?.querySelector(".harmony") ?? null;
 	if (strip === null) {
@@ -964,9 +959,9 @@ function showStripFullscreen(name) {
 	toggleFullscreen(strip);
 }
 
-// The bands on screen, the leading selection included: the button sits over the strip, so what it
-// adds is what the strip shows. A band the collection already holds answers 200 rather than 201, so
-// created counts what was new, the same shape the bulk run reports.
+// Add exactly the bands currently shown in the strip, including the selected color.
+// 200 means the color already existed; 201 means it was newly created.
+// => 'created' counts only new colors.
 async function addStrip(name, button) {
 	if (!requireSession()) {
 		return;
@@ -1012,8 +1007,7 @@ async function addStrip(name, button) {
 	await loadSaved();
 }
 
-// The saved grid as the same strip, straight to full screen. It is the swatches on screen, pages
-// loaded so far in their sort order, so what goes full screen is what the grid shows.
+// Built from the swatches on screen, so what goes up is what the grid shows.
 function showSavedFullscreen() {
 	const hexes = [...document.querySelectorAll("#saved .swatch")].map((el) => el.dataset.hex);
 	if (hexes.length === 0) {
@@ -1023,14 +1017,9 @@ function showSavedFullscreen() {
 	showOffstage(buildStrip(hexes));
 }
 
-// The palette full screen: the grid on screen, cloned. A strip of bands has nowhere to put a
-// name, and the name is what a palette cell is for. The clone drops the listeners with it, so a
-// swatch there selects nothing and a click only leaves, the way a band does.
-//
-// Dense whatever the toggle says, unlike the saved strip, which is the swatches on screen. The
-// roomy track is 9rem cells against a 49.5rem column, and a screen takes eight of those across:
-// 100 colors then want thirteen rows, and a row is too short for the two lines a cell holds. Ten
-// across is the count that puts the whole set on one screen with room for the names.
+// Show the palette as a grid, using a clone of the current grid.
+// Full-screen mode is always dense.
+// See web-wavelen-context.md "Full screen".
 function showPaletteFullscreen() {
 	const grid = $("palette");
 	if (grid.querySelector(".swatch") === null) {
@@ -1041,9 +1030,8 @@ function showPaletteFullscreen() {
 	copy.classList.add("dense");
 	copy.removeAttribute("id"); // two of an id, and $("palette") could answer with this one
 
-	// Inert, like the listeners the clone dropped. "use #xxxxxx" names something a click there
-	// does not do, and the selection is a mark on the page, not on a screen of colors - without
-	// the hex a later markSelected cannot put the ring back either.
+	// Inert, like the listeners the clone dropped. Dropping data-hex is deliberate: it keeps a
+	// later markSelected off these cells.
 	for (const el of copy.querySelectorAll(".swatch")) {
 		el.classList.remove("selected");
 		el.removeAttribute("title");
@@ -1059,12 +1047,12 @@ function showPaletteFullscreen() {
 }
 
 // An element that is on the page only to be full screen: off stage in <body> while it is up, and
-// gone when it comes down. Neither the saved strip nor the palette copy has a block of its own.
+// gone when it comes down.
 async function showOffstage(el) {
 	el.classList.add("offstage");
 	document.body.append(el);
 
-	// leaving full screen, by Escape or by a click inside, is when the element goes
+	// leaving full screen - by Esc or by a click inside
 	document.addEventListener("fullscreenchange", function onLeave() {
 		if (document.fullscreenElement === null) {
 			document.removeEventListener("fullscreenchange", onLeave);
@@ -1079,9 +1067,8 @@ async function showOffstage(el) {
 	}
 }
 
-// A band click toggles full screen by default, which is what the saved grid's off-stage strip
-// needs: it has no block to carry a button. A caller that passes onBand takes the click instead
-// and carries its own button, see drawStrip.
+// Without onBand a band click toggles full screen.
+// A caller that passes one takes the click instead, see drawStrip.
 function buildStrip(hexes, onBand) {
 	const strip = document.createElement("div");
 	strip.className = "harmony";
@@ -1092,9 +1079,11 @@ function buildStrip(hexes, onBand) {
 /*
 The colors of a strip that is already up, onto the bands it already has. A band clicked to select
 reloads every pinned strip, and a rebuilt one takes that band off the page while its press dip is
-still playing, so the band count is matched and the rest is written over what is there. A strip
-keeps its count across a selection (a triad stays three), so the loops below are the edges: a
-first fill, and the saved grid's strip, which is a page of swatches and can be any length.
+still playing. So the band count is matched and the rest is written over what is there.
+
+A strip keeps its count across a selection (a triad stays three). So the loops below are the
+edges: a first fill, and the saved grid's strip, which is a page of swatches and can be any
+length.
 */
 function fillStrip(strip, hexes, onBand) {
 	while (strip.children.length > hexes.length) {
@@ -1130,13 +1119,12 @@ function buildBand(strip, onBand) {
 	block.type = "button";
 	block.className = "band-color";
 	if (onBand === undefined) {
-		// no title: this strip is built off stage and goes straight up, so the tip would only
-		// ever be read over a screen the click leaves
+		// no title: built off stage, so there is no page to read a tip on
 		block.addEventListener("click", () => toggleFullscreenFrom(block, strip));
 	} else {
 		block.addEventListener("click", () => {
-			// full screen is the strip itself, so a band in it only leaves: the selection stays
-			// where it was. A refill cannot end it the way a rebuilt strip did, see fillStrip.
+			// full screen is the strip itself, so a band in it only leaves. The exit is explicit
+			// here because a refill keeps the strip on the page, see fillStrip.
 			if (document.fullscreenElement === strip) {
 				toggleFullscreenFrom(block, strip);
 				return;
@@ -1187,14 +1175,14 @@ async function loadPalette() {
 	}
 }
 
-// The cursor for the next page of the saved list, or null at the end. It carries the sort and the
-// order it was minted under, so the API rejects it once either changes. It carries no user, so
-// endSession drops it by hand.
+// Cursor for the next saved-colors page, or null at the end.
+// It is tied to the sort and order used to create it.
+// It is not tied to a user, so clear it explicitly on logout.
 let nextCursor = null;
 
-// loadSaved can be in flight more than once, since the controls stay live while a request is out.
-// Each call takes the next number and only touches the grid while its number is still current, so
-// a request that started earlier and landed later cannot overwrite a fresher one.
+// Multiple loadSaved calls can overlap.
+// Each call gets a generation number and updates the grid only if it is still current.
+// This prevents an older response from overwriting a newer one.
 let savedGeneration = 0;
 
 // The button is the only way to page, so hiding it is the end-of-list signal.
@@ -1222,13 +1210,13 @@ async function loadSaved({ append = false } = {}) {
 	const cursor = append ? nextCursor : null;
 	const generation = ++savedGeneration;
 
-	// nextCursor holds until the response replaces it, so a second click while this one is out
-	// would send it again and append the same page twice
+	// Keep the current cursor until the request completes.
+	// Without disabling the button, a second click could request the same page twice.
 	$("load-more").disabled = true;
 	try {
 		const { data } = await call("GET", `${await savedColorsPath()}?${savedQuery(cursor)}`);
 		if (generation !== savedGeneration) {
-			return; // a later load owns the grid now
+			return; // a newer load is current
 		}
 		const swatches = data.colors.map((c) => savedSwatch(c.hex, savedLabel(new Date(c.created_at))));
 
@@ -1259,8 +1247,8 @@ async function loadSaved({ append = false } = {}) {
 
 // ---- random values ----
 // ---- bulk add ----
-// Dev only. There is no bulk endpoint: these are ordinary POSTs, a few in flight at a time. All at
-// once is a burst nothing else on this page produces, one at a time is a round trip each.
+// Dev only. The API has no bulk endpoint, so use ordinary POST requests.
+// Limit concurrency instead of sending all requests at once or waiting for each one sequentially.
 
 const BULK_COUNT = 10;
 const BULK_IN_FLIGHT = 8;
@@ -1325,12 +1313,12 @@ async function addRandomColors() {
 
 // ---- account ----
 
-// Both forms ask for a nickname and a password, so only one is on screen. The choice is not stored:
-// the dialog only opens logged out.
+// Login and signup use the same fields, only one form is shown at a time.
+// The selected tab is not persisted because the dialog only opens while logged out.
 const ACCOUNT_TABS = ["login", "signup"];
 
-// aria-selected is the record, and the CSS reads it: nothing else tracks which tab is up. With the
-// dialog open the focus follows into the form, since the tab was clicked to type there.
+// 'aria-selected' is the source of truth for the active tab.
+// When the dialog is open, focus moves into the selected form.
 function selectAccountTab(name) {
 	for (const tab of ACCOUNT_TABS) {
 		const selected = tab === name;
@@ -1357,9 +1345,11 @@ function showAccountError(message) {
 // Only Collections and Saved colors need a token. The palette and every harmony are public, so a
 // logged out visitor keeps a working page.
 function renderSession() {
-	$("logged-out").hidden = session !== null;
-	$("logged-in").hidden = session === null;
+	$("login-open").hidden = session !== null;
+	$("who").hidden = session === null;
 	$("saved-section").hidden = session === null;
+	// logout must not leave the menu standing over the next login's header
+	openAccountMenu(false);
 
 	if (session === null) {
 		// the cursor was minted for the session that just ended and carries no user of its own,
@@ -1370,13 +1360,24 @@ function renderSession() {
 		renderEmpty($("saved"), "nothing saved");
 		return;
 	}
+	// span, not button: the chip truncates its name
 	// empty while GET /me is in flight, and after it failed
-	$("who").textContent = session.nickname || "logged in";
+	$("who").querySelector(".name").textContent = session.nickname || "logged in";
 }
 
-// Two requests: the token, then the account it belongs to. GET /me is authenticated, so the session
-// has to exist before the stored nickname can be asked for, and the panel renders nameless until it
-// lands.
+// aria-expanded is the source of truth, the same as the icon menu.
+function openAccountMenu(open) {
+	$("who").setAttribute("aria-expanded", String(open));
+	$("account-drop").hidden = !open;
+}
+
+function accountMenuOpen() {
+	return $("who").getAttribute("aria-expanded") === "true";
+}
+
+// Login makes two requests: create the token, then fetch the account.
+// The session must exist before GET /me can run.
+// The account panel therefore renders without a nickname until that request completes.
 async function login(nickname, password) {
 	const { data } = await call("POST", "/tokens", { nickname, password });
 	startSession(data.token, data.expiry);
@@ -1403,7 +1404,7 @@ function currentTheme() {
 function renderThemeButton(theme) {
 	const next = theme === "dark" ? "light" : "dark";
 	$("theme").replaceChildren(iconSvg(next === "light" ? "sun" : "moon", "icon"));
-	$("theme").title = `${next} theme`;
+	$("theme").title = `${next} theme (L)`;
 	$("theme").setAttribute("aria-label", `switch to ${next} theme`);
 }
 
@@ -1422,7 +1423,7 @@ function applyZen(on) {
 	document.documentElement.classList.toggle("zen", on);
 	// the glyph names what a click does, as the two words it replaced did
 	$("zen").replaceChildren(spriteSvg(on ? "ui-eye" : "ui-eye-off", "icon"));
-	$("zen").title = "zen mode (z)";
+	$("zen").title = "zen mode (Z)";
 	$("zen").setAttribute("aria-pressed", String(on));
 	$("zen").setAttribute("aria-label", on ? "leave zen mode" : "zen mode");
 	writeStored(ZEN_KEY, on);
@@ -1450,15 +1451,17 @@ function denseOn(grid) {
 	return $(grid).classList.contains("dense");
 }
 
-// Every listing control and the values the API accepts, mirroring the markup. Anything not listed
-// is dropped when a stored preference is read, so a stale key cannot produce a 400. The order here
-// is the order a cycler steps through.
+// Allowed values for every listing control and the harmony color space.
+// These mirror the markup and the API.
+// Invalid stored values are ignored, so stale preferences cannot produce a 400.
+// The array order defines the cycle order.
 const CONTROL_VALUES = {
 	sort: ["created_at", "hex", "color"],
 	order: ["desc", "asc"],
 	limit: ["10", "20", "50", "100"],
 	"palette-sort": ["name", "hex", "color"],
 	"palette-order": ["asc", "desc"],
+	space: ["hsl", "oklab"],
 };
 
 // A label per value for the controls that are buttons rather than menus. Being listed here is what
@@ -1468,10 +1471,11 @@ const CYCLE_LABELS = {
 	order: { desc: "desc \u2193", asc: "asc \u2191" },
 	"palette-sort": { name: "name", hex: "hex", color: "color" },
 	"palette-order": { desc: "desc \u2193", asc: "asc \u2191" },
+	space: { hsl: "hsl", oklab: "oklab" },
 };
 
-// A click steps to the next value and wraps. The value lives in data-value, which is where the
-// query builders read it; the label only reports it.
+// Clicking advances to the next value and wraps at the end.
+// Store the value in data-value; the visible label only displays it.
 function initCycle(id, onChange) {
 	const el = $(id);
 	const values = CONTROL_VALUES[id];
@@ -1489,8 +1493,8 @@ function initCycle(id, onChange) {
 	render();
 }
 
-// A cycler keeps its value in data-value and a menu in .value. That is the only difference between
-// the two, and these three functions are where it lives.
+// Cyclers store their value in data-value; menus store it in .value.
+// These helpers hide that difference.
 function isCycle(id) {
 	return id in CYCLE_LABELS;
 }
@@ -1541,6 +1545,9 @@ function initCollapsibleSections() {
 		section.addEventListener("toggle", () => {
 			state[key] = section.open;
 			writeStored(DETAILS_KEY, state);
+		});
+		section.querySelector(":scope > summary").addEventListener("mousedown", (event) => {
+			event.preventDefault();
 		});
 	}
 }
@@ -1597,8 +1604,11 @@ $("title").addEventListener("click", () => {
 
 $("about-open").addEventListener("click", openAbout);
 
-$("theme").addEventListener("click", () => {
+$("theme").addEventListener("click", (event) => {
 	applyTheme(currentTheme() === "dark" ? "light" : "dark");
+	if (event.detail > 0) {
+		event.currentTarget.blur();
+	}
 });
 
 // detail > 0 is a pointer click. Blurred there, since a focused button takes a focus ring at the
@@ -1612,8 +1622,8 @@ $("zen").addEventListener("click", (event) => {
 
 /*
 	Z toggles it, the one key the page binds. Skipped while a field has the focus, so typing a hex
-	or a nickname is not a shortcut, and while a dialog is up, where the page behind the backdrop
-	is not what a key should reach. A modifier means the key belongs to the browser.
+	or a nickname is not a shortcut. Skipped while a dialog is up too: a key should not reach the
+	page behind the backdrop. A modifier means the key belongs to the browser.
 */
 document.addEventListener("keydown", (event) => {
 	if (event.key !== "z" && event.key !== "Z") {
@@ -1626,6 +1636,37 @@ document.addEventListener("keydown", (event) => {
 		return;
 	}
 	applyZen(!zenOn());
+});
+
+document.addEventListener("keydown", (event) => {
+	if (event.key !== "l" && event.key !== "L") {
+		return;
+	}
+	if (event.ctrlKey || event.metaKey || event.altKey) {
+		return;
+	}
+	if (event.target.closest("input, select, textarea, dialog") !== null) {
+		return;
+	}
+	applyTheme(currentTheme() === "dark" ? "light" : "dark");
+});
+
+document.addEventListener("keydown", (event) => {
+	if (event.key !== "d" && event.key !== "D") {
+		return;
+	}
+	if (event.ctrlKey || event.metaKey || event.altKey) {
+		return;
+	}
+	if (event.target.closest("input, select, textarea, dialog") !== null) {
+		return;
+	}
+	const grid = Object.keys(DENSE_GRIDS).find((name) =>
+		$(name).closest("details").matches(":hover"),
+	);
+	if (grid !== undefined) {
+		applyDense(grid, !denseOn(grid));
+	}
 });
 
 // A complete hex, typed or pasted, is a selection. Anything else clears it: a mark that does not
@@ -1676,7 +1717,6 @@ $("limit").addEventListener("change", () => {
 	loadSaved();
 });
 
-// the button, not the row around it: a click beside it is not a click on the control
 $("login-open").addEventListener("click", openAccount);
 
 // The dialog closes on the token, not on the nickname: GET /me is a second request, and the panel
@@ -1749,8 +1789,8 @@ $("logout").addEventListener("click", async () => {
 	}
 });
 
-// The nickname has to be in hand before the dialog opens, since it is what the field is checked
-// against, so a session stored before the nickname was kept spends a GET /me here.
+// The nickname has to be in hand before the dialog opens, since the field is checked against it.
+// A session stored before the nickname was kept spends a GET /me here.
 async function openDeleteAccount() {
 	if (!requireSession()) {
 		return;
@@ -1873,6 +1913,24 @@ document.addEventListener("keydown", (event) => {
 	}
 });
 
+$("who").addEventListener("click", () => openAccountMenu(!accountMenuOpen()));
+
+$("account-drop").addEventListener("click", () => openAccountMenu(false));
+
+// Same shape as the icon menu.
+document.addEventListener("click", (event) => {
+	if (accountMenuOpen() && event.target.closest(".account-menu") === null) {
+		openAccountMenu(false);
+	}
+});
+
+document.addEventListener("keydown", (event) => {
+	if (event.key === "Escape" && accountMenuOpen()) {
+		openAccountMenu(false);
+		$("who").focus();
+	}
+});
+
 // Adding is idempotent: 201 means it was new, 200 means the user already had it.
 $("add-form").addEventListener("submit", async (event) => {
 	event.preventDefault();
@@ -1911,6 +1969,12 @@ for (const id of ["palette-sort", "palette-order"]) {
 		loadPalette();
 	});
 }
+// The wheel changes what every rotation answers, so the strips reload. A closed section records
+// that it skipped this the way it does a selection.
+initCycle("space", () => {
+	rememberControls();
+	showStrips();
+});
 
 initPicker();
 initScratch(); // labels the hex button from the input's own value in the markup

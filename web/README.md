@@ -1,6 +1,6 @@
 # Wavelen web component
 
-_Web component is mostly written by AI agents._
+_Web component is mostly written using AI agents._
 
 ## Formatting
 
@@ -19,8 +19,8 @@ Run:
 
 ```sh
 cd web
-npm run format:check # reports
-npm run format       # rewrites
+npm run format:check  # reports
+npm run format        # rewrites
 ```
 
 ## Linting
@@ -48,14 +48,10 @@ npm test
 ## Icons
 
 The collection icons are the SVG sprite at the top of `web/index.html`.
+Those should be in sync with `internal/icon`.
 
-The set that is used for collection creation should be in sync with `internal/icon`.
-Adding a collection icon is a `<symbol>` in `web/index.html` and a slug in `internal/icon`.
+Several harmony icons are drawn for this page (circles with dots representing the degree).
 
-Some other icons are used for the UI as well.
-
-The five harmony icons, one per rotation, are drawn for this page: the color wheel with the
-hues that rotation picks marked on its rim. The ramp and tones pins carry their name only.
 Every other icon is from the Lucide toolkit.
 
 ### License

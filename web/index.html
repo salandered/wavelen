@@ -7,10 +7,9 @@
 		<link rel="icon" type="image/png" href="images/logo-mini.png" />
 
 		<!--
-		Not deferred and not in app.js: the attribute has to be stamped before the first paint,
-		or a stored theme that disagrees with the system one flashes on every load. It runs
-		before <body> exists, so the attribute goes on <html>.
-	-->
+			Apply the stored theme before the first paint to avoid a theme flash.
+			Run this before <body> exists, so the attribute is set on <html>.
+		-->
 		<script>
 			try {
 				const stored = localStorage.getItem("theme");
@@ -22,33 +21,30 @@
 			}
 		</script>
 
-		<!-- a module, so app.js can import lib.js. Modules are deferred, so the document exists
-		     when the script runs and it needs no load listener -->
+		<!-- Module script so app.js can import lib.js. Modules are deferred, so the document is ready. -->
 		<script type="module" src="/app.js"></script>
 		<link rel="stylesheet" href="/style.css" />
 	</head>
 
 	<body>
 		<!--
-		Every glyph the page draws. An i- symbol is a collection icon, and this is the only place
-		that set is written down for the page: app.js builds the picker by reading these ids back
-		out. Adding one is a <symbol> here, a slug in internal/icon and a value in the api.yaml
-		enum. A ui- symbol is one the page uses for itself, which the picker skips and internal/icon
-		does not hold.
+		Icon sprite used by the page.
 
-		The ui-h- symbols are drawn for this page and are under its own license. Every other
-		glyph below is Lucide.
+		'i-' symbols are collection icons. app.js builds the collection picker from them,
+		and internal/icon uses the same slugs.
+
+		'ui-' symbols are page controls and are excluded from the picker.
+		'ui-h-' symbols are custom harmony icons; the other UI icons come from Lucide.
 
 		Lucide 1.43.0, https://github.com/lucide-icons/lucide
 
 		ISC License, Copyright (c) 2026 Lucide Icons and Contributors, for every Lucide icon here
 		except clipboard, download, log-out, monitor, moon, music, plus, square, trash-2 and
-		circle-plus
-		(the notice lists it under the old name plus-circle). Those are derived from Feather and
-		carry the MIT License, Copyright (c) 2013-present Cole Bemis. 
+		circle-plus (the notice lists it under the old name plus-circle). Those are derived from
+		Feather and carry the MIT License, Copyright (c) 2013-present Cole Bemis.
 
 		Verbatim license: web/LICENSE-lucide.txt.
-	-->
+		-->
 		<svg id="icon-sprite" aria-hidden="true" hidden>
 			<defs>
 				<symbol id="i-anchor" viewBox="0 0 24 24">
@@ -125,10 +121,10 @@
 					<path d="M14.12 14.12 16 16" />
 				</symbol>
 				<!--
-				ui- rather than i-: the picker builds itself out of the i- symbols, and a slug
-				outside internal/icon comes back a 400. The theme toggle needs no such pair, since
-				a sun and a moon are collection icons in their own right.
-			-->
+					Use 'ui-' for icons that are not collection icons.
+					The picker only uses 'i-' symbols, and internal/icon rejects unknown slugs.
+					The theme toggle reuses the collection sun and moon icons.
+				-->
 				<symbol id="ui-monitor" viewBox="0 0 24 24">
 					<rect width="20" height="14" x="2" y="3" rx="2" />
 					<line x1="8" x2="16" y1="21" y2="21" />
@@ -198,12 +194,18 @@
 					<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
 					<path d="m7 10 5 5 5-5" />
 				</symbol>
+				<symbol id="ui-info" viewBox="0 0 24 24">
+					<circle cx="12" cy="12" r="10" />
+					<path d="M12 16v-4" />
+					<path d="M12 8h.01" />
+				</symbol>
 				<!--
-					ui-h- is the harmony set, one per name in LEADING, and the only glyphs here that
-					are not Lucide. A mark is filled rather than stroked and says so on the shape:
-					.icon sets fill and stroke on the <svg>, which a shape inherits only when it
-					carries no attribute of its own. square is turned 22.5deg off the quarters and
-					analogous is spread to 55deg rather than its own 30, both on purpose.
+					Custom harmony icons, one for each name in LEADING. These are not Lucide icons.
+
+					The marked points use currentColor. '.icon' supplies the default fill and stroke,
+					while explicitly set attributes on these circles override those defaults.
+
+					The square and analogous icons use wider spacing than their math positions.
 				-->
 				<symbol id="ui-h-complement" viewBox="0 0 24 24">
 					<circle cx="12" cy="12" r="8.2" />
@@ -339,15 +341,57 @@
 		<header>
 			<!-- clickable: app.js cycles the tint attribute the rules below read -->
 			<h1 id="title">wavelen</h1>
-			<!-- beside the h1, not inside it: it is not part of the name, and a click on the title
-		     steps a tint this word has no business taking -->
+			<!-- separate from the title so title clicks do not affect it -->
 			<span class="beta">beta</span>
+			<!-- keep both states in the markup to avoid a flash before app.js runs -->
+			<div class="account-menu">
+				<button type="button" class="login-chip" id="login-open" hidden>log in</button>
+				<!-- use the normalized nickname returned by GET /me -->
+				<button
+					type="button"
+					class="who-chip"
+					id="who"
+					title="account"
+					aria-expanded="false"
+					aria-controls="account-drop"
+					hidden
+				>
+					<span class="name"></span>
+				</button>
+				<div class="account-drop" id="account-drop" hidden>
+					<button
+						type="button"
+						class="account-item"
+						id="export"
+						title="download this account as a JSON file"
+					>
+						<svg class="icon" aria-hidden="true"><use href="#ui-download" /></svg>
+						<span>export</span>
+					</button>
+					<button type="button" class="account-item" id="logout">
+						<svg class="icon" aria-hidden="true"><use href="#ui-log-out" /></svg>
+						<span>log out</span>
+					</button>
+					<button
+						type="button"
+						class="account-item account-item-danger"
+						id="account-delete-open"
+						title="delete this account and everything in it"
+					>
+						<svg class="icon" aria-hidden="true"><use href="#ui-trash" /></svg>
+						<span>delete account</span>
+					</button>
+				</div>
+			</div>
+			<!-- last on the line, so the header opens and closes on page chrome -->
 			<button type="button" class="header-word" id="about-open">about</button>
 		</header>
 
-		<!-- The two account forms, in a dialog: logging in is a header affair, not a section of the
-	     page. Errors go to the line under the form, since the log panel is behind the backdrop.
-	     log in is selected here, not by script, for the same reason as the header above. -->
+		<!--
+			Account actions live in a dialog rather than a page section.
+			Show form errors inside the dialog because the page log is behind the backdrop.
+			Login is the default tab in the markup.
+		-->
 		<dialog id="account" aria-label="account">
 			<div class="tabs" role="tablist">
 				<button
@@ -401,27 +445,19 @@
 				<button>create user</button>
 			</form>
 			<p class="dialog-error" id="account-error" role="alert"></p>
-			<!-- method=dialog: the submit closes it, no script. A sibling of the two forms above,
-		     since a form inside a form is not markup. -->
+			<!-- method=dialog closes the dialog without script. Keep this form separate from the account forms -->
 			<form method="dialog" class="dialog-close">
 				<button>close</button>
 			</form>
 		</dialog>
 
-		<!-- Typing the nickname is the confirmation: a confirm() is one click away from the account
-	     going, and there is no recovery. The button stays disabled until the field matches. -->
+		<!-- Type the nickname to enable the delete button. -->
 		<dialog id="account-delete" aria-labelledby="account-delete-title">
 			<h3 id="account-delete-title">delete this account</h3>
-			<p>
-				Every collection, every color in them and every token go with it. There is no undo, and no
-				export.
-			</p>
-			<p class="about-note">
-				The nickname is released. Anyone can sign up with it afterwards, and that account would be a
-				new one.
-			</p>
+			<p>Every collection, every color and every token will be deleted. There is no undo.</p>
+			<p class="about-note">The nickname is released. Anyone can sign up with it.</p>
 			<form class="stack" id="account-delete-form">
-				<!-- the label carries the nickname, so the field itself needs no placeholder text -->
+				<!-- the label carries the nickname -->
 				<label for="account-delete-nick"
 					>type <b id="account-delete-nick-echo"></b> to confirm</label
 				>
@@ -441,10 +477,9 @@
 			<p class="dialog-error" id="account-delete-error" role="alert"></p>
 		</dialog>
 
-		<!-- The browser's own modal: Escape closes it, the backdrop is its own. app.js fills the
-	     version on the first open. -->
+		<!-- Native dialog. Esc and the backdrop handle closing; app.js fills in the version. -->
 		<dialog id="about" aria-labelledby="about-title">
-			<!-- the wordmark, with its size in the markup so the box is right before the file lands -->
+			<!--  set the image dimensions in markup to reserve the correct space before it loads -->
 			<h2 id="about-title">
 				<img src="images/logo.png" alt="wavelen" width="358" height="70" />
 			</h2>
@@ -453,7 +488,6 @@
 			<p class="about-warn">This project is a work in progress. Your data may be lost!</p>
 			<p class="about-note">contact: <a href="mailto:salandered@pm.me">salandered@pm.me</a></p>
 			<hr />
-			<!-- the full notices are in the comment above the sprite and in the repo -->
 			<p class="about-note">Icons: <a href="https://lucide.dev">Lucide</a>, ISC and MIT.</p>
 			<!-- method=dialog: the submit closes it, no script -->
 			<form method="dialog" class="dialog-close">
@@ -463,10 +497,10 @@
 
 		<div class="split">
 			<main>
-				<!-- Needs a token, so app.js hides it logged out. -->
+				<!-- Hidden when logged out because the section requires auth. -->
 				<details data-collapse-key="saved" id="saved-section" open>
 					<summary>Saved colors</summary>
-					<!-- app.js fills #collections with one tab per collection; the button beside it stays -->
+					<!-- app.js fills #collections with one tab per collection, new-collection button stays beside it -->
 					<div class="collection-bar">
 						<div class="collections" id="collections"></div>
 						<button
@@ -481,12 +515,12 @@
 							<svg class="icon" aria-hidden="true"><use href="#ui-plus" /></svg>
 						</button>
 					</div>
-					<!-- maxlength is collection.MaxNameLen: the API answers 400 past it either way -->
+					<!-- keep in sync with collection.MaxNameLen; the API rejects longer names -->
 					<form id="collection-form" hidden>
 						<div class="row">
 							<label for="collection-name">new</label>
 							<input id="collection-name" placeholder="name" maxlength="60" />
-							<!-- both are optional in the API, and these two defaults are the API's own -->
+							<!-- both are optional in the API, defaults are the same as in API -->
 							<input
 								type="color"
 								id="collection-accent"
@@ -494,9 +528,11 @@
 								aria-label="collection accent"
 							/>
 
-							<!-- type=button, or the trigger submits the form instead of opening the
-					     grid. aria-expanded is the only record of whether it is open. Both
-					     are filled by app.js out of the sprite above. -->
+							<!--
+								type=button prevents the trigger from submitting the form.
+								aria-expanded is the source of truth for the menu state.
+								app.js fills the trigger and picker from the sprite.
+							-->
 							<div class="icon-menu">
 								<button
 									type="button"
@@ -518,7 +554,7 @@
 							<button>create</button>
 						</div>
 					</form>
-					<!-- the add row and the listing controls on one line, see .toolbar -->
+					<!-- add controls and listing controls share the toolbar -->
 					<div class="toolbar">
 						<form class="row" id="add-form">
 							<!-- a starting point for the field beside it; the dialog is the browser's -->
@@ -546,9 +582,8 @@
 							</button>
 							<button type="button" id="bulk-add">add 10 random</button>
 						</form>
-						<!-- order says descending/ascending rather than newest/oldest: it applies to hex too -->
-						<!-- No labels: a cycler's value names it well enough, and the words cost the room
-				     the toolbar needs. The title carries the name. -->
+						<!-- order reads desc/asc rather than newest/oldest: it applies to hex too -->
+						<!-- No labels for now -->
 						<div class="row">
 							<!-- cyclers: app.js writes the labels, the value stays in data-value -->
 							<button type="button" id="sort" data-value="created_at" title="sort by"></button>
@@ -570,7 +605,7 @@
 							>
 								<svg class="icon" aria-hidden="true"><use href="#ui-grid" /></svg>
 							</button>
-							<!-- the grid as one strip of bands, the shape every strip goes full screen in -->
+							<!-- the grid as one strip of bands, see showSavedFullscreen -->
 							<button
 								type="button"
 								class="icon-button"
@@ -580,10 +615,7 @@
 							>
 								<svg class="icon" aria-hidden="true"><use href="#ui-monitor" /></svg>
 							</button>
-							<!-- both act on the active collection: the eraser empties it and the collection
-					     stays, the trash deletes it and its colors with it. app.js disables the
-					     trash while the active one is the default, which the server refuses to
-					     delete. -->
+							<!-- both act on the active collection: eraser removes its colors; trash removes the collection too -->
 							<button
 								type="button"
 								class="icon-button"
@@ -606,7 +638,7 @@
 						</div>
 					</div>
 					<div class="grid" id="saved"></div>
-					<!-- hidden until a response carries a next_cursor, which is the end-of-list signal -->
+					<!-- app.js unhides it while a response carries a next_cursor, see setNextCursor -->
 					<button type="button" id="load-more" hidden>load more</button>
 				</details>
 
@@ -615,10 +647,12 @@
 		     one into #strips. -->
 				<details data-collapse-key="harmony" id="harmony-section" open>
 					<summary>Harmony</summary>
-					<!-- One pin per name the API serves, in the server's own order; DERIVED in app.js is the
-			     same list, and AXIS there titles the two scales. aria-pressed is the record of what
-			     is on, and the CSS reads it. A rotation is its glyph alone, so its name is in the
-			     title and the label; the two scales have no glyph and are the word. -->
+					<!--
+						One pin per harmony the API provides, in API order.
+						DERIVED in app.js uses the same order; AXIS provides labels for the two scales.
+						aria-pressed records the pinned state.
+						Rotations use icons; ramp and tones use text.
+					-->
 					<div class="row" id="pins">
 						<button
 							type="button"
@@ -672,8 +706,7 @@
 						</button>
 						<button type="button" class="pill" id="pin-ramp" aria-pressed="false">ramp</button>
 						<button type="button" class="pill" id="pin-tones" aria-pressed="false">tones</button>
-						<!-- the whole row at once, at its end: a word each, since the two are a shortcut
-				     through the pins beside them and not a pin of their own -->
+						<!-- bulk actions for pinning and unpinning all strips -->
 						<button
 							type="button"
 							class="bulk-pin"
@@ -692,15 +725,38 @@
 						>
 							none
 						</button>
+						<div class="setting-help">
+							<!-- cycler: app.js writes the label and the title, the value stays in data-value -->
+							<button type="button" id="space" data-value="hsl" aria-label="harmony wheel"></button>
+							<!-- popover: the browser owns opening, light dismiss, Esc and the focus return -->
+							<button
+								type="button"
+								class="help"
+								id="space-help-open"
+								popovertarget="space-help"
+								title="about the harmony wheel"
+								aria-label="about the harmony wheel"
+							>
+								<svg class="icon" aria-hidden="true"><use href="#ui-info" /></svg>
+							</button>
+							<div class="help-panel" id="space-help" popover>
+								<dl class="help-values">
+									<dt>hsl</dt>
+									<dd>the default</dd>
+									<dt>oklab</dt>
+									<dd>experimental</dd>
+								</dl>
+								<p class="help-hint">When in doubt, use hsl.</p>
+							</div>
+						</div>
 					</div>
 					<div id="strips"></div>
 				</details>
 
 				<details data-collapse-key="palette" open>
-					<!-- the name the CSS Color spec uses, and what internal/palette holds: the 100 named
-			     colors -->
+					<!-- the name the CSS Color spec uses: the 100 named colors -->
 					<summary>CSS named colors</summary>
-					<!-- the palette is 100 fixed rows, so it sorts but doesn't page. The toolbar puts the
+					<!-- the palette is 100 fixed rows, it sorts but doesn't page. The toolbar puts the
 			     one row on the right, where the saved section keeps its listing controls. -->
 					<div class="toolbar">
 						<div class="row">
@@ -717,8 +773,7 @@
 							>
 								<svg class="icon" aria-hidden="true"><use href="#ui-grid" /></svg>
 							</button>
-							<!-- the grid itself full screen, names and all, not the strip of bands the
-					     saved grid goes up as -->
+							<!-- the grid itself, names and all, see showPaletteFullscreen -->
 							<button
 								type="button"
 								class="icon-button"
@@ -735,66 +790,48 @@
 			</main>
 
 			<aside>
-				<!-- Both states are in the markup and app.js hides one: a state built from script
-			     would flash the wrong one before the first paint. -->
 				<section class="panel">
-					<h2 class="panel-title">Account</h2>
-					<!-- a row for the one button as well, so the panels below don't move when the
-				     state swaps -->
-					<div class="row" id="logged-out">
-						<button type="button" id="login-open">log in</button>
-					</div>
-					<div class="row" id="logged-in" hidden>
-						<!-- filled from GET /me, not from the typed nickname, which is unnormalized -->
-						<span class="who" id="who"></span>
-						<button
-							type="button"
-							class="icon-button"
-							id="export"
-							title="download this account as a JSON file"
-							aria-label="download this account as a JSON file"
-						>
-							<svg class="icon" aria-hidden="true"><use href="#ui-download" /></svg>
-						</button>
-						<button
-							type="button"
-							class="icon-button"
-							id="logout"
-							title="log out"
-							aria-label="log out"
-						>
-							<svg class="icon" aria-hidden="true"><use href="#ui-log-out" /></svg>
-						</button>
-						<button
-							type="button"
-							class="icon-button"
-							id="account-delete-open"
-							title="delete this account and everything in it"
-							aria-label="delete this account and everything in it"
-						>
-							<svg class="icon" aria-hidden="true"><use href="#ui-trash" /></svg>
-						</button>
-					</div>
-				</section>
-
-				<section class="panel">
-					<h2 class="panel-title">View</h2>
+					<h2 class="panel-title">Control</h2>
 					<div class="row">
 						<!-- an eye or an eye-off out of the sprite, filled by app.js -->
 						<button type="button" class="icon-button" id="zen"></button>
 						<!-- a sun or a moon out of the sprite, filled by app.js -->
 						<button type="button" class="icon-button" id="theme"></button>
+						<div class="setting-help">
+							<!-- popover: the browser owns opening, light dismiss, Esc and the focus return -->
+							<button
+								type="button"
+								class="help help-word"
+								id="hotkeys-open"
+								popovertarget="hotkeys-help"
+								title="keyboard shortcuts"
+							>
+								hotkeys
+							</button>
+							<div class="help-panel" id="hotkeys-help" popover>
+								<dl class="help-values">
+									<dt>Z</dt>
+									<dd>zen mode</dd>
+									<dt>L</dt>
+									<dd>light / dark theme</dd>
+									<dt>D</dt>
+									<dd>dense grid, for the section under the pointer</dd>
+								</dl>
+							</div>
+						</div>
 					</div>
 				</section>
 
 				<!-- Collapsible through the same data-collapse-key as the sections on the left.
-			     View and Picker are one row each and stay fixed. -->
+			     Control and Picker are one row each and stay fixed. -->
 				<details class="panel" data-collapse-key="selected" open>
 					<summary>Selected</summary>
 					<div id="detail"></div>
-					<!-- Mirrors the selection and nudges it. Static rather than built by renderDetail:
-				     a rebuilt input would drop the dialog that is open on it. Under the color, so
-				     the dialog covers the panels below rather than the color being adjusted. -->
+					<!--
+						Adjusts the current selection.
+						Keep the input static so rebuilding the detail panel does not close an open picker.
+						Place it below the selected color so the picker dialog opens over the lower panels.
+					-->
 					<div class="row detail-adjust">
 						<input
 							type="color"
@@ -812,7 +849,7 @@
 				<section class="panel">
 					<h2 class="panel-title">Picker</h2>
 					<div class="row">
-						<!-- neutral: the value only says where the dialog opens -->
+						<!-- neutral: the value only sets where the dialog opens -->
 						<input type="color" id="scratch" value="#808080" aria-label="pick a color" />
 						<button type="button" id="scratch-hex" title="copy"></button>
 					</div>

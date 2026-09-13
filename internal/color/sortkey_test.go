@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The sort key packs the hue group at the top, lightness in the middle and chroma at the bottom,
-// so all three are readable through the exported color.Feel without exporting anything else.
+// The sort key packs hue group at the top, lightness in the middle and chroma at the bottom.
+// All three are readable through the exported color.Feel.
 // Chroma is in thousandths, capped at 999.
 const (
 	groupStep     = 10_000_000
@@ -27,7 +27,6 @@ func TestSortKeyPutsNeutralsInTheirOwnGroup(t *testing.T) {
 	}
 }
 
-// The cutoff has to clear true grays without swallowing the near-neutrals.
 func TestSortKeyKeepsNearNeutralsInTheirHueGroup(t *testing.T) {
 	for _, h := range []color.Hex{"#f5f5dc", "#fff8dc", "#ffe4c4", "#bc8f8f"} {
 		t.Run(string(h), func(t *testing.T) {
@@ -36,7 +35,7 @@ func TestSortKeyKeepsNearNeutralsInTheirHueGroup(t *testing.T) {
 	}
 }
 
-func TestSortKeyWalksTheHuesInSpectrumOrder(t *testing.T) {
+func TestSortKeyWalksHuesInSpectrumOrder(t *testing.T) {
 	for _, tc := range []struct {
 		hex   color.Hex
 		group int
@@ -67,7 +66,6 @@ func TestSortKeyOrdersOneHueFamilyDarkToLight(t *testing.T) {
 	}
 }
 
-// Every part has room below it, so none can carry into the one above.
 func TestSortKeyPacksWithoutCarryingBetweenParts(t *testing.T) {
 	white := color.Feel("#ffffff") // the largest a neutral can be
 	darkestChromatic := color.Feel("#000001")
@@ -76,7 +74,7 @@ func TestSortKeyPacksWithoutCarryingBetweenParts(t *testing.T) {
 	require.Less(t, white, darkestChromatic)
 }
 
-func TestSortKeyIsZeroForAValueParseHexWouldReject(t *testing.T) {
+func TestSortKeyIsZeroForValueParseHexWouldReject(t *testing.T) {
 	require.Zero(t, color.Feel("#fff"))
 	require.Zero(t, color.Feel(""))
 }

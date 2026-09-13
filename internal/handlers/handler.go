@@ -28,6 +28,7 @@ const (
 	sortQuery   = "sort"
 	orderQuery  = "order"
 	cursorQuery = "cursor"
+	spaceQuery  = "space"
 )
 
 // Nothing large in bodies.

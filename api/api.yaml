@@ -550,10 +550,14 @@ paths:
     parameters:
       - $ref: "#/components/parameters/ColorHex"
       - $ref: "#/components/parameters/Harmony"
+      - $ref: "#/components/parameters/Space"
     get:
       tags: [Harmony]
       summary: Returns colors that are calculated from the incoming hex (path value) using a specified harmony (path value)
-      description: What we call "harmony" in the app is usually described as a color "scheme".
+      description: >-
+        What we call "harmony" in the app is usually described as a color "scheme": https://en.wikipedia.org/wiki/Color_scheme.
+        Altough the term "harmony is also used in a similar sense: https://en.wikipedia.org/wiki/Harmony_(color).
+        The 'space' query picks which wheel the hue turns. Same harmony would answer different colors.
       responses:
         "200":
           description: The derived harmony colors
@@ -602,6 +606,7 @@ components:
     HarmonyCacheControl:
       description: >-
         A harmony depends on the URL and the formula, the formula only changes with a deploy.
+        The 'space' query is part of the URL.
       schema:
         type: string
       example: "public, max-age=31536000, immutable"
@@ -636,6 +641,16 @@ components:
       schema:
         $ref: "#/components/schemas/HarmonyName"
 
+    Space:
+      name: space
+      in: query
+      required: false
+      description: >-
+        Which color wheel to use. Absent or empty is the default 'hsl'.
+        An unknown value is 400.
+      schema:
+        $ref: "#/components/schemas/SpaceName"
+
   schemas:
     HarmonyName:
       type: string
@@ -649,6 +664,20 @@ components:
         - ramp
         - tones
       example: triad
+
+    SpaceName:
+      type: string
+      default: hsl
+      description: >-
+        The color wheel which is used to turn the hue.
+        'hsl' turns it on the wheel Figma and similar tools do.
+        'oklab' turns it where equal angles are equal steps to the eye.
+        The two answer different colors for the same harmony and the same base.
+        'ramp' and 'tones' are not affected.
+      enum:
+        - hsl
+        - oklab
+      example: oklab
 
     HexStored:
       type: string
@@ -928,21 +957,24 @@ components:
 
     HarmonyResponse:
       type: object
-      required: [hex, harmony, colors]
+      required: [hex, harmony, space, colors]
       description: >-
-        Echoes the normalized incoming hex 'hex', the harmony name 'harmony'
+        Echoes the normalized incoming hex 'hex', the harmony name 'harmony',
+        the wheel it was turned on 'space'
         and the derived colors 'colors'.
         Incoming hex is not included in 'colors'.
-        'colors' length fixed per harmony: 
+        'colors' length fixed per harmony:
         1 for complement,
-        2 for split-complement, triad and analogous, 
-        3 for square, 
+        2 for split-complement, triad and analogous,
+        3 for square,
         7 for ramp and tones.
       properties:
         hex:
           $ref: "#/components/schemas/HexStored"
         harmony:
           $ref: "#/components/schemas/HarmonyName"
+        space:
+          $ref: "#/components/schemas/SpaceName"
         colors:
           type: array
           minItems: 1

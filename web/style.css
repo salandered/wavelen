@@ -5,13 +5,13 @@
 	--muted: light-dark(#6b6357, #9b9184);
 	--line: light-dark(#d6cfc2, #403a32);
 	--error: light-dark(#9b2f1c, #ee967d);
-	/* a caution rather than a failure: the same warm family, a step over toward orange */
+	/* Warning color: same warm family as the error color, but shifted toward orange. */
 	--warn: light-dark(#a8560f, #e8a05e);
 	/* the fill of a submit button: a step down from --fg, so it doesn't glare */
 	--primary: light-dark(#4a4540, #c9c2b5);
 }
 
-/* overriding color-scheme re-resolves every light-dark() above in one repaint */
+/* changing color-scheme re-evaluates all light-dark() values. */
 :root[data-theme="light"] {
 	color-scheme: light;
 }
@@ -21,20 +21,14 @@
 }
 
 /*
-Zen mode: every hex the page writes over a color, the name in the Account panel, the
-header, and the accent on a collection tab.
-
-visibility, not display, for the labels: they keep their box, so hiding them doesn't
-resize a swatch or a band. With display:none the grid rows collapse to the min-height
-below and the strips lose their captions' room.
+Zen mode hides text and chrome while preserving layout.
+Use visibility instead of display so swatches, bands, and grid rows keep their size.
 */
 :root.zen .swatch span,
 :root.zen .detail-hex,
 :root.zen .detail-label,
 :root.zen .band-hex,
-:root.zen #scratch-hex,
-/* the name in the Account panel: a word beside its two controls, which stay */
-:root.zen .who {
+:root.zen #scratch-hex {
 	visibility: hidden;
 }
 
@@ -77,13 +71,13 @@ h1 {
 	font-size: 1.25rem;
 	margin: 0;
 	cursor: pointer;
-	/* a second click inside the double-click window selects the word otherwise */
+	/* prevent the second click of a double-click from selecting the title text. */
 	user-select: none;
 }
 
 /*
-Two tints and back, a click at a time. Bare values rather than tokens: they read on
-either ground and belong to nothing else on the page.
+The title cycles through two fixed tints.
+Use literal values because these colors are used only here and work on both themes.
 */
 h1[data-tint="1"] {
 	color: #bf15a3;
@@ -93,9 +87,8 @@ h1[data-tint="2"] {
 	color: #3daa6d;
 }
 
-/* What the page is, at the weight of a note: the title carries the name and this qualifies it.
-   The auto margin sits here rather than on the h1, so the pair keeps the left edge together and
-   about keeps the right one. */
+/* Describes the page without competing with the title.
+   The auto margin keeps the title and beta label together on the left. */
 .beta {
 	margin-right: auto;
 	font-size: 0.8rem;
@@ -112,27 +105,81 @@ h1[data-tint="2"] {
 	color: var(--fg);
 }
 
-/* a caption, not a third control: it sits clear of the two that are */
-.who {
-	margin-right: 0.35rem;
-	font-size: 0.85rem;
-	/* a name can run past the row without a space to break at, and the panel is 15rem */
-	overflow-wrap: anywhere;
+/* the anchor,  account-drop is positioned against it*/
+.account-menu {
+	position: relative;
+	display: flex;
+	min-width: 0;
 }
 
-/* the glyphs carry the weight the collection row gives its two: muted until reached */
-#export,
-#logout,
-#account-delete-open {
+/*
+The account chip: the nickname in a box.
+*/
+.who-chip,
+.login-chip {
+	display: flex;
+	align-items: center;
+	padding: 0.25rem 0.6rem;
+	border-color: transparent;
+	border-radius: 8px;
+	background: light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.06));
 	color: var(--muted);
 }
 
-#export:hover,
-#logout:hover {
+.who-chip {
+	max-width: 11rem;
+}
+
+.who-chip .name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* hover and open share a look, so the header says the menu is down while it is out of view */
+.who-chip:hover,
+.who-chip[aria-expanded="true"],
+.login-chip:hover {
+	background: light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.12));
 	color: var(--fg);
 }
 
-#account-delete-open:hover {
+/*
+Right anchored: about sits to the right of the chip.
+*/
+.account-drop {
+	position: absolute;
+	top: calc(100% + 0.3rem);
+	right: 0;
+	z-index: 1;
+	display: flex;
+	flex-direction: column;
+	min-width: 10rem;
+	padding: 0.25rem;
+	border: 1px solid var(--line);
+	border-radius: 3px;
+	background: Canvas;
+}
+
+/* word and its glyph, muted until reached: what these do is not undone */
+.account-item {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.3rem 0.45rem;
+	border-color: transparent;
+	color: var(--muted);
+	white-space: nowrap;
+}
+
+.account-item:hover {
+	border-color: var(--line);
+	color: var(--fg);
+}
+
+/* not .danger, which is the filled submit in the delete dialog */
+.account-item-danger:hover {
+	border-color: var(--error);
 	color: var(--error);
 }
 
@@ -178,14 +225,13 @@ dialog a {
 	color: var(--warn);
 }
 
-/* the close is the way out of a dialog now that a click beside one does nothing */
+/* the way out of a dialog: a click beside one does nothing */
 .dialog-close {
 	margin-top: 1rem;
 	text-align: right;
 }
 
-/* the fields are what sets the width: at the 16rem every dialog gets, a stacked form reads as a
-   column of boxes with the dialog drawn around them */
+/* make the account dialog wider because its fields are longer */
 #account {
 	min-width: 20rem;
 }
@@ -213,7 +259,7 @@ dialog a {
 	display: none;
 }
 
-/* cancel sits first, so the destructive one is not under the thumb by default */
+/* cancel first, so the destructive one is not the default target */
 .dialog-actions {
 	display: flex;
 	justify-content: flex-end;
@@ -291,7 +337,7 @@ aside {
 	top: 2rem;
 }
 
-/* below this the two columns are both too narrow to be worth keeping side by side */
+/* stack the columns once there is not enough room to use them side by side */
 @media (max-width: 38rem) {
 	.split {
 		flex-direction: column;
@@ -311,9 +357,8 @@ aside {
 }
 
 /*
-   The UA stylesheet hides [hidden] with display:none, which any display declared here
-   outranks. #logged-in is a flex row, so without the !important it stays on screen logged
-   out. Several elements are toggled through el.hidden, so the rule has to win outright.
+	Keep the native [hidden] behavior even for elements with their own display rules.
+	Several elements are toggled with the hidden property.
 */
 [hidden] {
 	display: none !important;
@@ -377,9 +422,8 @@ button {
 }
 
 /*
-Controls of one kind share one look, so a row of them reads as groups rather than as
-a line of identical buttons: a submit is filled, a helper is outlined, a setting is
-text with a dotted underline, a collection is a tab.
+Give each control type a distinct visual treatment:
+filled submits, outlined helpers, underlined settings, and tab-like collections.
 */
 #collection-form button:not([type="button"]),
 #add-form button:not([type="button"]) {
@@ -413,8 +457,12 @@ text with a dotted underline, a collection is a tab.
 	margin-bottom: 0.75rem;
 }
 
-/* the two bulk words sit at the row's end, clear of the pills they act on */
-#pins-all {
+/* the wheel is pushed to the row's end, so the pins and the two words that act on them stay
+   one group at the left */
+.setting-help {
+	display: flex;
+	align-items: center;
+	gap: 0.1rem;
 	margin-left: auto;
 }
 
@@ -430,6 +478,102 @@ text with a dotted underline, a collection is a tab.
 	color: var(--fg);
 }
 
+/* a glyph alone, a step under the control it annotates */
+.help {
+	display: flex;
+	align-items: center;
+	padding: 0.1rem 0.25rem;
+	border-color: transparent;
+	font-size: 0.95rem;
+	line-height: 1;
+	color: var(--muted);
+}
+
+.help-word {
+	padding: 0.25rem 0.4rem;
+	font-size: 0.85rem;
+}
+
+.help:hover {
+	color: var(--fg);
+}
+
+.setting-help:has(.help-panel:popover-open) .help {
+	color: var(--fg);
+}
+
+.help-panel {
+	width: 15rem;
+	max-width: calc(100vw - 2rem);
+	padding: 0.6rem 0.75rem;
+	border: 1px solid var(--line);
+	border-radius: 3px;
+	background: Canvas;
+	color: var(--fg);
+	font-size: 0.85rem;
+}
+
+/* a cycler's help is one line per value: the term is the value the control spells, the
+   description is what picking it means */
+.help-values {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	/* baseline, not the default stretch */
+	align-items: baseline;
+	gap: 0.15rem 0.5rem;
+	margin: 0;
+}
+
+.help-values dt {
+	font-family: ui-monospace, monospace;
+}
+
+.help-values dd {
+	margin: 0;
+	color: var(--muted);
+}
+
+.help-hint {
+	margin: 0.5rem 0 0;
+	padding-top: 0.5rem;
+	border-top: 1px solid var(--line);
+	color: var(--muted);
+}
+
+[popover].help-panel {
+	inset: auto;
+	margin: 0;
+}
+
+/* Anchor positioning is younger than the popover. Without it the @supports drops and
+   the panel keeps the UA's centred placement: readable, just not beside its button. */
+@supports (anchor-name: --a) {
+	#space-help-open {
+		anchor-name: --space-help;
+	}
+
+	/* span-inline-start: panel hangs from the button's right edge and grows left, so it
+	   stays inside the column whatever the row is. No position-try-fallbacks - Chromium's
+	   flip-block fires here with 800px of room below and lands the panel above the row. */
+	#space-help {
+		position-anchor: --space-help;
+		position-area: block-end span-inline-start;
+		margin-top: 0.25rem;
+	}
+
+	#hotkeys-open {
+		anchor-name: --hotkeys-help;
+	}
+
+	#hotkeys-help {
+		position-anchor: --hotkeys-help;
+		position-area: block-end span-inline-start;
+		box-sizing: border-box;
+		width: 21rem;
+		margin-top: 0.25rem;
+	}
+}
+
 .tabs {
 	display: flex;
 	gap: 0.25rem;
@@ -438,9 +582,8 @@ text with a dotted underline, a collection is a tab.
 }
 
 /*
-The selected mark is 2px and the strip's own line is 1px, so the tab is pulled down
-over it. Without the negative margin the mark sits above the line instead of
-replacing it.
+The 2px selected border replaces the 1px strip border.
+Pull the tab down by 1px so the two borders overlap.
 */
 .tab {
 	padding: 0.25rem 0.6rem;
@@ -459,10 +602,8 @@ replacing it.
 }
 
 /*
-A cycler's label is its own value, so it needs a floor or stepping it shifts whatever
-sits beside it. Each width is the widest label in its set, and the text is centered
-in it, so a shorter label leaves the box where it is. #theme is last in its row and
-needs none of this.
+Reserve enough width for the widest cycler label so adjacent controls do not move.
+Center shorter labels within the reserved width.
 */
 #sort,
 #palette-sort {
@@ -522,7 +663,7 @@ below shows. The summary already draws a line, so the strip is pulled up toward 
 	background: none;
 }
 
-/* the glyph and the name in one button, so a click anywhere on the tab selects */
+/* the glyph and the name in one button, a click anywhere on the tab selects */
 .collection-name {
 	display: flex;
 	align-items: center;
@@ -531,7 +672,7 @@ below shows. The summary already draws a line, so the strip is pulled up toward 
 	padding: 0.3rem 0.5rem;
 }
 
-/* a name is up to collection.MaxNameLen runes, and a tab is not the place to show them */
+/* collection names can be long, truncate them inside the tab */
 .collection-name .name {
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -561,16 +702,15 @@ below shows. The summary already draws a line, so the strip is pulled up toward 
 	color: var(--error);
 }
 
-/* the default collection: the control stays so the row keeps its shape, and says no */
+/* the default collection: the control stays so the row keeps its shape, but is disabled */
 #collection-delete:disabled {
 	opacity: 0.4;
 	cursor: default;
 }
 
 /*
-The stroke settings are the same for every glyph in the sprite, so they sit here
-rather than on every <symbol>. currentColor is what lets a parent tint a whole icon:
-the chip sets its color to the collection's accent.
+Shared stroke settings for all sprite icons.
+currentColor lets the parent choose the icon color.
 */
 .icon {
 	width: 1em;
@@ -701,9 +841,8 @@ input[type="color"] {
 }
 
 /*
-Blocks share rows by band count. A rotation is two to four bands, so two of them fit
-a row with bands still wider than the label cutoff below, and a lone one grows to
-fill its row. A scale is seven bands and keeps the column, as the markup says.
+Rotations use 2-4 bands and can share a row.
+Scales use 7 bands and take the full column.
 */
 #strips {
 	display: flex;
@@ -728,7 +867,7 @@ fill its row. A scale is seven bands and keeps the column, as the markup says.
 #collection-new {
 	padding: 0.1rem 0.3rem;
 	font-size: 0.95rem;
-	/* a step back, like the label beside them: the colors are what the eye is here for */
+	/* keep the controls muted - the colors remain the visual focus */
 	color: var(--muted);
 }
 
@@ -751,9 +890,9 @@ fill its row. A scale is seven bands and keeps the column, as the markup says.
 }
 
 /*
-A pin per derived strip: outlined and muted while off, filled while on. Two fills a
-step apart read as one row of buttons, so the off state keeps the border every other
-control has and the on state is the only filled thing in the row.
+Pinned strips use pills.
+Off: outlined and muted.
+On: filled and emphasized.
 */
 .pill {
 	display: inline-flex;
@@ -800,11 +939,8 @@ control has and the on state is the only filled thing in the row.
 }
 
 /*
-Five across. There is no border-box reset, so max-width is body's content box: the
-grids get 66rem less the aside and the gap, which is 49.5rem. Five of these need
-47.6rem and a sixth would need 56rem, so auto-fill settles on five. The floor is what
-holds the count at the full width - the room went into the cells, not into a sixth
-column.
+The available width fits five 9rem columns but not six.
+auto-fill therefore settles on five columns at the full layout width.
 */
 .grid {
 	display: grid;
@@ -827,10 +963,8 @@ column.
 }
 
 /*
-A dense grid: ten cells to a row and no gap, the whole set as one block. A name wider
-than its cell is cut, and the Selected panel spells out whichever one was clicked. Each
-grid has a toggle for it and they open in different shapes: the palette in this one,
-saved colors on the track above.
+Dense mode uses ten columns with no gap.
+Long names are truncated; the Selected panel shows the full label.
 */
 .dense {
 	grid-template-columns: repeat(10, minmax(0, 1fr));
@@ -852,10 +986,7 @@ saved colors on the track above.
 	display: none;
 }
 
-/*
-With the caption gone the cell is its hex alone, and it sits at the bottom, where a
-harmony band puts its own. One child left in the flex column, so the end is enough.
-*/
+/* without the label, keep the hex at the bottom of the swatch */
 #saved.dense .swatch {
 	justify-content: flex-end;
 }
@@ -881,10 +1012,8 @@ at the top of the file: same specificity, so the rule that comes later wins.
 }
 
 /*
-A grid full screen: the palette copy, see showPaletteFullscreen, which is dense there
-whatever the page is. The rows share the height rather than the cells keeping their
-ratio, so the whole set is one screen and nothing scrolls. The type goes up with the
-cell, the way a band's hex does.
+A grid full screen: the palette copy, see showPaletteFullscreen. The rows share the
+height rather than the cells keeping their ratio, so nothing scrolls.
 */
 .grid:fullscreen {
 	height: 100%;
@@ -917,12 +1046,8 @@ separates the marker from the swatch color, so it reads on any of them.
 }
 
 /*
-The swatch and its delete control stacked as siblings. The outer grid sizes this cell
-and the swatch stretches to fill it, which keeps a row of swatches one height.
-
-minmax(0, 1fr), not the default auto track: an auto track grows toward the swatch's
-max-content width, which is its label on one line. The swatch would then be wider than
-the cell, overflow to the right and paint over the gap.
+The swatch and delete button are siblings inside the cell.
+Use minmax(0, 1fr) so a long label cannot expand the grid track.
 */
 .cell {
 	position: relative;
@@ -1065,9 +1190,8 @@ radius survive it: the color comes out letterboxed, hairlined and round-cornered
 }
 
 /*
-The saved strip is in <body> only to go full screen, so it takes no room there. The
-UA's :fullscreen rules size the element themselves, with !important, so this is
-only what it is while it is not.
+Takes no room in <body>, see showOffstage. The UA's :fullscreen rules size the element
+themselves, with !important, so this only applies while it is not up.
 */
 .offstage {
 	position: fixed;
@@ -1092,7 +1216,7 @@ builder guessing from a count or from screen.width.
 	}
 }
 
-/* the fullscreen label is 1.25rem, so it wants more of the band */
+/* the fullscreen label is 1.25rem, so it takes more of the band */
 @container (max-width: 6rem) {
 	.harmony:fullscreen .band-hex {
 		display: none;

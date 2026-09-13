@@ -14,6 +14,7 @@ const harmonyCacheControl = "public, max-age=31536000, immutable"
 type HarmonyResp struct {
 	Hex     string   `json:"hex"`
 	Harmony string   `json:"harmony"`
+	Space   string   `json:"space"`
 	Colors  []string `json:"colors"`
 }
 
@@ -34,11 +35,20 @@ func HandleHarmony(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	space := color.DefSpace
+	if raw := req.URL.Query().Get(spaceQuery); raw != "" {
+		if space, err = color.ParseSpace(raw); err != nil {
+			writeRequestError(ctx, w, err)
+			return
+		}
+	}
+
 	w.Header().Set("Cache-Control", harmonyCacheControl)
 	httputils.WriteJSON(ctx, w, http.StatusOK, HarmonyResp{
 		Hex:     string(hex),
 		Harmony: string(harmony),
-		Colors:  hexStrings(harmony.Colors(hex)),
+		Space:   string(space),
+		Colors:  hexStrings(harmony.Colors(space, hex)),
 	})
 }
 

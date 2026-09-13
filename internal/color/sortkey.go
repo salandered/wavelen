@@ -2,33 +2,29 @@ package color
 
 import "math"
 
-// -- MATH IS AI GENERATED --
-// I don't understand most of it
-// --------------------------
+// Read https://www.alanzucconi.com/2015/09/30/colour-sorting/
 
-// The perceptual sort key formula. Kept apart from the rest of the math because it is the one
-// result that is stored: color_key in both tables holds it, so an edit here is a migration, not
-// a deploy.
+// Perceptual sort key.
+// Note: This value is stored as color_key, so changing the formula requires a data migration.
 
-// What the ordering looks like is these three numbers. Changing any of them changes every stored
-// key, so it needs a migration that recomputes both tables, not just a new build.
-// The third one is neutralChroma, which lives in oklab.go because the rotations gate on it too.
+// These constants define the sort order.
+// neutralChroma is shared with the harmony rotations and lives in oklab.go.
 const (
 	hueBuckets   = 12 // a family of shades stays together instead of interleaving by hue angle
 	hueOriginDeg = 20 // red is OkLCh hue ~29, so this opens the first bucket with red
 )
 
-// The key packs three parts, each with room to spare so none can carry into the one above it.
-// Largest key is 121_000_999.
+// Pack the three sort components with enough space to prevent overlap.
+// The maximum value remains safely within int32.
 const (
 	groupStep     = 10_000_000
 	lightnessStep = 1_000
 	chromaMax     = 999
 )
 
-// Perceptual ordering key of h: neutrals first by lightness, then the hue groups,
-// each running dark to light. Ordinal only, the distance between two keys means nothing. It is
-// what sort=color orders by, and it is stored in color_key.
+// Sort key: neutrals by lightness first, then hue groups from dark to light.
+// The key is ordinal; differences between keys have no perceptual meaning.
+// sort=color uses this key.
 func perceptualSortKey(h Hex) int32 {
 	if len(h) != HexLen {
 		return 0
@@ -50,8 +46,8 @@ func perceptualSortKey(h Hex) int32 {
 
 	group := 0
 	if chroma >= neutralChroma {
-		// Atan2 answers (-180, 180]. Subtracting the origin and wrapping once lands in [0, 360),
-		// so the rotation and the normalization are the same step.
+		// atan2 returns (-180, 180]. Shift by hueOriginDeg and wrap to [0, 360).
+		// This matches the hue rotation used elsewhere.
 		hue := math.Atan2(bb, a)*180/math.Pi - hueOriginDeg
 		if hue < 0 {
 			hue += 360

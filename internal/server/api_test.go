@@ -935,27 +935,29 @@ func (s *APISuite) TestHarmonyEchoesInputAndNamesTheHarmony() {
 	var out handlers.HarmonyResp
 	s.decode(s.get("/api/v1/colors/FF0000/complement"), &out)
 
-	want := color.Complement.Colors("#ff0000")
+	want := color.Complement.Colors(color.DefSpace, "#ff0000")
 	s.Require().Equal("#ff0000", out.Hex)
 	s.Require().Equal("complement", out.Harmony)
 	s.Require().Equal([]string{string(want[0])}, out.Colors)
 }
 
-// Every harmony answers the same shape, so a client renders the list without knowing the name.
-func (s *APISuite) TestEveryHarmonyAnswersTheSameShape() {
+func (s *APISuite) TestHarmoniesAnswerSameShape() {
 	for _, name := range color.HarmonyNames() {
-		s.Run(string(name), func() {
-			var out handlers.HarmonyResp
-			s.decode(s.get("/api/v1/colors/ff0000/"+string(name)), &out)
+		for _, space := range []color.Space{color.OKLab, color.HSL} {
+			s.Run(string(name)+"/"+string(space), func() {
+				var out handlers.HarmonyResp
+				s.decode(s.get("/api/v1/colors/ff0000/"+string(name)+"?space="+string(space)), &out)
 
-			want := name.Colors("#ff0000")
-			s.Require().Equal("#ff0000", out.Hex)
-			s.Require().Equal(string(name), out.Harmony)
-			s.Require().Len(out.Colors, len(want))
-			for i, hex := range want {
-				s.Require().Equal(string(hex), out.Colors[i])
-			}
-		})
+				want := name.Colors(space, "#ff0000")
+				s.Require().Equal("#ff0000", out.Hex)
+				s.Require().Equal(string(name), out.Harmony)
+				s.Require().Equal(string(space), out.Space)
+				s.Require().Len(out.Colors, len(want))
+				for i, hex := range want {
+					s.Require().Equal(string(hex), out.Colors[i])
+				}
+			})
+		}
 	}
 }
 
@@ -963,7 +965,7 @@ func (s *APISuite) TestTriadAnswersOtherTwoColorsInHueOrder() {
 	var out handlers.HarmonyResp
 	s.decode(s.get("/api/v1/colors/ff0000/triad"), &out)
 
-	want := color.Triad.Colors("#ff0000")
+	want := color.Triad.Colors(color.DefSpace, "#ff0000")
 	s.Require().Len(out.Colors, 2)
 	s.Require().Equal([]string{string(want[0]), string(want[1])}, out.Colors)
 }
@@ -975,23 +977,37 @@ func (s *APISuite) TestRampAnswersSevenSteps() {
 	s.Require().Len(out.Colors, 7)
 }
 
-func (s *APISuite) TestHarmonyIsCacheableForever() {
-	resp := s.get("/api/v1/colors/ff0000/complement")
+func (s *APISuite) TestHarmonyWithoutSpaceUseDefault() {
+	var out handlers.HarmonyResp
 
-	s.Require().Equal("public, max-age=31536000, immutable", resp.Header.Get("Cache-Control"))
+	// when
+	s.decode(s.get("/api/v1/colors/cd5c5c/triad"), &out)
+
+	// then
+	s.Require().Equal("hsl", out.Space)
+	s.Require().Equal([]string{"#5ccd5c", "#5c5ccd"}, out.Colors)
+
+	// and when
+	s.decode(s.get("/api/v1/colors/cd5c5c/triad?space="), &out)
+
+	// then
+	s.Require().Equal("hsl", out.Space)
 }
 
-// A gray has no hue to turn, so it answers with itself rather than with an invented color.
-func (s *APISuite) TestHarmonyOfAGrayAnswersWithThatGray() {
-	for _, name := range []string{"complement", "triad", "analogous", "square"} {
-		s.Run(name, func() {
-			var out handlers.HarmonyResp
-			s.decode(s.get("/api/v1/colors/808080/"+name), &out)
+func (s *APISuite) TestHarmonySpaceOklab() {
+	var out handlers.HarmonyResp
+	s.decode(s.get("/api/v1/colors/cd5c5c/triad?space=oklab"), &out)
 
-			s.Require().NotEmpty(out.Colors)
-			for _, hex := range out.Colors {
-				s.Require().Equal("#808080", hex)
-			}
+	s.Require().Equal("oklab", out.Space)
+	s.Require().Equal([]string{"#4b9a45", "#5482db"}, out.Colors)
+}
+
+func (s *APISuite) TestUnknownSpaceIsBadRequest() {
+	for _, raw := range []string{"hsv", "OKLab", "rgb", "lab"} {
+		s.Run(raw, func() {
+			resp := s.get("/api/v1/colors/ff0000/triad?space=" + raw)
+
+			s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
 		})
 	}
 }

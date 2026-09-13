@@ -40,7 +40,7 @@ func ParseHex(s string) (Hex, error) {
 	return Hex(parsed), nil
 }
 
-// Feel is the perceptual ordering key of h.
+// Feel is the perceptual ordering key of h
 func Feel(h Hex) int32 {
 	return perceptualSortKey(h)
 }
@@ -58,18 +58,35 @@ const (
 	Tones           Harmony = "tones"
 )
 
-// The table of: harmony name, harmony formula.
+// Space defines the target color wheel for hue adjustments
+type Space string
+
+const (
+	OKLab Space = "oklab"
+	HSL   Space = "hsl"
+)
+
+// DefSpace is what an unset Space means.
+const DefSpace = HSL
+
+/*
+Each row is a harmony name + its hue rotations or the sweep
+
+Sweep moves lightness or chroma with the hue held, it has no angle to turn and the Space does not reach it.
+One of the two fields is set per row.
+*/
 var harmonies = [...]struct {
 	name Harmony
+	degs []float64
 	of   func(Hex) []Hex
 }{
-	{Complement, rotations(complementDeg)},
-	{SplitComplement, rotations(splitComplementDeg, 360-splitComplementDeg)},
-	{Triad, rotations(triadDeg, 2*triadDeg)},
-	{Analogous, rotations(-analogousDeg, analogousDeg)},
-	{Square, rotations(squareDeg, 2*squareDeg, 3*squareDeg)},
-	{Ramp, ramp},
-	{Tones, tones},
+	{name: Complement, degs: []float64{complementDeg}},
+	{name: SplitComplement, degs: []float64{splitComplementDeg, 360 - splitComplementDeg}},
+	{name: Triad, degs: []float64{triadDeg, 2 * triadDeg}},
+	{name: Analogous, degs: []float64{-analogousDeg, analogousDeg}},
+	{name: Square, degs: []float64{squareDeg, 2 * squareDeg, 3 * squareDeg}},
+	{name: Ramp, of: ramp},
+	{name: Tones, of: tones},
 }
 
 var ErrUnknownHarmony = errors.New("unknown harmony")
@@ -85,6 +102,18 @@ func ParseHarmony(s string) (Harmony, error) {
 	return "", fmt.Errorf("%w %q", ErrUnknownHarmony, s)
 }
 
+var ErrUnknownSpace = errors.New("unknown color space")
+
+// ParseSpace creates a Space out of s.
+// Unknown returns error.
+func ParseSpace(s string) (Space, error) {
+	switch space := Space(s); space {
+	case OKLab, HSL:
+		return space, nil
+	}
+	return "", fmt.Errorf("%w %q: want %q or %q", ErrUnknownSpace, s, OKLab, HSL)
+}
+
 // HarmonyNames lists the harmony names in table order.
 func HarmonyNames() []Harmony {
 	out := make([]Harmony, len(harmonies))
@@ -94,18 +123,22 @@ func HarmonyNames() []Harmony {
 	return out
 }
 
-// Colors runs the harmony on hex.
-// A unknown Harmony answers nil. Use [ParseHarmony].
-func (harmony Harmony) Colors(hex Hex) []Hex {
+// Colors runs the harmony on hex, turning the hue on space's wheel.
+// An unknown Harmony returns nil. Use [ParseHarmony].
+func (harmony Harmony) Colors(space Space, hex Hex) []Hex {
 	for _, h := range harmonies {
-		if h.name == harmony {
+		if h.name != harmony {
+			continue
+		}
+		if h.of != nil {
 			return h.of(hex)
 		}
+		return rotations(space, hex, h.degs)
 	}
 	return nil
 }
 
-// A harmony turns the hue only. The rotations are the definition.
+// The angles that the rotation harmonies would turn.
 const (
 	complementDeg      = 180
 	splitComplementDeg = 150
@@ -114,13 +147,11 @@ const (
 	squareDeg          = 90
 )
 
-// A harmony that is a hue rotation.
-func rotations(degs ...float64) func(Hex) []Hex {
-	return func(h Hex) []Hex {
-		out := make([]Hex, len(degs))
-		for i, deg := range degs {
-			out[i] = rotate(h, deg)
-		}
-		return out
+// A harmony that is a hue rotation, turned on space's wheel.
+func rotations(space Space, h Hex, degs []float64) []Hex {
+	out := make([]Hex, len(degs))
+	for i, deg := range degs {
+		out[i] = rotate(space, h, deg)
 	}
+	return out
 }

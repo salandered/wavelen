@@ -2,29 +2,22 @@ package color
 
 import "math"
 
-// -- MATH IS AI GENERATED --
-// I don't understand most of it
-// --------------------------
+// Short intro: https://en.wikipedia.org/wiki/Oklab_color_space
+// Formulas are based on: https://bottosson.github.io/posts/oklab/
+// See also: https://www.smashingmagazine.com/2024/10/interview-bjorn-ottosson-creator-oklab-color-space/
 
-// The round trip between a "#rrggbb" and OkLab, in the two legs the rest of the package needs:
-// hex -> OkLab for reading a color, OkLab -> linear -> hex for writing one back.
-// The matrices are Ottosson's published sRGB <-> OkLab coefficients.
-
-// Below it a color has no useful hue. Low on purpose: beige is C ~0.033.
-// Both the sort key and the harmony rotations gate on this, and the key is stored, so changing it
-// restates every color_key and needs a migration.
+// Chroma below this is treated as neutral and has no useful hue.
 const neutralChroma = 0.02
 
-// The hue of an OkLab pair as the cosine and sine the gamut searches are written in terms of.
+// Return the hue as cos/sin for gamut calculations.
 func unitHue(a, b float64) (cos, sin float64) {
 	hue := math.Atan2(b, a)
 	return math.Cos(hue), math.Sin(hue)
 }
 
-// The sRGB -> OkLab leg, deliberately a second copy of the one inside perceptualSortKey rather
-// than a helper both call. That key is stored in color_key, and moving those three expressions
-// could change a rounding by one, which restates every stored key and needs a migration.
-// Edit both.
+// Changing expressions could change rounding and the stored sort key.
+// Keep both implementations in sync.
+// https://bottosson.github.io/posts/oklab/#converting-from-linear-srgb-to-oklab
 func hexToOklab(h Hex) (lightness, a, b float64) {
 	red := srgbToLinear(channel(h, 1))
 	green := srgbToLinear(channel(h, 3))
@@ -39,13 +32,9 @@ func hexToOklab(h Hex) (lightness, a, b float64) {
 		0.0259040371*long + 0.7827717662*med - 0.8086757660*short
 }
 
-/*
-The inverse of hexToOklab as far as linear sRGB, reporting whether the color fits in the gamut.
-The matrix is the counterpart of the forward one above.
-
-Gamut is judged here rather than after the transfer function: the two are monotonic in each
-other, and srgbFromLinear would have to answer for a negative input first.
-*/
+// Convert OkLab to linear sRGB and report if the result is in gamut.
+// Check gamut before the sRGB transfer function because it may receive negative values.
+// https://bottosson.github.io/posts/oklab/#converting-from-linear-srgb-to-oklab
 func oklabToLinear(lightness, a, b float64) (red, green, blue float64, inGamut bool) {
 	long := lightness + 0.3963377774*a + 0.2158037573*b
 	med := lightness - 0.1055613458*a - 0.0638541728*b
@@ -60,15 +49,20 @@ func oklabToLinear(lightness, a, b float64) (red, green, blue float64, inGamut b
 	return red, green, blue, fits(red) && fits(green) && fits(blue)
 }
 
-// The normalized "#rrggbb" for three linear channels. They are in gamut up to gamutEpsilon,
-// so the clamp only absorbs that.
+// Converts normalized sRGB channels to a hex string
 func linearToHex(red, green, blue float64) Hex {
+	return srgbToHex(srgbFromLinear(red), srgbFromLinear(green), srgbFromLinear(blue))
+}
+
+// The normalized "#rrggbb" for three channels that already carry the transfer function.
+// hsl.go is written in those and comes here directly. The OkLab leg comes through linearToHex.
+func srgbToHex(red, green, blue float64) Hex {
 	const digits = "0123456789abcdef"
 
 	out := make([]byte, HexLen)
 	out[0] = '#'
 	for i, c := range [3]float64{red, green, blue} {
-		v := quantize(srgbFromLinear(c))
+		v := quantize(c)
 		out[1+2*i] = digits[v>>4]
 		out[2+2*i] = digits[v&0xf]
 	}
@@ -95,6 +89,7 @@ func hexDigit(c byte) int {
 	return 0
 }
 
+// https://registry.color.org/rgb-registry/files/bgsRGB.pdf
 func srgbToLinear(c float64) float64 {
 	if c <= 0.04045 {
 		return c / 12.92
@@ -102,6 +97,7 @@ func srgbToLinear(c float64) float64 {
 	return math.Pow((c+0.055)/1.055, 2.4)
 }
 
+// https://registry.color.org/rgb-registry/files/bgsRGB.pdf
 func srgbFromLinear(c float64) float64 {
 	if c <= 0.0031308 {
 		return c * 12.92
