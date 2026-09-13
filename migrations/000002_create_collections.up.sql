@@ -5,7 +5,7 @@ CREATE TABLE collections (
     name        text NOT NULL,
 	-- an icon slug tinted with accent
     icon_slug   text NOT NULL DEFAULT 'square',
-    icon_accent text NOT NULL DEFAULT '#808080',
+    icon_accent text NOT NULL DEFAULT '#dbd7d0',
     is_default  boolean NOT NULL DEFAULT false,
     created_at  timestamptz NOT NULL DEFAULT now()
 );

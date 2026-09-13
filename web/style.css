@@ -9,6 +9,35 @@
 	--warn: light-dark(#a8560f, #e8a05e);
 	/* the fill of a submit button: a step down from --fg, so it doesn't glare */
 	--primary: light-dark(#4a4540, #c9c2b5);
+	/* one height for every control that sits in a row, whatever its content */
+	--control-h: 1.7rem;
+
+	/*
+	Ten collection accents. 
+	'-dark' value is canonical: what picker sends and what collections.icon_accent
+	stores. internal/collection.DefIconAccent is the gray one. 
+	The light twin is shown and is not stored, light-dark() re-resolves every tint on a theme flip.
+	*/
+	--accent-gray-dark: #dbd7d0;
+	--accent-gray: light-dark(#63605b, var(--accent-gray-dark));
+	--accent-red-dark: #f8a49d;
+	--accent-red: light-dark(#a3544f, var(--accent-red-dark));
+	--accent-orange-dark: #ebb077;
+	--accent-orange: light-dark(#986021, var(--accent-orange-dark));
+	--accent-yellow-dark: #c7c274;
+	--accent-yellow: light-dark(#787119, var(--accent-yellow-dark));
+	--accent-green-dark: #95cf96;
+	--accent-green: light-dark(#447e47, var(--accent-green-dark));
+	--accent-teal-dark: #69d3c6;
+	--accent-teal: light-dark(#008076, var(--accent-teal-dark));
+	--accent-cyan-dark: #70ccee;
+	--accent-cyan: light-dark(#007a9b, var(--accent-cyan-dark));
+	--accent-blue-dark: #9ebdff;
+	--accent-blue: light-dark(#506cac, var(--accent-blue-dark));
+	--accent-violet-dark: #cdaef2;
+	--accent-violet: light-dark(#7d5e9f, var(--accent-violet-dark));
+	--accent-pink-dark: #eda4cc;
+	--accent-pink: light-dark(#99547d, var(--accent-pink-dark));
 }
 
 /* changing color-scheme re-evaluates all light-dark() values. */
@@ -24,7 +53,7 @@
 Zen mode hides text and chrome while preserving layout.
 Use visibility instead of display so swatches, bands, and grid rows keep their size.
 */
-:root.zen .swatch span,
+:root.zen .swatch-text,
 :root.zen .detail-hex,
 :root.zen .detail-label,
 :root.zen .band-hex,
@@ -37,9 +66,8 @@ Use visibility instead of display so swatches, bands, and grid rows keep their s
 	visibility: hidden;
 }
 
-/* !important: app.js paints the accent as an inline style, which a selector cannot outrank */
 :root.zen .collection-icon {
-	color: var(--muted) !important;
+	color: var(--muted);
 }
 
 html {
@@ -145,9 +173,9 @@ The account chip: the nickname in a box.
 }
 
 /*
-Right anchored: about sits to the right of the chip.
+Right anchored: about sits to the right of the chip, and the listing row ends on its trigger.
 */
-.account-drop {
+.menu-drop {
 	position: absolute;
 	top: calc(100% + 0.3rem);
 	right: 0;
@@ -162,7 +190,7 @@ Right anchored: about sits to the right of the chip.
 }
 
 /* word and its glyph, muted until reached: what these do is not undone */
-.account-item {
+.menu-item {
 	display: flex;
 	align-items: center;
 	gap: 0.5rem;
@@ -172,13 +200,27 @@ Right anchored: about sits to the right of the chip.
 	white-space: nowrap;
 }
 
-.account-item:hover {
+.menu-item .icon {
+	font-size: 1.1rem;
+}
+
+.menu-item:hover {
 	border-color: var(--line);
 	color: var(--fg);
 }
 
+.menu-item:disabled {
+	opacity: 0.4;
+	cursor: default;
+}
+
+.menu-item:disabled:hover {
+	border-color: transparent;
+	color: var(--muted);
+}
+
 /* not .danger, which is the filled submit in the delete dialog */
-.account-item-danger:hover {
+.menu-item-danger:enabled:hover {
 	border-color: var(--error);
 	color: var(--error);
 }
@@ -421,12 +463,29 @@ button {
 	cursor: pointer;
 }
 
+input,
+select,
+.icon-button,
+.icon-trigger,
+.accent-trigger,
+#collection-form button,
+#add-form button,
+#sort,
+#order,
+#palette-sort,
+#palette-order,
+.stack > button {
+	box-sizing: border-box;
+	height: var(--control-h);
+}
+
 /*
 Give each control type a distinct visual treatment:
 filled submits, outlined helpers, underlined settings, and tab-like collections.
 */
 #collection-form button:not([type="button"]),
-#add-form button:not([type="button"]) {
+#add-form button:not([type="button"]),
+.stack > button {
 	background: var(--primary);
 	border-color: var(--primary);
 	color: Canvas;
@@ -690,22 +749,18 @@ below shows. The summary already draws a line, so the strip is pulled up toward 
 	color: var(--fg);
 }
 
-/* last in the listing row, framed like the view controls before them, muted until
-   reached: what they do is not undone */
-#collection-empty,
-#collection-delete {
+.collection-menu {
+	position: relative;
+	display: flex;
+}
+
+#collection-more {
 	color: var(--muted);
 }
 
-#collection-empty:hover,
-#collection-delete:enabled:hover {
-	color: var(--error);
-}
-
-/* the default collection: the control stays so the row keeps its shape, but is disabled */
-#collection-delete:disabled {
-	opacity: 0.4;
-	cursor: default;
+#collection-more:hover,
+#collection-more[aria-expanded="true"] {
+	color: var(--fg);
 }
 
 /*
@@ -723,17 +778,24 @@ currentColor lets the parent choose the icon color.
 	stroke-linejoin: round;
 }
 
+.collection-icon,
+.icon-trigger,
+.icon-picker {
+	color: var(--accent-color, inherit);
+}
+
 .collection-icon {
 	font-size: 1.1rem;
 }
 
-/* the anchor .icon-picker is positioned against */
-.icon-menu {
+/* grids are positioned against this anchor */
+.picker-menu {
 	position: relative;
 	display: flex;
 }
 
-.icon-trigger {
+.icon-trigger,
+.accent-trigger {
 	display: flex;
 	align-items: center;
 	gap: 0.25rem;
@@ -743,15 +805,17 @@ currentColor lets the parent choose the icon color.
 }
 
 /* not part of the preview, so muted rather than the accent */
-.icon-trigger .caret {
+.icon-trigger .caret,
+.accent-trigger .caret {
 	font-size: 0.7rem;
 	color: var(--muted);
 }
 
 /*
-Absolutely positioned, so opening it doesn't push the toolbar and the grid down the page.
+Absolutely positioned, so opening one doesn't push the toolbar and the grid down the page.
 */
-.icon-picker {
+.icon-picker,
+.accent-picker {
 	position: absolute;
 	top: calc(100% + 0.25rem);
 	left: 0;
@@ -766,7 +830,8 @@ Absolutely positioned, so opening it doesn't push the toolbar and the grid down 
 	background: Canvas;
 }
 
-.icon-option {
+.icon-option,
+.accent-option {
 	padding: 0.25rem;
 	border: 1px solid transparent;
 	border-radius: 3px;
@@ -775,27 +840,37 @@ Absolutely positioned, so opening it doesn't push the toolbar and the grid down 
 	line-height: 0;
 }
 
-.icon-option:hover {
+.icon-option:hover,
+.accent-option:hover {
 	border-color: var(--line);
 }
 
-.icon-option[aria-checked="true"] {
+.icon-option[aria-checked="true"],
+.accent-option[aria-checked="true"] {
 	border-color: var(--fg);
 }
 
 /*
-The browser draws the swatch in a box that ignores the padding the other fields get,
-so #collection-accent and #pick below take an explicit height instead of inheriting
-one. The padding left here keeps the border visible around the color.
+Grids are one object at two fills.
 */
+.accent-dot {
+	display: block;
+	width: 1.1rem;
+	height: 1.1rem;
+	border-radius: 3px;
+	background: var(--accent-color);
+}
+
+/* trigger's own dot is the preview: what a create at this moment would use */
+.accent-trigger .accent-dot {
+	width: 1rem;
+	height: 1rem;
+}
+
+/* the browser draws the swatch edge to edge, so the padding is what keeps the border visible */
 input[type="color"] {
 	padding: 0.15rem;
 	cursor: pointer;
-}
-
-#collection-accent {
-	width: 2.5rem;
-	height: 1.7rem;
 }
 
 .panel {
@@ -809,13 +884,11 @@ input[type="color"] {
 #pick,
 #scratch {
 	width: 3.5rem;
-	height: 1.9rem;
 }
 
 /* narrower than the two in the aside: it sits in a row of controls, not beside one */
 #add-pick {
 	width: 2.5rem;
-	height: 1.9rem;
 }
 
 .detail-adjust {
@@ -949,17 +1022,40 @@ auto-fill therefore settles on five columns at the full layout width.
 }
 
 .swatch {
+	min-height: 4rem;
+	border: none;
+}
+
+/* one area, the color first so the text paints over it */
+.cell > .swatch,
+.cell > .swatch-text {
+	grid-area: 1 / 1;
+}
+
+/* it covers the color, so the click falls through to it. The hex takes its own back. */
+.swatch-text {
 	display: flex;
 	flex-direction: column;
 	gap: 0.1rem;
-	/* a floor for the shortest labels, the two lines are taller than this anyway */
-	min-height: 4rem;
 	padding: 0.6rem 0.5rem;
-	/* the shared control border reads as a hairline around the color; the gap is the edge */
-	border: none;
-	text-align: left;
 	font-family: ui-monospace, monospace;
 	font-size: 0.75rem;
+	pointer-events: none;
+}
+
+.swatch-hex {
+	/* box is the hex and not the width of the cell: the color beside it still selects */
+	align-self: flex-start;
+	padding: 0;
+	border: none;
+	background: transparent;
+	font: inherit;
+	pointer-events: auto;
+}
+
+/* the only affordance, same as .detail-hex */
+.swatch-hex:hover {
+	text-decoration: underline;
 }
 
 /*
@@ -977,27 +1073,25 @@ Long names are truncated; the Selected panel shows the full label.
 	/* a fifth shorter than wide: two lines of text want less room than a square gives */
 	aspect-ratio: 5 / 4;
 	min-height: 0;
-	padding: 0.35rem 0.4rem;
 	/* the shared control radius goes: four rounded corners meet as a notch of page */
 	border-radius: 0;
+}
+
+.dense .swatch-text {
+	padding: 0.35rem 0.4rem;
 }
 
 #saved.dense .label {
 	display: none;
 }
 
-/* without the label, keep the hex at the bottom of the swatch */
-#saved.dense .swatch {
+/* without the label, keep the hex at the bottom of the cell */
+#saved.dense .swatch-text {
 	justify-content: flex-end;
 }
 
-/* positioned, so the ring paints over the neighbours it now overlaps */
-.dense .swatch.selected {
-	position: relative;
-}
-
-/* a saved cell is positioned too, and a later one paints over the ring without the lift */
-#saved.dense .cell:has(.swatch.selected) {
+/* the cell is positioned already, the lift is what paints the ring over the neighbours */
+.dense .cell:has(.swatch.selected) {
 	z-index: 1;
 }
 
@@ -1023,7 +1117,17 @@ height rather than the cells keeping their ratio, so nothing scrolls.
 .grid:fullscreen .swatch {
 	aspect-ratio: auto;
 	min-height: 0;
+}
+
+.grid:fullscreen .swatch-text {
 	font-size: 1rem;
+}
+
+/*
+Nothing acts while the grid fills the screen, the same as a band's hex. Not a target.
+*/
+.grid:fullscreen .swatch-hex {
+	pointer-events: none;
 }
 
 /*
@@ -1036,7 +1140,7 @@ separates the marker from the swatch color, so it reads on any of them.
 		0 0 0 4px var(--fg);
 }
 
-.swatch .label {
+.swatch-text .label {
 	font-family: system-ui, sans-serif;
 	opacity: 0.75;
 	/* names and timestamps are longer than the swatch, and wrapping breaks the grid */
@@ -1046,7 +1150,7 @@ separates the marker from the swatch color, so it reads on any of them.
 }
 
 /*
-The swatch and delete button are siblings inside the cell.
+Swatch, text over it and delete button are all siblings inside the cell.
 Use minmax(0, 1fr) so a long label cannot expand the grid track.
 */
 .cell {

@@ -1,7 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { exportFilename, labelColor, parseHex, randomDigits, savedLabel } from "./lib.js";
+import {
+	exportFilename,
+	labelColor,
+	parseHex,
+	randomCollectionName,
+	randomDigits,
+	savedLabel,
+} from "./lib.js";
 
 test("parseHex accepts optional hash and folds case", () => {
 	assert.equal(parseHex("#FF00AA"), "#ff00aa");
@@ -66,6 +73,22 @@ test("randomDigits answers something parseHex accepts", () => {
 		const digits = randomDigits();
 		assert.equal(parseHex(digits), `#${digits}`);
 	}
+});
+
+test("randomCollectionName answers a name the API accepts", () => {
+	for (let i = 0; i < 200; i++) {
+		const name = randomCollectionName();
+		assert.match(name, /^[a-z]+$/);
+		assert.ok(name.length >= 1 && name.length <= 60);
+	}
+});
+
+test("randomCollectionName reaches both ends of the list", (t) => {
+	t.mock.method(Math, "random", () => 0);
+	const first = randomCollectionName();
+	t.mock.restoreAll();
+	t.mock.method(Math, "random", () => 1 - Number.EPSILON);
+	assert.notEqual(randomCollectionName(), first);
 });
 
 test("exportFilename takes the name the server sent", () => {

@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/salandered/wavelen"
 	"github.com/salandered/wavelen/internal/dbconfig"
+	"github.com/salandered/wavelen/internal/dbtrace"
 	"github.com/salandered/wavelen/internal/requestid"
 	"github.com/salandered/wavelen/internal/server"
 	"github.com/salandered/wavelen/internal/storage"
@@ -114,6 +115,12 @@ func openPool(ctx context.Context) (*pgxpool.Pool, error) {
 	poolCfg.MaxConns = maxConns
 	poolCfg.MaxConnIdleTime = maxConnIdleTime
 
+	tracer, err := tracerConfig()
+	if err != nil {
+		return nil, err
+	}
+	poolCfg.ConnConfig.Tracer = tracer
+
 	// The effective db config.
 	// ConnConfig carries the parsed DSN; the password is never logged.
 	slog.Info("database config",
@@ -124,6 +131,8 @@ func openPool(ctx context.Context) (*pgxpool.Pool, error) {
 		"tls", poolCfg.ConnConfig.TLSConfig != nil,
 		"max_conns", poolCfg.MaxConns,
 		"max_conn_idle_time", poolCfg.MaxConnIdleTime,
+		"slow_query", tracer.SlowQuery,
+		"slow_acquire", tracer.SlowAcquire,
 	)
 
 	// NewWithConfig does not dial: MinConns is 0, so the pool is usable with the
@@ -133,6 +142,29 @@ func openPool(ctx context.Context) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("database pool: %w", err)
 	}
 	return pool, nil
+}
+
+// Envs set to 0 would turn off their logs.
+func tracerConfig() (*dbtrace.Tracer, error) {
+	slowQuery, err := durationFromEnv("DB_SLOW_QUERY", dbtrace.DefSlowQuery)
+	if err != nil {
+		return nil, err
+	}
+	if slowQuery < 0 {
+		return nil, fmt.Errorf(
+			"%w: DB_SLOW_QUERY should be >= 0, got %s", ErrConfig, slowQuery)
+	}
+
+	slowAcquire, err := durationFromEnv("DB_SLOW_ACQUIRE", dbtrace.DefSlowAcquire)
+	if err != nil {
+		return nil, err
+	}
+	if slowAcquire < 0 {
+		return nil, fmt.Errorf(
+			"%w: DB_SLOW_ACQUIRE should be >= 0, got %s", ErrConfig, slowAcquire)
+	}
+
+	return &dbtrace.Tracer{SlowQuery: slowQuery, SlowAcquire: slowAcquire}, nil
 }
 
 // logDBReachable only logs whether the database answers at boot.

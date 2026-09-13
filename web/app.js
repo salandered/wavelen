@@ -1,4 +1,11 @@
-import { exportFilename, labelColor, parseHex, randomDigits, savedLabel } from "./lib.js";
+import {
+	exportFilename,
+	labelColor,
+	parseHex,
+	randomCollectionName,
+	randomDigits,
+	savedLabel,
+} from "./lib.js";
 
 // comes from the spec api.yaml.
 const API = "/api/v1";
@@ -292,6 +299,37 @@ const DEF_ICON = "square";
 
 let selectedIcon = DEF_ICON;
 
+// ---- collection accents ----
+// Ordering only.
+// The server still takes any hex: the ten are this page's set.
+const ACCENTS = [
+	"gray",
+	"red",
+	"orange",
+	"yellow",
+	"green",
+	"teal",
+	"cyan",
+	"blue",
+	"violet",
+	"pink",
+];
+
+// matches [collection.DefIconAccent]
+const DEF_ACCENT = "gray";
+
+let selectedAccent = DEF_ACCENT;
+
+// The stored value is always the dark one. --accent-<slug> resolves using the theme
+function accentHex(slug) {
+	return getComputedStyle(document.documentElement)
+		.getPropertyValue(`--accent-${slug}-dark`)
+		.trim();
+}
+
+// Built once, the reverse of accentHex.
+let accentSlugs = new Map();
+
 // 'i-' only: the sprite also holds 'ui-' glyphs the page uses for itself.
 function iconNames() {
 	return [...document.querySelectorAll("#icon-sprite symbol[id^='i-']")].map((symbol) =>
@@ -332,7 +370,7 @@ function renderIconPicker() {
 			option.append(iconSvg(name, "icon"));
 			option.addEventListener("click", () => {
 				selectIcon(name);
-				openIconMenu(false);
+				openMenu("icon", false);
 			});
 			return option;
 		}),
@@ -348,32 +386,77 @@ function selectIcon(name) {
 	renderIconChoice();
 }
 
-// Apply the current accent to both the trigger and the grid.
-// This previews the color a newly created collection would get.
-function renderIconChoice() {
-	const accent = $("collection-accent").value;
-	$("icon-picker").style.color = accent;
-	$("icon-trigger").style.color = accent;
-
+function caretSpan() {
 	const caret = document.createElement("span");
 	caret.className = "caret";
 	caret.textContent = "▾";
+	return caret;
+}
 
-	$("icon-trigger").replaceChildren(iconSvg(selectedIcon, "icon"), caret);
-	// the glyph is the whole label, so the name is spelled out
+// Apply the current accent to both the trigger and the grid.
+// This previews the color a newly created collection would get.
+function renderIconChoice() {
+	const tint = `var(--accent-${selectedAccent})`;
+	$("icon-picker").style.setProperty("--accent-color", tint);
+	$("icon-trigger").style.setProperty("--accent-color", tint);
+
+	$("icon-trigger").replaceChildren(iconSvg(selectedIcon, "icon"), caretSpan());
 	$("icon-trigger").title = `icon: ${selectedIcon}`;
 	$("icon-trigger").setAttribute("aria-label", `collection icon: ${selectedIcon}`);
+
+	const dot = document.createElement("span");
+	dot.className = "accent-dot";
+	dot.style.setProperty("--accent-color", tint);
+	$("accent-trigger").replaceChildren(dot, caretSpan());
+	$("accent-trigger").title = `accent: ${selectedAccent}`;
+	$("accent-trigger").setAttribute("aria-label", `collection accent: ${selectedAccent}`);
 }
+
+// Built once from ACCENTS, the same shape renderIconPicker builds from the sprite.
+function renderAccentPicker() {
+	accentSlugs = new Map(ACCENTS.map((slug) => [accentHex(slug), slug]));
+	$("accent-picker").replaceChildren(
+		...ACCENTS.map((slug) => {
+			const option = document.createElement("button");
+			option.type = "button";
+			option.className = "accent-option";
+			option.dataset.accent = slug;
+			option.title = slug;
+			option.setAttribute("role", "radio");
+			const dot = document.createElement("span");
+			dot.className = "accent-dot";
+			dot.style.setProperty("--accent-color", `var(--accent-${slug})`);
+			option.append(dot);
+			option.addEventListener("click", () => {
+				selectAccent(slug);
+				openMenu("accent", false);
+			});
+			return option;
+		}),
+	);
+	selectAccent(DEF_ACCENT);
+}
+
+function selectAccent(slug) {
+	selectedAccent = slug;
+	for (const option of $("accent-picker").children) {
+		option.setAttribute("aria-checked", String(option.dataset.accent === slug));
+	}
+	renderIconChoice();
+}
+
+// The icon grid and the accent grid behave the same way
+const MENUS = ["icon", "accent"];
 
 // aria-expanded is the source of truth for the menu state.
 // [hidden] hides the grid when it is closed, while CSS controls its display when open.
-function openIconMenu(open) {
-	$("icon-trigger").setAttribute("aria-expanded", String(open));
-	$("icon-picker").hidden = !open;
+function openMenu(name, open) {
+	$(`${name}-trigger`).setAttribute("aria-expanded", String(open));
+	$(`${name}-picker`).hidden = !open;
 }
 
-function iconMenuOpen() {
-	return $("icon-trigger").getAttribute("aria-expanded") === "true";
+function menuOpen(name) {
+	return $(`${name}-trigger`).getAttribute("aria-expanded") === "true";
 }
 
 // One tab per collection, and the tab only selects.
@@ -400,7 +483,12 @@ function renderCollections() {
 			name.addEventListener("click", () => selectCollection(col.id));
 
 			const glyph = iconSvg(col.icon, "icon collection-icon");
-			glyph.style.color = col.accent;
+			// token for one of the ten, so a theme flip re-resolves it with nothing re-rendered
+			const slug = accentSlugs.get(col.accent);
+			glyph.style.setProperty(
+				"--accent-color",
+				slug === undefined ? col.accent : `var(--accent-${slug})`,
+			);
 			const text = document.createElement("span");
 			text.className = "name";
 			text.textContent = col.name;
@@ -508,24 +596,37 @@ function markSelected() {
 	}
 }
 
-function swatch(hex, label) {
+function swatchCell(hex, label) {
+	const cell = document.createElement("div");
+	cell.className = "cell";
+
 	const el = document.createElement("button");
 	el.type = "button";
 	el.className = "swatch";
 	el.dataset.hex = hex;
 	el.style.background = hex;
-	el.style.color = labelColor(hex);
 	el.title = `use ${hex}`;
+	el.setAttribute("aria-label", `use ${hex}`); // it holds no text of its own
+	el.addEventListener("click", () => selectColor(hex, label));
 
-	const code = document.createElement("span");
+	const text = document.createElement("div");
+	text.className = "swatch-text";
+	text.style.color = labelColor(hex);
+
+	const code = document.createElement("button");
+	code.type = "button";
+	code.className = "swatch-hex";
 	code.textContent = hex;
+	code.title = "copy";
+	code.addEventListener("click", () => copyHex(hex));
+
 	const caption = document.createElement("span");
 	caption.className = "label";
 	caption.textContent = label;
 
-	el.append(code, caption);
-	el.addEventListener("click", () => selectColor(hex, label));
-	return el;
+	text.append(code, caption);
+	cell.append(el, text);
+	return cell;
 }
 
 // The inputs that hold a hex: the two pickers and the add form's field, which is what "add" saves.
@@ -583,12 +684,10 @@ function selectionChanged() {
 	showStrips();
 }
 
-// Saved swatches also have a delete button; palette swatches do not.
-// Keep the swatch and delete button as siblings inside the cell.
+// Saved cell carries a delete button as well.
 // The grid and hover styles are applied to the cell.
 function savedSwatch(hex, label) {
-	const cell = document.createElement("div");
-	cell.className = "cell";
+	const cell = swatchCell(hex, label);
 
 	const remove = document.createElement("button");
 	remove.type = "button";
@@ -599,7 +698,7 @@ function savedSwatch(hex, label) {
 	remove.setAttribute("aria-label", `delete ${hex}`);
 	remove.addEventListener("click", () => deleteColor(hex, cell, remove));
 
-	cell.append(swatch(hex, label), remove);
+	cell.append(remove);
 	return cell;
 }
 
@@ -1168,7 +1267,7 @@ async function loadPalette() {
 		const { data } = await call("GET", `/colors?${params}`);
 		renderSwatches(
 			$("palette"),
-			data.colors.map((c) => swatch(c.hex, c.name)),
+			data.colors.map((c) => swatchCell(c.hex, c.name)),
 		);
 	} catch (err) {
 		renderEmpty($("palette"), err.message);
@@ -1860,8 +1959,7 @@ $("collection-form").addEventListener("submit", async (event) => {
 		return;
 	}
 	try {
-		await createCollection($("collection-name").value, selectedIcon, $("collection-accent").value);
-		$("collection-name").value = "";
+		await createCollection($("collection-name").value, selectedIcon, accentHex(selectedAccent));
 		openCollectionForm(false); // the new tab is showing, and a second create is rare
 	} catch (err) {
 		setStatus(err.message, true);
@@ -1874,12 +1972,41 @@ function openCollectionForm(open) {
 	$("collection-new").setAttribute("aria-expanded", String(open));
 	$("collection-form").hidden = !open;
 	if (open) {
+		$("collection-name").value = randomCollectionName();
 		$("collection-name").focus();
+		$("collection-name").select();
 	}
 }
 
 $("collection-new").addEventListener("click", () => {
 	openCollectionForm($("collection-new").getAttribute("aria-expanded") !== "true");
+});
+
+// Additional controls, folded behind the ellipsis.
+function openCollectionMenu(open) {
+	$("collection-more").setAttribute("aria-expanded", String(open));
+	$("collection-drop").hidden = !open;
+}
+
+function collectionMenuOpen() {
+	return $("collection-more").getAttribute("aria-expanded") === "true";
+}
+
+$("collection-more").addEventListener("click", () => openCollectionMenu(!collectionMenuOpen()));
+
+$("collection-drop").addEventListener("click", () => openCollectionMenu(false));
+
+document.addEventListener("click", (event) => {
+	if (collectionMenuOpen() && event.target.closest(".collection-menu") === null) {
+		openCollectionMenu(false);
+	}
+});
+
+document.addEventListener("keydown", (event) => {
+	if (event.key === "Escape" && collectionMenuOpen()) {
+		openCollectionMenu(false);
+		$("collection-more").focus();
+	}
 });
 
 $("collection-empty").addEventListener("click", emptyCollection);
@@ -1892,24 +2019,39 @@ for (const grid of Object.keys(DENSE_GRIDS)) {
 $("saved-fullscreen").addEventListener("click", showSavedFullscreen);
 $("palette-fullscreen").addEventListener("click", showPaletteFullscreen);
 
-// No debounce, unlike the picker in the aside: this only writes a style property.
-$("collection-accent").addEventListener("input", renderIconChoice);
+// One grid at a time: the form row has no width for two, and the second would cover the first.
+for (const name of MENUS) {
+	$(`${name}-trigger`).addEventListener("click", () => {
+		const open = !menuOpen(name);
+		for (const other of MENUS) {
+			openMenu(other, other === name && open);
+		}
+	});
+}
 
-$("icon-trigger").addEventListener("click", () => openIconMenu(!iconMenuOpen()));
-
-// The trigger is inside .icon-menu, so its own click is not an outside one and stays a toggle. An
-// option's click closes the menu itself.
+// A trigger is inside its own .picker-menu, so its own click is not an outside one and stays a
+// toggle. An option's click closes its menu itself.
 document.addEventListener("click", (event) => {
-	if (iconMenuOpen() && event.target.closest(".icon-menu") === null) {
-		openIconMenu(false);
+	if (event.target.closest(".picker-menu") !== null) {
+		return;
+	}
+	for (const name of MENUS) {
+		if (menuOpen(name)) {
+			openMenu(name, false);
+		}
 	}
 });
 
 // Escape closes the menu, and the focus goes back to the trigger rather than to the document.
 document.addEventListener("keydown", (event) => {
-	if (event.key === "Escape" && iconMenuOpen()) {
-		openIconMenu(false);
-		$("icon-trigger").focus();
+	if (event.key !== "Escape") {
+		return;
+	}
+	for (const name of MENUS) {
+		if (menuOpen(name)) {
+			openMenu(name, false);
+			$(`${name}-trigger`).focus();
+		}
 	}
 });
 
@@ -1993,6 +2135,7 @@ const opening = storedSelection();
 selectColor(opening.hex, opening.name);
 renderLog(); // same, until something happens
 renderIconPicker(); // reads the sprite once, before anything can select out of it
+renderAccentPicker(); // reads the --accent-* tokens once
 renderCollections(); // the empty list, until the first response replaces it
 renderSession(); // picks the account panel, and hides the two sections that need a token
 loadPalette(); // public, so it runs logged out too

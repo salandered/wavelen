@@ -39,24 +39,88 @@
 		Lucide 1.43.0, https://github.com/lucide-icons/lucide
 
 		ISC License, Copyright (c) 2026 Lucide Icons and Contributors, for every Lucide icon here
-		except clipboard, download, log-out, monitor, moon, music, plus, square, trash-2 and
-		circle-plus (the notice lists it under the old name plus-circle). Those are derived from
-		Feather and carry the MIT License, Copyright (c) 2013-present Cole Bemis.
+		except clipboard, download, log-out, monitor, moon, music, plus, square, trash-2,
+		circle-plus and ellipsis (the notice lists the last two under their old names plus-circle
+		and more-horizontal). Those are derived from Feather and carry the MIT License,
+		Copyright (c) 2013-present Cole Bemis.
+
+		"Sun" icon is changed: made thicker.
 
 		Verbatim license: web/LICENSE-lucide.txt.
 		-->
 		<svg id="icon-sprite" aria-hidden="true" hidden>
 			<defs>
-				<symbol id="i-anchor" viewBox="0 0 24 24">
-					<path d="M12 6v16" />
-					<path d="m19 13 2-1a9 9 0 0 1-18 0l2 1" />
-					<path d="M9 11h6" />
-					<circle cx="12" cy="4" r="2" />
+				<symbol id="i-square" viewBox="0 0 24 24">
+					<rect width="18" height="18" x="3" y="3" rx="2" />
+				</symbol>
+				<symbol id="i-layers" viewBox="0 0 24 24">
+					<path
+						d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"
+					/>
+					<path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" />
+					<path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" />
+				</symbol>
+				<symbol id="i-blend" viewBox="0 0 24 24">
+					<circle cx="15" cy="9" r="7" />
+					<circle cx="9" cy="15" r="7" />
+				</symbol>
+				<symbol id="i-heart" viewBox="0 0 24 24">
+					<path
+						d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"
+					/>
+				</symbol>
+				<symbol id="i-star" viewBox="0 0 24 24">
+					<path
+						d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"
+					/>
+				</symbol>
+				<symbol id="i-droplet" viewBox="0 0 24 24">
+					<path
+						d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"
+					/>
 				</symbol>
 				<symbol id="i-brush" viewBox="0 0 24 24">
 					<path d="m11 10 3 3" />
 					<path d="M6.5 21A3.5 3.5 0 1 0 3 17.5a2.62 2.62 0 0 1-.708 1.792A1 1 0 0 0 3 21z" />
 					<path d="M9.969 17.031 21.378 5.624a1 1 0 0 0-3.002-3.002L6.967 14.031" />
+				</symbol>
+				<symbol id="i-pipette" viewBox="0 0 24 24">
+					<path
+						d="m12 9-8.414 8.414A2 2 0 0 0 3 18.828v1.344a2 2 0 0 1-.586 1.414A2 2 0 0 1 3.828 21h1.344a2 2 0 0 0 1.414-.586L15 12"
+					/>
+					<path d="m18 9 .4.4a1 1 0 1 1-3 3l-3.8-3.8a1 1 0 1 1 3-3l.4.4 3.4-3.4a1 1 0 1 1 3 3z" />
+					<path d="m2 22 .414-.414" />
+				</symbol>
+				<symbol id="i-paintbrush" viewBox="0 0 24 24">
+					<path d="m14.622 17.897-10.68-2.913" />
+					<path
+						d="M18.376 2.622a1 1 0 1 1 3.002 3.002L17.36 9.643a.5.5 0 0 0 0 .707l.944.944a2.41 2.41 0 0 1 0 3.408l-.944.944a.5.5 0 0 1-.707 0L8.354 7.348a.5.5 0 0 1 0-.707l.944-.944a2.41 2.41 0 0 1 3.408 0l.944.944a.5.5 0 0 0 .707 0z"
+					/>
+					<path
+						d="M9 8c-1.804 2.71-3.97 3.46-6.583 3.948a.507.507 0 0 0-.302.819l7.32 8.883a1 1 0 0 0 1.185.204C12.735 20.405 16 16.792 16 15"
+					/>
+				</symbol>
+				<symbol id="i-palette" viewBox="0 0 24 24">
+					<path
+						d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"
+					/>
+					<circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+					<circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+					<circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+					<circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
+				</symbol>
+				<symbol id="i-mountain" viewBox="0 0 24 24">
+					<path d="m8 3 4 8 5-5 5 15H2L8 3z" />
+				</symbol>
+				<symbol id="i-landmark" viewBox="0 0 24 24">
+					<path d="M10 18v-7" />
+					<path
+						d="M11.119 2.205a2 2 0 0 1 1.762 0l7.84 3.846A.5.5 0 0 1 20.5 7h-17a.5.5 0 0 1-.22-.949z"
+					/>
+					<path d="M14 18v-7" />
+					<path d="M18 18v-7" />
+					<path d="M3 22h18" />
+					<path d="M6 18v-7" />
 				</symbol>
 				<symbol id="i-camera" viewBox="0 0 24 24">
 					<path
@@ -64,47 +128,16 @@
 					/>
 					<circle cx="12" cy="13" r="3" />
 				</symbol>
-				<symbol id="i-cat" viewBox="0 0 24 24">
-					<path
-						d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"
-					/>
-					<path d="M8 14v.5" />
-					<path d="M16 14v.5" />
-					<path d="M11.25 16.25h1.5L12 17l-.75-.75Z" />
-				</symbol>
-				<symbol id="i-cloud" viewBox="0 0 24 24">
-					<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
-				</symbol>
-				<symbol id="i-coffee" viewBox="0 0 24 24">
-					<path d="M10 2v2" />
-					<path d="M14 2v2" />
-					<path
-						d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"
-					/>
-					<path d="M6 2v2" />
+				<symbol id="i-music" viewBox="0 0 24 24">
+					<path d="M9 18V5l12-2v13" />
+					<circle cx="6" cy="18" r="3" />
+					<circle cx="18" cy="16" r="3" />
 				</symbol>
 				<symbol id="i-crown" viewBox="0 0 24 24">
 					<path
 						d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"
 					/>
 					<path d="M5 21h14" />
-				</symbol>
-				<symbol id="i-droplet" viewBox="0 0 24 24">
-					<path
-						d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"
-					/>
-				</symbol>
-				<symbol id="i-fish" viewBox="0 0 24 24">
-					<path
-						d="M6.5 12c.94-3.46 4.94-6 8.5-6 3.56 0 6.06 2.54 7 6-.94 3.47-3.44 6-7 6s-7.56-2.53-8.5-6Z"
-					/>
-					<path d="M18 12v.5" />
-					<path d="M16 17.93a9.77 9.77 0 0 1 0-11.86" />
-					<path
-						d="M7 10.67C7 8 5.58 5.97 2.73 5.5c-1 1.5-1 5 .23 6.5-1.24 1.5-1.24 5-.23 6.5C5.58 18.03 7 16 7 13.33"
-					/>
-					<path d="M10.46 7.26C10.2 5.88 9.17 4.24 8 3h5.8a2 2 0 0 1 1.98 1.67l.23 1.4" />
-					<path d="m16.01 17.93-.23 1.4A2 2 0 0 1 13.8 21H9.5a5.96 5.96 0 0 0 1.49-3.98" />
 				</symbol>
 				<symbol id="i-flower" viewBox="0 0 24 24">
 					<circle cx="12" cy="12" r="3" />
@@ -119,6 +152,83 @@
 					<path d="M14.12 9.88 16 8" />
 					<path d="m8 16 1.88-1.88" />
 					<path d="M14.12 14.12 16 16" />
+				</symbol>
+				<symbol id="i-leaf" viewBox="0 0 24 24">
+					<path
+						d="M11 20a10 10 0 0010-10 25.9 25.9 0 00-1.04-7.281 1 1 0 00-1.755-.325C15.833 5.5 13 5.5 9.8 6.1A7 7 0 0011 20"
+					/>
+					<path d="M2 21a5 5 0 012.911-4.544C7.613 15.212 8.351 15.24 11 13" />
+				</symbol>
+				<symbol id="i-moon" viewBox="0 0 24 24">
+					<path
+						d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"
+					/>
+				</symbol>
+				<symbol id="i-fish" viewBox="0 0 24 24">
+					<path
+						d="M6.5 12c.94-3.46 4.94-6 8.5-6 3.56 0 6.06 2.54 7 6-.94 3.47-3.44 6-7 6s-7.56-2.53-8.5-6Z"
+					/>
+					<path d="M18 12v.5" />
+					<path d="M16 17.93a9.77 9.77 0 0 1 0-11.86" />
+					<path
+						d="M7 10.67C7 8 5.58 5.97 2.73 5.5c-1 1.5-1 5 .23 6.5-1.24 1.5-1.24 5-.23 6.5C5.58 18.03 7 16 7 13.33"
+					/>
+					<path d="M10.46 7.26C10.2 5.88 9.17 4.24 8 3h5.8a2 2 0 0 1 1.98 1.67l.23 1.4" />
+					<path d="m16.01 17.93-.23 1.4A2 2 0 0 1 13.8 21H9.5a5.96 5.96 0 0 0 1.49-3.98" />
+				</symbol>
+				<symbol id="i-cat" viewBox="0 0 24 24">
+					<path
+						d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"
+					/>
+					<path d="M8 14v.5" />
+					<path d="M16 14v.5" />
+					<path d="M11.25 16.25h1.5L12 17l-.75-.75Z" />
+				</symbol>
+				<symbol id="i-coffee" viewBox="0 0 24 24">
+					<path d="M10 2v2" />
+					<path d="M14 2v2" />
+					<path
+						d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"
+					/>
+					<path d="M6 2v2" />
+				</symbol>
+				<symbol id="i-snowflake" viewBox="0 0 24 24">
+					<path d="m10 20-1.25-2.5L6 18" />
+					<path d="M10 4 8.75 6.5 6 6" />
+					<path d="m14 20 1.25-2.5L18 18" />
+					<path d="m14 4 1.25 2.5L18 6" />
+					<path d="m17 21-3-6h-4" />
+					<path d="m17 3-3 6 1.5 3" />
+					<path d="M2 12h6.5L10 9" />
+					<path d="m20 10-1.5 2 1.5 2" />
+					<path d="M22 12h-6.5L14 15" />
+					<path d="m4 10 1.5 2L4 14" />
+					<path d="m7 21 3-6-1.5-3" />
+					<path d="m7 3 3 6h4" />
+				</symbol>
+				<!-- stroke-width: Lucide icon, but made thicker -->
+				<symbol id="i-sun" viewBox="0 0 24 24" stroke-width="2.5">
+					<circle cx="12" cy="12" r="4" />
+					<path d="M12 2v2" />
+					<path d="M12 20v2" />
+					<path d="m4.93 4.93 1.41 1.41" />
+					<path d="m17.66 17.66 1.41 1.41" />
+					<path d="M2 12h2" />
+					<path d="M20 12h2" />
+					<path d="m6.34 17.66-1.41 1.41" />
+					<path d="m19.07 4.93-1.41 1.41" />
+				</symbol>
+				<symbol id="i-anchor" viewBox="0 0 24 24">
+					<path d="M12 6v16" />
+					<path d="m19 13 2-1a9 9 0 0 1-18 0l2 1" />
+					<path d="M9 11h6" />
+					<circle cx="12" cy="4" r="2" />
+				</symbol>
+				<symbol id="i-tag" viewBox="0 0 24 24">
+					<path
+						d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"
+					/>
+					<circle cx="7.5" cy="7.5" r=".5" fill="currentColor" />
 				</symbol>
 				<!--
 					Use 'ui-' for icons that are not collection icons.
@@ -194,6 +304,11 @@
 					<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
 					<path d="m7 10 5 5 5-5" />
 				</symbol>
+				<symbol id="ui-ellipsis" viewBox="0 0 24 24">
+					<circle cx="12" cy="12" r="1" />
+					<circle cx="19" cy="12" r="1" />
+					<circle cx="5" cy="12" r="1" />
+				</symbol>
 				<symbol id="ui-info" viewBox="0 0 24 24">
 					<circle cx="12" cy="12" r="10" />
 					<path d="M12 16v-4" />
@@ -237,104 +352,6 @@
 					<circle cx="8.86" cy="19.58" r="2.8" fill="currentColor" stroke="none" />
 					<circle cx="4.42" cy="8.86" r="2.8" fill="currentColor" stroke="none" />
 				</symbol>
-				<symbol id="i-gem" viewBox="0 0 24 24">
-					<path d="M10.5 3 8 9l4 13 4-13-2.5-6" />
-					<path
-						d="M17 3a2 2 0 0 1 1.6.8l3 4a2 2 0 0 1 .013 2.382l-7.99 10.986a2 2 0 0 1-3.247 0l-7.99-10.986A2 2 0 0 1 2.4 7.8l2.998-3.997A2 2 0 0 1 7 3z"
-					/>
-					<path d="M2 9h20" />
-				</symbol>
-				<symbol id="i-heart" viewBox="0 0 24 24">
-					<path
-						d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"
-					/>
-				</symbol>
-				<symbol id="i-image" viewBox="0 0 24 24">
-					<rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-					<circle cx="9" cy="9" r="2" />
-					<path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-				</symbol>
-				<symbol id="i-layers" viewBox="0 0 24 24">
-					<path
-						d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"
-					/>
-					<path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" />
-					<path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" />
-				</symbol>
-				<symbol id="i-leaf" viewBox="0 0 24 24">
-					<path
-						d="M11 20a10 10 0 0010-10 25.9 25.9 0 00-1.04-7.281 1 1 0 00-1.755-.325C15.833 5.5 13 5.5 9.8 6.1A7 7 0 0011 20"
-					/>
-					<path d="M2 21a5 5 0 012.911-4.544C7.613 15.212 8.351 15.24 11 13" />
-				</symbol>
-				<symbol id="i-moon" viewBox="0 0 24 24">
-					<path
-						d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"
-					/>
-				</symbol>
-				<symbol id="i-mountain" viewBox="0 0 24 24">
-					<path d="m8 3 4 8 5-5 5 15H2L8 3z" />
-				</symbol>
-				<symbol id="i-music" viewBox="0 0 24 24">
-					<path d="M9 18V5l12-2v13" />
-					<circle cx="6" cy="18" r="3" />
-					<circle cx="18" cy="16" r="3" />
-				</symbol>
-				<symbol id="i-palette" viewBox="0 0 24 24">
-					<path
-						d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"
-					/>
-					<circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
-					<circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
-					<circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
-					<circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
-				</symbol>
-				<symbol id="i-pipette" viewBox="0 0 24 24">
-					<path
-						d="m12 9-8.414 8.414A2 2 0 0 0 3 18.828v1.344a2 2 0 0 1-.586 1.414A2 2 0 0 1 3.828 21h1.344a2 2 0 0 0 1.414-.586L15 12"
-					/>
-					<path d="m18 9 .4.4a1 1 0 1 1-3 3l-3.8-3.8a1 1 0 1 1 3-3l.4.4 3.4-3.4a1 1 0 1 1 3 3z" />
-					<path d="m2 22 .414-.414" />
-				</symbol>
-				<symbol id="i-snowflake" viewBox="0 0 24 24">
-					<path d="m10 20-1.25-2.5L6 18" />
-					<path d="M10 4 8.75 6.5 6 6" />
-					<path d="m14 20 1.25-2.5L18 18" />
-					<path d="m14 4 1.25 2.5L18 6" />
-					<path d="m17 21-3-6h-4" />
-					<path d="m17 3-3 6 1.5 3" />
-					<path d="M2 12h6.5L10 9" />
-					<path d="m20 10-1.5 2 1.5 2" />
-					<path d="M22 12h-6.5L14 15" />
-					<path d="m4 10 1.5 2L4 14" />
-					<path d="m7 21 3-6-1.5-3" />
-					<path d="m7 3 3 6h4" />
-				</symbol>
-				<symbol id="i-square" viewBox="0 0 24 24">
-					<rect width="18" height="18" x="3" y="3" rx="2" />
-				</symbol>
-				<symbol id="i-star" viewBox="0 0 24 24">
-					<path
-						d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"
-					/>
-				</symbol>
-				<symbol id="i-sun" viewBox="0 0 24 24">
-					<circle cx="12" cy="12" r="4" />
-					<path d="M12 2v2" />
-					<path d="M12 20v2" />
-					<path d="m4.93 4.93 1.41 1.41" />
-					<path d="m17.66 17.66 1.41 1.41" />
-					<path d="M2 12h2" />
-					<path d="M20 12h2" />
-					<path d="m6.34 17.66-1.41 1.41" />
-					<path d="m19.07 4.93-1.41 1.41" />
-				</symbol>
-				<symbol id="i-tag" viewBox="0 0 24 24">
-					<path
-						d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"
-					/>
-					<circle cx="7.5" cy="7.5" r=".5" fill="currentColor" />
-				</symbol>
 			</defs>
 		</svg>
 
@@ -358,23 +375,23 @@
 				>
 					<span class="name"></span>
 				</button>
-				<div class="account-drop" id="account-drop" hidden>
+				<div class="menu-drop" id="account-drop" hidden>
 					<button
 						type="button"
-						class="account-item"
+						class="menu-item"
 						id="export"
 						title="download this account as a JSON file"
 					>
 						<svg class="icon" aria-hidden="true"><use href="#ui-download" /></svg>
 						<span>export</span>
 					</button>
-					<button type="button" class="account-item" id="logout">
+					<button type="button" class="menu-item" id="logout">
 						<svg class="icon" aria-hidden="true"><use href="#ui-log-out" /></svg>
 						<span>log out</span>
 					</button>
 					<button
 						type="button"
-						class="account-item account-item-danger"
+						class="menu-item menu-item-danger"
 						id="account-delete-open"
 						title="delete this account and everything in it"
 					>
@@ -518,22 +535,20 @@
 					<!-- keep in sync with collection.MaxNameLen; the API rejects longer names -->
 					<form id="collection-form" hidden>
 						<div class="row">
-							<label for="collection-name">new</label>
-							<input id="collection-name" placeholder="name" maxlength="60" />
-							<!-- both are optional in the API, defaults are the same as in API -->
 							<input
-								type="color"
-								id="collection-accent"
-								value="#808080"
-								aria-label="collection accent"
+								id="collection-name"
+								placeholder="name"
+								maxlength="60"
+								aria-label="collection name"
 							/>
-
 							<!--
-								type=button prevents the trigger from submitting the form.
+								Both are optional in the API, defaults are the same as in API.
+								type=button prevents a trigger from submitting the form.
 								aria-expanded is the source of truth for the menu state.
-								app.js fills the trigger and picker from the sprite.
+								app.js fills the icon trigger and grid from the sprite, and the accent
+								ones from the --accent-* tokens in style.css.
 							-->
-							<div class="icon-menu">
+							<div class="picker-menu">
 								<button
 									type="button"
 									class="icon-trigger"
@@ -547,6 +562,24 @@
 									id="icon-picker"
 									role="radiogroup"
 									aria-label="collection icon"
+									hidden
+								></div>
+							</div>
+
+							<div class="picker-menu">
+								<button
+									type="button"
+									class="accent-trigger"
+									id="accent-trigger"
+									aria-haspopup="true"
+									aria-expanded="false"
+									aria-controls="accent-picker"
+								></button>
+								<div
+									class="accent-picker"
+									id="accent-picker"
+									role="radiogroup"
+									aria-label="collection accent"
 									hidden
 								></div>
 							</div>
@@ -616,25 +649,42 @@
 								<svg class="icon" aria-hidden="true"><use href="#ui-monitor" /></svg>
 							</button>
 							<!-- both act on the active collection: eraser removes its colors; trash removes the collection too -->
-							<button
-								type="button"
-								class="icon-button"
-								id="collection-empty"
-								title="delete every color in this collection"
-								aria-label="delete every color in this collection"
-							>
-								<svg class="icon" aria-hidden="true"><use href="#ui-eraser" /></svg>
-							</button>
-							<button
-								type="button"
-								class="icon-button"
-								id="collection-delete"
-								title="delete this collection and its colors"
-								aria-label="delete this collection and its colors, not allowed for the default one"
-								disabled
-							>
-								<svg class="icon" aria-hidden="true"><use href="#ui-trash" /></svg>
-							</button>
+							<div class="collection-menu">
+								<button
+									type="button"
+									class="icon-button"
+									id="collection-more"
+									title="this collection"
+									aria-label="this collection"
+									aria-haspopup="true"
+									aria-expanded="false"
+									aria-controls="collection-drop"
+								>
+									<svg class="icon" aria-hidden="true"><use href="#ui-ellipsis" /></svg>
+								</button>
+								<div class="menu-drop" id="collection-drop" hidden>
+									<button
+										type="button"
+										class="menu-item menu-item-danger"
+										id="collection-empty"
+										title="delete every color in this collection"
+									>
+										<svg class="icon" aria-hidden="true"><use href="#ui-eraser" /></svg>
+										<span>empty collection</span>
+									</button>
+									<button
+										type="button"
+										class="menu-item menu-item-danger"
+										id="collection-delete"
+										title="delete this collection and its colors"
+										aria-label="delete this collection and its colors, not allowed for the default one"
+										disabled
+									>
+										<svg class="icon" aria-hidden="true"><use href="#ui-trash" /></svg>
+										<span>delete collection</span>
+									</button>
+								</div>
+							</div>
 						</div>
 					</div>
 					<div class="grid" id="saved"></div>

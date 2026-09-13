@@ -25,6 +25,8 @@ services:
       AUTH_TOKEN_TTL: "${AUTH_TOKEN_TTL:-}"
       AUTH_CONCUR_LIMIT: "${AUTH_CONCUR_LIMIT:-}"
       AUTH_CONCUR_WAIT: "${AUTH_CONCUR_WAIT:-}"
+      DB_SLOW_QUERY: "${DB_SLOW_QUERY:-}"
+      DB_SLOW_ACQUIRE: "${DB_SLOW_ACQUIRE:-}"
       LOG_LEVEL: "${LOG_LEVEL:-info}"
       LOG_FORMAT: "${LOG_FORMAT:-text}"
       LOG_FILE: "${LOG_FILE:-}"
