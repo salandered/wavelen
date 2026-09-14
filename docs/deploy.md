@@ -39,6 +39,12 @@ kubectl get endpointslices -l kubernetes.io/service-name=wavelen
 ```
 
 ```sh
+# quick db check
+kubectl exec -it postgres-0 -- sh -c 'psql -U $POSTGRES_USER -d $POSTGRES_DB'
+select * from schema_migrations;
+```
+
+```sh
 # app works
 curl.exe -s https://wavelen.ink/api/v1/colors
 ```

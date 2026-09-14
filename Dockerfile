@@ -29,6 +29,9 @@ RUN apk add --no-cache ca-certificates
 LABEL org.opencontainers.image.licenses="LicenseRef-PolyForm-Shield-1.0.0" \
 	org.opencontainers.image.source="https://github.com/salandered/wavelen"
 COPY LICENSE /LICENSE
+# third party terms for what the binary carries: the icon sprite and the two embedded fonts.
+# A separate directory, not web/: the static handler serves everything under the FS it is given.
+COPY attribution/ /attribution/
 
 # run as a non-root user
 RUN addgroup -S wavelen && adduser -S -G wavelen wavelen

@@ -24,6 +24,15 @@
 		<!-- Module script so app.js can import lib.js. Modules are deferred, so the document is ready. -->
 		<script type="module" src="/app.js"></script>
 		<link rel="stylesheet" href="/style.css" />
+		<link
+			rel="preload"
+			href="/fonts/JetBrainsMono-Regular.woff2"
+			as="font"
+			type="font/woff2"
+			crossorigin
+		/>
+		<!-- only the latin subset: others are lazily fetched -->
+		<link rel="preload" href="/fonts/Inter-latin.woff2" as="font" type="font/woff2" crossorigin />
 	</head>
 
 	<body>
@@ -46,7 +55,7 @@
 
 		"Sun" icon is changed: made thicker.
 
-		Verbatim license: web/LICENSE-lucide.txt.
+		Verbatim license: attribution/LICENSE-lucide.txt.
 		-->
 		<svg id="icon-sprite" aria-hidden="true" hidden>
 			<defs>

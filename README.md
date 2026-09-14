@@ -99,4 +99,4 @@ The list above is a summary. See [LICENSE](LICENSE) for the actual terms.
 
 Versions released before this license was adopted stay under MIT.
 
-Icons keep their own terms, see [web/LICENSE-lucide.txt](web/LICENSE-lucide.txt).
+Icons and fonts keep their own terms, see `web/README.md` and `attribution/`.

@@ -10,7 +10,6 @@ docker-compose.yml
 
 # web ui: files that are not embeded in embed.go
 web/README.md
-web/LICENSE-lucide.txt
 web/lib.test.js
 
 # web ui: the eslint/prettier setup
@@ -33,7 +32,7 @@ coverage.*
 *.coverprofile
 
 # docs / configs / ci
-# LICENSE is not here: the runtime stage copies it into the image
+# LICENSE and attribution/ are not here: there are baked into docker image and binary
 dev/
 .github/
 __docs/

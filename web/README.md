@@ -45,6 +45,21 @@ npm test
 
 `app.js` is not covered.
 
+## Fonts
+
+Self hosted from `web/fonts/`.
+
+- Inter 4.001 for page text.
+- JetBrains Mono 2.304 for hexes.
+
+### License
+
+Inter, https://github.com/rsms/inter
+
+JetBrains Mono 2.304, https://github.com/JetBrains/JetBrainsMono
+
+See `attribution/LICENSE-inter.txt` and `attribution/LICENSE-jetbrains-mono.txt`.
+
 ## Icons
 
 The collection icons are the SVG sprite at the top of `web/index.html`.
@@ -56,8 +71,6 @@ Every other icon is from the Lucide toolkit.
 
 ### License
 
-The harmony icons are under this project's own license.
-
 Lucide 1.43.0, https://github.com/lucide-icons/lucide
 
-See the included license file `LICENSE-lucide.txt` .
+See the included license file `attribution/LICENSE-lucide.txt` .
