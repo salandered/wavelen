@@ -79,7 +79,7 @@ func decodeCursor(
 		if err != nil {
 			return nil, fmt.Errorf("%w: %q is not an RFC3339 timestamp", errInvalidCursor, key[0])
 		}
-		hex, err := color.ParseHex(key[1])
+		hex, err := color.NewHex(key[1])
 		if err != nil {
 			return nil, fmt.Errorf("%w: %w", errInvalidCursor, err)
 		}
@@ -88,7 +88,7 @@ func decodeCursor(
 		if len(key) != 1 {
 			return nil, fmt.Errorf("%w: want one hex, got %d values", errInvalidCursor, len(key))
 		}
-		hex, err := color.ParseHex(key[0])
+		hex, err := color.NewHex(key[0])
 		if err != nil {
 			return nil, fmt.Errorf("%w: %w", errInvalidCursor, err)
 		}

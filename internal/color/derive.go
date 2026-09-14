@@ -12,7 +12,7 @@ const (
 
 // Turns the hue by deg on space's wheel.
 func rotate(space Space, h Hex, deg float64) Hex {
-	if space == HSL {
+	if space == SpaceHSL {
 		return rotateHSL(h, deg)
 	}
 	return rotateOkLCh(h, deg)
@@ -120,4 +120,10 @@ func tones(h Hex) []Hex {
 		out[i] = colorAt(lightness, step*float64(i), cos, sin)
 	}
 	return out
+}
+
+// Return the hue as cos/sin for gamut calculations.
+func unitHue(a, b float64) (cos, sin float64) {
+	hue := math.Atan2(b, a)
+	return math.Cos(hue), math.Sin(hue)
 }

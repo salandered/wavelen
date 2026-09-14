@@ -64,7 +64,7 @@ func (h *ColorHandler) HandleAddColor(w http.ResponseWriter, req *http.Request, 
 		return
 	}
 
-	hex, err := color.ParseHex(data.Hex)
+	hex, err := color.NewHex(data.Hex)
 	if err != nil {
 		writeRequestError(ctx, w, err)
 		return

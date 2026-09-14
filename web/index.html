@@ -789,6 +789,17 @@
 							none
 						</button>
 						<div class="setting-help">
+							<!-- one shape for every pinned block at once, see .dense -->
+							<button
+								type="button"
+								class="icon-button"
+								id="strips-dense"
+								title="dense strips"
+								aria-label="dense strips"
+								aria-pressed="false"
+							>
+								<svg class="icon" aria-hidden="true"><use href="#ui-grid" /></svg>
+							</button>
 							<!-- cycler: app.js writes the label and the title, the value stays in data-value -->
 							<button type="button" id="space" data-value="hsl" aria-label="harmony wheel"></button>
 							<!-- popover: the browser owns opening, light dismiss, Esc and the focus return -->
@@ -934,6 +945,45 @@
 						>
 							<svg class="icon" aria-hidden="true"><use href="#ui-monitor" /></svg>
 						</button>
+					</div>
+					<!--
+						Static, the same reason the adjust picker is: drawInfo fills the two lists and
+						never rebuilds the group around them. A rebuilt details drops its open state on
+						every selection. Hidden rather than emptied when the selection is dropped, so
+						the caption and the rules go with the values.
+					-->
+					<div id="detail-info" class="detail-info" hidden>
+						<dl id="detail-models" class="info-models"></dl>
+						<div class="info-head ruled">
+							<details class="info-group" data-collapse-key="contrast" open>
+								<summary class="info-caption">wcag 2</summary>
+								<dl id="detail-contrast" class="info-contrast"></dl>
+							</details>
+							<!-- a sibling of the details, not a child of the summary: nested, a click on
+							     the glyph reaches the summary and collapses the group -->
+							<button
+								type="button"
+								class="help info-help"
+								id="contrast-help-open"
+								popovertarget="contrast-help"
+								title="what the levels mean"
+								aria-label="what the levels mean"
+							>
+								<svg class="icon" aria-hidden="true"><use href="#ui-info" /></svg>
+							</button>
+							<div class="help-panel" id="contrast-help" popover>
+								<dl class="help-values">
+									<dt>aaa</dt>
+									<dd>7:1, body text</dd>
+									<dt>aa</dt>
+									<dd>4.5:1, body text</dd>
+									<dt>aa-large</dt>
+									<dd>3:1, 18pt and up</dd>
+									<dt>fail</dt>
+									<dd>below 3:1</dd>
+								</dl>
+							</div>
+						</div>
 					</div>
 				</details>
 

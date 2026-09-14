@@ -18,8 +18,8 @@ tags:
     description: The colors inside one collection
   - name: Palette
     description: The shared read-only palette
-  - name: Harmony
-    description: Compute some colors based on a specific one.
+  - name: ColorInfo
+    description: Values derived from one hex, never from stored rows
 
 paths:
   /:
@@ -546,13 +546,38 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /api/v1/colors/{hex}/{harmony}:
+  /api/v1/colors/{hex}/info:
+    parameters:
+      - $ref: "#/components/parameters/ColorHex"
+    get:
+      tags: [ColorInfo]
+      summary: Returns color information like RGB channel split
+      description: >-
+        Every value is derived from the hex in the path. 
+        Values are rounded according to the specific representation.
+        The 'hex' field is lossless.
+      responses:
+        "200":
+          description: The derived values
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/XRequestId"
+            Cache-Control:
+              $ref: "#/components/headers/DerivedCacheControl"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ColorInfoResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/v1/colors/{hex}/harmonies/{harmony}:
     parameters:
       - $ref: "#/components/parameters/ColorHex"
       - $ref: "#/components/parameters/Harmony"
       - $ref: "#/components/parameters/Space"
     get:
-      tags: [Harmony]
+      tags: [ColorInfo]
       summary: Returns colors that are calculated from the incoming hex (path value) using a specified harmony (path value)
       description: >-
         What we call "harmony" in the app is usually described as a color "scheme": https://en.wikipedia.org/wiki/Color_scheme.
@@ -565,7 +590,7 @@ paths:
             X-Request-Id:
               $ref: "#/components/headers/XRequestId"
             Cache-Control:
-              $ref: "#/components/headers/HarmonyCacheControl"
+              $ref: "#/components/headers/DerivedCacheControl"
           content:
             application/json:
               schema:
@@ -603,13 +628,12 @@ components:
         type: string
       example: 'attachment; filename="wavelen-salandered-123-20260912T143005Z.json"'
 
-    HarmonyCacheControl:
+    DerivedCacheControl:
       description: >-
-        A harmony depends on the URL and the formula, the formula only changes with a deploy.
-        The 'space' query is part of the URL.
+        Everything under /colors/{hex}/ depends on the URL and a formula. 
       schema:
         type: string
-      example: "public, max-age=31536000, immutable"
+      example: "public, max-age=600, immutable"
 
   parameters:
     CollectionId:
@@ -954,6 +978,118 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CommonColor"
+
+    ColorInfoResponse:
+      type: object
+      required: [hex, rgb, hsl, hsv, oklch, contrast]
+      additionalProperties: false
+      description: >-
+        Echoes the normalized incoming hex 'hex', then the each color representation.
+      properties:
+        hex:
+          $ref: "#/components/schemas/HexStored"
+        rgb:
+          type: object
+          required: [r, g, b]
+          additionalProperties: false
+          description: Channels, 0 to 255. 
+          properties:
+            r:
+              $ref: "#/components/schemas/ColorChannel"
+            g:
+              $ref: "#/components/schemas/ColorChannel"
+            b:
+              $ref: "#/components/schemas/ColorChannel"
+        hsl:
+          type: object
+          required: [h, s, l]
+          additionalProperties: false
+          description: "As CSS writes it: hsl(h s% l%)."
+          properties:
+            h:
+              $ref: "#/components/schemas/HueDegrees"
+            s:
+              $ref: "#/components/schemas/Percent"
+            l:
+              $ref: "#/components/schemas/Percent"
+        hsv:
+          type: object
+          required: [h, s, v]
+          additionalProperties: false
+          description: >-
+            HSB in Figma and Photoshop. It has no CSS form and both show percent.
+          properties:
+            h:
+              $ref: "#/components/schemas/HueDegrees"
+            s:
+              $ref: "#/components/schemas/Percent"
+            v:
+              $ref: "#/components/schemas/Percent"
+        oklch:
+          type: object
+          required: [l, c, h]
+          additionalProperties: false
+          description: "As CSS writes it: oklch(l% c h)."
+          properties:
+            l:
+              type: number
+              minimum: 0
+              maximum: 100
+              example: 68.4
+            c:
+              type: number
+              minimum: 0
+              example: 0.144
+            h:
+              $ref: "#/components/schemas/HueDegrees"
+        contrast:
+          type: object
+          required: [white, black]
+          additionalProperties: false
+          description: >-
+            WCAG 2 contrast against the black and white.
+          properties:
+            white:
+              $ref: "#/components/schemas/Contrast"
+            black:
+              $ref: "#/components/schemas/Contrast"
+
+    Contrast:
+      type: object
+      required: [ratio, level]
+      additionalProperties: false
+      properties:
+        ratio:
+          type: number
+          minimum: 1
+          maximum: 21
+          description: >-
+            WCAG 2 contrast ratio, from 1 to 21. Cut to two decimals, never rounded.
+          example: 7.88
+        level:
+          type: string
+          description: >-
+            Best WCAG 2 grade that text of this color passes on that background.
+          example: aaa
+
+    ColorChannel:
+      type: integer
+      minimum: 0
+      maximum: 255
+      example: 179
+
+    HueDegrees:
+      type: integer
+      minimum: 0
+      maximum: 359
+      description: Hue in whole degrees.
+      example: 147
+
+    Percent:
+      type: integer
+      minimum: 0
+      maximum: 100
+      example: 50
 
     HarmonyResponse:
       type: object

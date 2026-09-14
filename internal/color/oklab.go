@@ -9,19 +9,12 @@ import "math"
 // Chroma below this is treated as neutral and has no useful hue.
 const neutralChroma = 0.02
 
-// Return the hue as cos/sin for gamut calculations.
-func unitHue(a, b float64) (cos, sin float64) {
-	hue := math.Atan2(b, a)
-	return math.Cos(hue), math.Sin(hue)
-}
-
-// Changing expressions could change rounding and the stored sort key.
-// Keep both implementations in sync.
+// Note: Changing expressions could affect the data stored in db (e.g. sort key).
 // https://bottosson.github.io/posts/oklab/#converting-from-linear-srgb-to-oklab
 func hexToOklab(h Hex) (lightness, a, b float64) {
-	red := srgbToLinear(channel(h, 1))
-	green := srgbToLinear(channel(h, 3))
-	blue := srgbToLinear(channel(h, 5))
+	red := srgbToLinear(h.RNorm())
+	green := srgbToLinear(h.GNorm())
+	blue := srgbToLinear(h.BNorm())
 
 	long := math.Cbrt(0.4122214708*red + 0.5363325363*green + 0.0514459929*blue)
 	med := math.Cbrt(0.2119034982*red + 0.6806995451*green + 0.1073969566*blue)
@@ -54,8 +47,7 @@ func linearToHex(red, green, blue float64) Hex {
 	return srgbToHex(srgbFromLinear(red), srgbFromLinear(green), srgbFromLinear(blue))
 }
 
-// The normalized "#rrggbb" for three channels that already carry the transfer function.
-// hsl.go is written in those and comes here directly. The OkLab leg comes through linearToHex.
+// Returns a hex for three channels that already carry the transfer function.
 func srgbToHex(red, green, blue float64) Hex {
 	const digits = "0123456789abcdef"
 
@@ -71,22 +63,6 @@ func srgbToHex(red, green, blue float64) Hex {
 
 func quantize(c float64) int {
 	return int(math.Round(min(max(c, 0), 1) * 255))
-}
-
-// One channel of a normalized "#rrggbb", read at i and i+1.
-func channel(h Hex, i int) float64 {
-	return float64(hexDigit(h[i])<<4|hexDigit(h[i+1])) / 255
-}
-
-// h is normalized, anything else is unreachable.
-func hexDigit(c byte) int {
-	switch {
-	case c >= '0' && c <= '9':
-		return int(c - '0')
-	case c >= 'a' && c <= 'f':
-		return int(c-'a') + 10
-	}
-	return 0
 }
 
 // https://registry.color.org/rgb-registry/files/bgsRGB.pdf

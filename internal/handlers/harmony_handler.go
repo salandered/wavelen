@@ -9,8 +9,6 @@ import (
 	"github.com/salandered/wavelen/internal/color"
 )
 
-const harmonyCacheControl = "public, max-age=31536000, immutable"
-
 type HarmonyResp struct {
 	Hex     string   `json:"hex"`
 	Harmony string   `json:"harmony"`
@@ -43,7 +41,7 @@ func HandleHarmony(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	w.Header().Set("Cache-Control", harmonyCacheControl)
+	w.Header().Set("Cache-Control", derivedCacheControl)
 	httputils.WriteJSON(ctx, w, http.StatusOK, HarmonyResp{
 		Hex:     string(hex),
 		Harmony: string(harmony),

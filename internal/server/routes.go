@@ -77,8 +77,8 @@ func newMux(s storage.Storage, cfg HandlerConfig) *http.ServeMux {
 
 	//// common data and operations
 	mux.HandleFunc("GET /api/v1/colors", handlers.HandleListCommonColors)
-	// one route for every harmony
-	mux.HandleFunc("GET /api/v1/colors/{hex}/{harmony}", handlers.HandleHarmony)
+	mux.HandleFunc("GET /api/v1/colors/{hex}/info", handlers.HandleColorInfo)
+	mux.HandleFunc("GET /api/v1/colors/{hex}/harmonies/{harmony}", handlers.HandleHarmony)
 
 	return mux
 }

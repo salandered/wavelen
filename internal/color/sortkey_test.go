@@ -1,23 +1,13 @@
-package color_test
+package color
 
 import (
 	"testing"
 
-	"github.com/salandered/wavelen/internal/color"
 	"github.com/stretchr/testify/require"
 )
 
-// The sort key packs hue group at the top, lightness in the middle and chroma at the bottom.
-// All three are readable through the exported color.Feel.
-// Chroma is in thousandths, capped at 999.
-const (
-	groupStep     = 10_000_000
-	lightnessStep = 1_000
-)
-
-func groupOf(h color.Hex) int     { return int(color.Feel(h)) / groupStep }
-func lightnessOf(h color.Hex) int { return int(color.Feel(h)) % groupStep / lightnessStep }
-func chromaOf(h color.Hex) int    { return int(color.Feel(h)) % lightnessStep }
+func groupOf(h Hex) int  { return int(perceptualSortKey(h)) / groupStep }
+func chromaOf(h Hex) int { return int(perceptualSortKey(h)) % lightnessStep }
 
 func TestSortKeyPutsNeutralsInTheirOwnGroup(t *testing.T) {
 	for _, h := range neutrals {
@@ -28,7 +18,7 @@ func TestSortKeyPutsNeutralsInTheirOwnGroup(t *testing.T) {
 }
 
 func TestSortKeyKeepsNearNeutralsInTheirHueGroup(t *testing.T) {
-	for _, h := range []color.Hex{"#f5f5dc", "#fff8dc", "#ffe4c4", "#bc8f8f"} {
+	for _, h := range []Hex{"#f5f5dc", "#fff8dc", "#ffe4c4", "#bc8f8f"} {
 		t.Run(string(h), func(t *testing.T) {
 			require.NotEqual(t, 0, groupOf(h))
 		})
@@ -37,7 +27,7 @@ func TestSortKeyKeepsNearNeutralsInTheirHueGroup(t *testing.T) {
 
 func TestSortKeyWalksHuesInSpectrumOrder(t *testing.T) {
 	for _, tc := range []struct {
-		hex   color.Hex
+		hex   Hex
 		group int
 	}{
 		{"#ff0000", 1},  // the 20 degree origin is what opens group 1 with red
@@ -58,23 +48,23 @@ func TestSortKeyWalksHuesInSpectrumOrder(t *testing.T) {
 }
 
 func TestSortKeyOrdersOneHueFamilyDarkToLight(t *testing.T) {
-	ramp := []color.Hex{"#8b0000", "#b22222", "#dc143c", "#ff0000", "#f08080"}
+	ramp := []Hex{"#8b0000", "#b22222", "#dc143c", "#ff0000", "#f08080"}
 
 	for i := 1; i < len(ramp); i++ {
-		require.Less(t, color.Feel(ramp[i-1]), color.Feel(ramp[i]),
+		require.Less(t, Feel(ramp[i-1]), Feel(ramp[i]),
 			"%s must sort before %s", ramp[i-1], ramp[i])
 	}
 }
 
 func TestSortKeyPacksWithoutCarryingBetweenParts(t *testing.T) {
-	white := color.Feel("#ffffff") // the largest a neutral can be
-	darkestChromatic := color.Feel("#000001")
+	white := Feel("#ffffff") // the largest a neutral can be
+	darkestChromatic := Feel("#000001")
 
 	require.Equal(t, 0, int(white)/groupStep)
 	require.Less(t, white, darkestChromatic)
 }
 
 func TestSortKeyIsZeroForValueParseHexWouldReject(t *testing.T) {
-	require.Zero(t, color.Feel("#fff"))
-	require.Zero(t, color.Feel(""))
+	require.Zero(t, Feel("#fff"))
+	require.Zero(t, Feel(""))
 }

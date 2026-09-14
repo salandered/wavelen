@@ -31,6 +31,8 @@ const (
 	spaceQuery  = "space"
 )
 
+const derivedCacheControl = "public, max-age=600, immutable"
+
 // Nothing large in bodies.
 const maxRequestBodyBytes = 1 << 16 // 64 kb
 
@@ -54,7 +56,7 @@ func hexFromPath(req *http.Request) (color.Hex, error) {
 	if strings.Contains(raw, "#") {
 		return "", fmt.Errorf("invalid hex color %q: must be 6 hex digits without '#'", raw)
 	}
-	return color.ParseHex(raw)
+	return color.NewHex(raw)
 }
 
 // Response cursor metadata.

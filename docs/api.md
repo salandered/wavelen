@@ -22,9 +22,11 @@ HOST=localhost:8080
 # public CSS palette
 curl $HOST/api/v1/colors
 curl "$HOST/api/v1/colors?sort=hex&order=desc"
-# harmonies: complement, triad, ramp, and others
-curl $HOST/api/v1/colors/ff00aa/complement
-curl $HOST/api/v1/colors/ff00aa/triad
+# rgb, hsl/hsv, oklch and other color info
+curl $HOST/api/v1/colors/ff00aa/info
+# harmonies: complement, triad, square and others
+curl $HOST/api/v1/colors/ff00aa/harmonies/complement
+curl "$HOST/api/v1/colors/ff00aa/harmonies/triad?space=hsl"
 curl $HOST/api/v1/version
 ```
 

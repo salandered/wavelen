@@ -29,9 +29,9 @@ func perceptualSortKey(h Hex) int32 {
 	if len(h) != HexLen {
 		return 0
 	}
-	r := srgbToLinear(channel(h, 1))
-	g := srgbToLinear(channel(h, 3))
-	b := srgbToLinear(channel(h, 5))
+	r := srgbToLinear(h.RNorm())
+	g := srgbToLinear(h.GNorm())
+	b := srgbToLinear(h.BNorm())
 
 	// The matrices are Ottosson's published sRGB <-> OkLab coefficients.
 	long := math.Cbrt(0.4122214708*r + 0.5363325363*g + 0.0514459929*b)

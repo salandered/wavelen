@@ -112,7 +112,7 @@ character from its range, e.g a Cyrillic collection is fetched when someone type
 }
 
 /*
-EXPERIMENTAL, see web-wavelen-context.md. The two shades are a step of 10 L* each, measured
+EXPERIMENTAL, see web-wavelen-modes.md. The two shades are a step of 10 L* each, measured
 */
 :root[data-bg="soft"] {
 	--bg: light-dark(#e3e3e3, #262626);
@@ -136,6 +136,7 @@ Use visibility instead of display so swatches, bands, and grid rows keep their s
 :root.zen .swatch-text,
 :root.zen .detail-hex,
 :root.zen .detail-label,
+:root.zen .detail-info,
 :root.zen .band-hex,
 :root.zen #scratch-hex {
 	visibility: hidden;
@@ -559,6 +560,7 @@ select,
 #palette-sort,
 #palette-order,
 #bg,
+#space,
 .stack > button {
 	box-sizing: border-box;
 	height: var(--control-h);
@@ -624,6 +626,14 @@ filled submits, outlined helpers, underlined settings, and tab-like collections.
 	color: var(--fg);
 }
 
+#space {
+	color: var(--muted);
+}
+
+#space:hover {
+	color: var(--fg);
+}
+
 /* a glyph alone, a step under the control it annotates */
 .help {
 	display: flex;
@@ -644,7 +654,8 @@ filled submits, outlined helpers, underlined settings, and tab-like collections.
 	color: var(--fg);
 }
 
-.setting-help:has(.help-panel:popover-open) .help {
+.setting-help:has(.help-panel:popover-open) .help,
+.info-head:has(.help-panel:popover-open) .help {
 	color: var(--fg);
 }
 
@@ -704,6 +715,18 @@ filled submits, outlined helpers, underlined settings, and tab-like collections.
 	#space-help {
 		position-anchor: --space-help;
 		position-area: block-end span-inline-start;
+		margin-top: 0.25rem;
+	}
+
+	#contrast-help-open {
+		anchor-name: --contrast-help;
+	}
+
+	#contrast-help {
+		position-anchor: --contrast-help;
+		position-area: block-end span-inline-start;
+		box-sizing: border-box;
+		width: 15rem;
 		margin-top: 0.25rem;
 	}
 
@@ -996,6 +1019,120 @@ first of them only: on both, the row would share the slack between the two and s
 	margin-left: auto;
 }
 
+/*
+One grid per group.
+*/
+.detail-info {
+	/* One start for every value on the block. The two grids are separate, so a term column
+	   sized by its own content puts the models and the contrast rows at two different x.
+	   Wider than the widest term, which is the sample chip. */
+	--info-term: 5rem;
+	border-top: 1px solid var(--line);
+	padding-top: 0.55rem;
+	margin: 0.7rem 0 0;
+	font-size: 0.8rem;
+}
+
+/* the same pair shape as .help-values, with the faces swapped: here the value is the figure to
+   read off and the term only names it */
+.detail-info dl {
+	display: grid;
+	/* baseline, not the default stretch */
+	align-items: baseline;
+	gap: 0.15rem 0.5rem;
+	margin: 0;
+}
+
+.detail-info dt {
+	color: var(--muted);
+}
+
+.detail-info dd {
+	margin: 0;
+	font-family: var(--mono);
+	/* halfway from --fg to --muted: a figure read off on demand, not a line the panel leads with */
+	color: color-mix(in oklab, var(--fg) 50%, var(--muted));
+}
+
+.info-models {
+	grid-template-columns: var(--info-term) 1fr;
+}
+
+/* term, ratio, level: the third column is what puts every verdict at one x.
+   Centered rather than baseline: the term is a bordered box taller than the figures
+   beside it, and a shared baseline leaves that box sitting low against them. */
+.info-contrast {
+	grid-template-columns: var(--info-term) auto 1fr;
+	align-items: center;
+}
+
+/* right aligned, so the decimal point and the :1 line up down the column */
+.info-contrast .ratio {
+	text-align: right;
+}
+
+/* the four models are the color written out, the two below are a measurement of it */
+.detail-info .ruled {
+	border-top: 1px solid var(--line);
+	padding-top: 0.45rem;
+	margin-top: 0.45rem;
+}
+
+.info-head {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.4rem;
+}
+
+.info-group {
+	flex: 1;
+	min-width: 0;
+	/* details carries 2rem under it, which is a section's gap and not a group's */
+	margin: 0;
+}
+
+/* The marker is the caret, so the summary keeps its list-item display. Everything the
+   panel heading rule put on it comes back off: a second heading in a 15rem column reads
+   as flat against SELECTED above it. */
+.info-caption {
+	font-size: inherit;
+	font-weight: 400;
+	text-transform: none;
+	letter-spacing: normal;
+	color: var(--muted);
+	margin: 0;
+	padding-bottom: 0;
+	border-bottom: none;
+}
+
+/* the same gap the caption takes from the rule above it, so it does not sit closer to the
+   line than to the rows it names */
+.info-group[open] .info-caption {
+	margin-bottom: 0.45rem;
+}
+
+/* the same glyph at the same size as the harmony wheel's, so the two read as one control.
+   The negative margin centers it on the caption line, which is shorter than the button. */
+.info-help {
+	flex: none;
+	margin-top: -0.15rem;
+}
+
+/* The sample is the term: 'on white' never said which of the two carries the color.
+   Set in the page text face rather than the mono one: the ratio measures text, and the
+   mono face is self hosted at one weight, so a 600 there is the browser's fake bold. */
+.sample-chip {
+	display: inline-grid;
+	place-items: center;
+	width: 2.6rem;
+	height: 1.4rem;
+	border: 1px solid var(--line);
+	border-radius: 2px;
+	font-size: 0.85rem;
+	font-weight: 600;
+	line-height: 1;
+}
+
 #scratch-hex {
 	font-family: var(--mono);
 }
@@ -1058,8 +1195,21 @@ Scales use 7 bands and take the full column.
 	line-height: 1;
 }
 
+/* muted like the two bulk words beside it, or the row gains a full-ink glyph among the pins.
+   The margin is the row's own 0.5rem gap over the group's 0.1rem: the help hugs the wheel it
+   annotates, and the dense toggle is a control of its own beside them */
+#strips-dense {
+	margin-right: 0.4rem;
+	color: var(--muted);
+}
+
+#strips-dense:hover {
+	color: var(--fg);
+}
+
 #saved-dense[aria-pressed="true"],
-#palette-dense[aria-pressed="true"] {
+#palette-dense[aria-pressed="true"],
+#strips-dense[aria-pressed="true"] {
 	background: light-dark(rgba(0, 0, 0, 0.14), rgba(255, 255, 255, 0.18));
 }
 
@@ -1141,8 +1291,11 @@ auto-fill therefore settles on five columns at the full layout width.
 	position: relative;
 	display: flex;
 	flex-direction: column;
+	/* flex-end rather than an auto margin on the hex: the saved dense cell drops its label, and
+	   the one child left still has to sit on the bottom edge */
+	justify-content: flex-end;
 	gap: 0.1rem;
-	padding: 0.6rem 0.5rem;
+	padding: 0.6rem 0.5rem 0.35rem;
 	font-family: var(--mono);
 	font-size: 0.75rem;
 	pointer-events: none;
@@ -1151,12 +1304,6 @@ auto-fill therefore settles on five columns at the full layout width.
 .swatch-hex {
 	/* box is the hex and not the width of the cell: the color beside it still selects */
 	align-self: flex-start;
-	/*
-	The hex sits on the bottom edge of every cell, whichever grid and whichever density, and
-	the label takes the top. An auto margin rather than a justify-content on the text, because
-	the saved dense cell drops its label and one child has no space to distribute.
-	*/
-	margin-top: auto;
 	padding: 0;
 	border: none;
 	background: transparent;
@@ -1174,8 +1321,11 @@ auto-fill therefore settles on five columns at the full layout width.
 /*
 Dense mode uses ten columns with no gap.
 Long names are truncated; the Selected panel shows the full label.
+
+.grid and not a bare .dense: #strips takes the same class, and it is a flex row with a gap of
+its own.
 */
-.dense {
+.grid.dense {
 	grid-template-columns: repeat(10, minmax(0, 1fr));
 	gap: 0;
 }
@@ -1191,7 +1341,7 @@ Long names are truncated; the Selected panel shows the full label.
 }
 
 .dense .swatch-text {
-	padding: 0.35rem 0.4rem;
+	padding: 0.35rem 0.4rem 0.2rem;
 }
 
 #saved.dense .label {
@@ -1208,7 +1358,7 @@ Ten to a row is a 32px square once the columns stack. Here and not in the layout
 at the top of the file: same specificity, so the rule that comes later wins.
 */
 @media (max-width: 38rem) {
-	.dense {
+	.grid.dense {
 		grid-template-columns: repeat(5, minmax(0, 1fr));
 	}
 }
@@ -1275,7 +1425,7 @@ the same reason as the labels above: nothing reflows when it appears.
 	position: absolute;
 	top: 0.15rem;
 	right: 0.15rem;
-	/* square, so the hover disc below is a circle and not an ellipse */
+	/* a box for the bare glyph to center in: the x on its own is a target half this wide */
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -1338,14 +1488,15 @@ adds.
 }
 
 .cell .add {
-	top: 0.6rem;
-	left: 0.5rem;
+	top: 0.3rem;
+	left: 0.3rem;
 	font-size: 1.1rem;
 }
 
-.dense .add {
-	top: 0.35rem;
-	left: 0.4rem;
+/* .cell, or this reaches every band's plus once #strips carries the class too */
+.dense .cell .add {
+	top: 0.2rem;
+	left: 0.2rem;
 }
 
 .cell:hover .add,
@@ -1357,7 +1508,15 @@ adds.
 	visibility: visible;
 }
 
-/* box-shadow rather than padding: the disc grows past the button box without moving the glyph */
+/* opacity and not color: labelColor writes the ink inline, per color, and an inline style
+   outranks this rule */
+.cell .add,
+.cell .remove,
+.band .add,
+.detail-stack .add {
+	opacity: 0.6;
+}
+
 .cell .add:hover,
 .cell .add:focus-visible,
 .cell .remove:hover,
@@ -1366,18 +1525,7 @@ adds.
 .band .add:focus-visible,
 .detail-stack .add:hover,
 .detail-stack .add:focus-visible {
-	border-radius: 50%;
-	background: color-mix(in srgb, currentColor 18%, transparent);
-	box-shadow: 0 0 0 0.15em color-mix(in srgb, currentColor 18%, transparent);
-}
-
-/*
-The label yields, the hex below it stays up. The saved grid needs this as much as the palette
-does: its label is a timestamp wide enough to run under the delete in the opposite corner.
-*/
-.cell:hover .label,
-.cell:focus-within .label {
-	visibility: hidden;
+	opacity: 1;
 }
 
 /* nothing acts while a strip or a grid fills the screen, the same as a band's hex */
@@ -1478,6 +1626,40 @@ radius survive it: the color comes out letterboxed, hairlined and round-cornered
 /* same affordance as .detail-hex */
 .harmony .band-hex:hover {
 	text-decoration: underline;
+}
+
+/*
+Dense strips, from the one toggle in the pins row: every pinned block takes the shape at once.
+The narrower rotation basis is the whole of it - three blocks to a row rather than two - plus the
+gaps and the radius, the same pair a dense cell drops.
+
+Written without the #strips id and placed above the :fullscreen rules on purpose. These match
+the same elements at the same specificity, so source order is what leaves a strip its full
+screen height.
+*/
+#strips.dense {
+	gap: 0.35rem 0.6rem;
+}
+
+/* 13.16rem is the widest block toolbar, split-complement's, and a narrower basis wraps its two
+   glyphs onto a second line and lifts that block's strip out of the row */
+.dense .strip-block.rotation {
+	flex-basis: 13.5rem;
+}
+
+.dense .strip-block .toolbar {
+	margin-bottom: 0.15rem;
+}
+
+.dense .harmony {
+	gap: 0;
+}
+
+/* the height is the one thing dense leaves alone: a band is already short beside its own width,
+   and half of it reads as a rule rather than as a color */
+.dense .harmony .band-color {
+	/* the shared control radius goes, the same as a dense cell's */
+	border-radius: 0;
 }
 
 /* the gap goes too: the UA paints on black, which shows through it as lines */

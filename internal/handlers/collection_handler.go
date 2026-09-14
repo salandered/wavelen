@@ -150,7 +150,7 @@ func createCollectionParams(data CreateCollectionReq) (collection.CreateParams, 
 	// not required
 	accent := collection.DefIconAccent
 	if data.Accent != "" {
-		if accent, err = color.ParseHex(data.Accent); err != nil {
+		if accent, err = color.NewHex(data.Accent); err != nil {
 			return collection.CreateParams{}, err
 		}
 	}

@@ -23,6 +23,17 @@ type harmonyJSON struct {
 	Colors  []string `json:"colors"`
 }
 
+type colorInfoJSON struct {
+	Hex      string                `json:"hex"`
+	RGB      struct{ R, G, B int } `json:"rgb"`
+	Contrast struct {
+		White struct {
+			Ratio float64 `json:"ratio"`
+			Level string  `json:"level"`
+		} `json:"white"`
+	} `json:"contrast"`
+}
+
 type commonColorJSON struct {
 	Hex  string `json:"hex"`
 	Name string `json:"name"`
@@ -232,6 +243,30 @@ func (s *E2ESuite) TestSystemEndpoints() {
 	})
 }
 
+func (s *E2ESuite) TestColorInfoEndpoint() {
+	s.Require().Empty(s.token, "expect empty token")
+
+	// the math is in unit tests
+	s.step("get color info", func() {
+		resp := s.get("/api/v1/colors/3CB371/info")
+		s.requireStatus(resp, http.StatusOK)
+
+		var got colorInfoJSON
+		s.jsonDecode(resp, &got)
+		s.Require().Equal("#3cb371", got.Hex)
+		s.Require().Equal(60, got.RGB.R)
+		s.Require().Equal(179, got.RGB.G)
+		s.Require().Equal(113, got.RGB.B)
+		s.Require().Positive(got.Contrast.White.Ratio)
+		s.Require().NotEmpty(got.Contrast.White.Level)
+	})
+
+	s.step("wrong hex is rejected", func() {
+		resp := s.get("/api/v1/colors/nothex/info")
+		s.requireStatus(resp, http.StatusBadRequest)
+	})
+}
+
 func (s *E2ESuite) TestHarmonyEndpoints() {
 	s.Require().Empty(s.token, "expect empty token")
 
@@ -252,7 +287,7 @@ func (s *E2ESuite) TestHarmonyEndpoints() {
 	// not using step, independent queries
 	for _, h := range harmonies {
 		s.Run(h.name, func() {
-			resp := s.get("/api/v1/colors/ff0000/" + h.name)
+			resp := s.get("/api/v1/colors/ff0000/harmonies/" + h.name)
 			s.requireStatus(resp, http.StatusOK)
 
 			var got harmonyJSON
@@ -265,12 +300,12 @@ func (s *E2ESuite) TestHarmonyEndpoints() {
 	}
 
 	s.step("wrong hex is rejected", func() {
-		resp := s.get("/api/v1/colors/nothex/complement")
+		resp := s.get("/api/v1/colors/nothex/harmonies/complement")
 		s.requireStatus(resp, http.StatusBadRequest)
 	})
 
 	s.step("unknown harmony is rejected", func() {
-		resp := s.get("/api/v1/colors/ff0000/plaid")
+		resp := s.get("/api/v1/colors/ff0000/harmonies/plaid")
 		s.requireStatus(resp, http.StatusNotFound)
 	})
 }

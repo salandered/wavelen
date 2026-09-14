@@ -1,6 +1,6 @@
 // The page's simple helpers, no DOM or network.
 
-// The server's own normalization, see color.ParseHex.
+// The server's own normalization, see color.NewHex.
 // Null is a field that names no color yet.
 export function parseHex(text) {
 	const digits = text.trim().replace(/^#/, "");

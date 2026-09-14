@@ -1,35 +1,19 @@
-package color_test
+package color
 
 import (
 	"testing"
 
-	"github.com/salandered/wavelen/internal/color"
 	"github.com/stretchr/testify/require"
 )
 
-var neutrals = []color.Hex{"#000000", "#696969", "#808080", "#d3d3d3", "#ffffff"}
-
-// test only what ParseHex adds, not strvalid.
-func TestParseHexNormalizes(t *testing.T) {
-	got, err := color.ParseHex("  FF0000 ")
-
-	require.NoError(t, err)
-	require.Equal(t, color.Hex("#ff0000"), got)
-}
-
-func TestParseHexRejectsMalformed(t *testing.T) {
-	got, err := color.ParseHex("#fff")
-
-	require.Error(t, err)
-	require.Empty(t, got)
-}
+var neutrals = []Hex{"#000000", "#696969", "#808080", "#d3d3d3", "#ffffff"}
 
 func TestHarmonyOfNeutralIsNeutral(t *testing.T) {
-	for _, name := range color.HarmonyNames() {
-		if name == color.Ramp {
+	for _, name := range HarmonyNames() {
+		if name == Ramp {
 			continue // ramp answers a neutral with other neutrals
 		}
-		for _, space := range []color.Space{color.OKLab, color.HSL} {
+		for _, space := range []Space{SpaceOkLab, SpaceHSL} {
 			t.Run(string(name)+"/"+string(space), func(t *testing.T) {
 				for _, h := range neutrals {
 					for _, got := range name.Colors(space, h) {
@@ -42,12 +26,12 @@ func TestHarmonyOfNeutralIsNeutral(t *testing.T) {
 }
 
 func TestUnknownHarmonyHasNoColors(t *testing.T) {
-	require.Nil(t, color.Harmony("tetrad").Colors(color.OKLab, "#ff0000"))
+	require.Nil(t, Harmony("tetrad").Colors(SpaceOkLab, "#ff0000"))
 }
 
 func TestParseHarmonyAcceptsEveryType(t *testing.T) {
-	for _, name := range color.HarmonyNames() {
-		got, err := color.ParseHarmony(string(name))
+	for _, name := range HarmonyNames() {
+		got, err := ParseHarmony(string(name))
 
 		require.NoError(t, err)
 		require.Equal(t, name, got)
@@ -55,28 +39,46 @@ func TestParseHarmonyAcceptsEveryType(t *testing.T) {
 }
 
 func TestParseHarmonyRejectsUnknown(t *testing.T) {
-	got, err := color.ParseHarmony("tetrad")
+	got, err := ParseHarmony("tetrad")
 
 	require.Empty(t, got)
-	require.ErrorIs(t, err, color.ErrUnknownHarmony)
+	require.ErrorIs(t, err, ErrUnknownHarmony)
 }
 
 func TestParseHarmonyRejectsWrongCaseAndPadding(t *testing.T) {
 	for _, s := range []string{"", "Triad", " triad", "triad "} {
-		_, err := color.ParseHarmony(s)
+		_, err := ParseHarmony(s)
 
-		require.ErrorIs(t, err, color.ErrUnknownHarmony)
+		require.ErrorIs(t, err, ErrUnknownHarmony)
 	}
 }
 
 func TestHarmonyNamesAreUniqueAndApplyEach(t *testing.T) {
-	names := color.HarmonyNames()
+	names := HarmonyNames()
 
 	require.Len(t, names, 7)
-	seen := make(map[color.Harmony]bool, len(names))
+	seen := make(map[Harmony]bool, len(names))
 	for _, name := range names {
 		require.False(t, seen[name], name)
 		seen[name] = true
-		require.NotEmpty(t, name.Colors(color.OKLab, "#ff0000"))
+		require.NotEmpty(t, name.Colors(SpaceOkLab, "#ff0000"))
+	}
+}
+
+func TestParseSpaceAcceptsBothWheels(t *testing.T) {
+	for _, want := range []Space{SpaceOkLab, SpaceHSL} {
+		got, err := ParseSpace(string(want))
+
+		require.NoError(t, err)
+		require.Equal(t, want, got)
+	}
+}
+
+func TestParseSpaceRejectsUnknownEmptyAndWrongCase(t *testing.T) {
+	for _, s := range []string{"", "hsv", "OKLab", " hsl", "hsl "} {
+		got, err := ParseSpace(s)
+
+		require.Empty(t, got)
+		require.ErrorIs(t, err, ErrUnknownSpace)
 	}
 }

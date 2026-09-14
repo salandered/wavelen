@@ -32,7 +32,7 @@ func TestPaletteHexesAndNamesAreUnique(t *testing.T) {
 
 func TestPaletteHexesAreNormalized(t *testing.T) {
 	for _, e := range entries {
-		parsed, err := color.ParseHex(string(e.Hex))
+		parsed, err := color.NewHex(string(e.Hex))
 		require.NoError(t, err, string(e.Hex))
 		require.Equal(t, e.Hex, parsed)
 	}

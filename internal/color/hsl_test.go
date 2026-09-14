@@ -1,28 +1,14 @@
-package color_test
+package color
 
 import (
-	"strconv"
 	"testing"
 
-	"github.com/salandered/wavelen/internal/color"
 	"github.com/stretchr/testify/require"
 )
 
-func channels(h color.Hex) [3]int {
-	var out [3]int
-	for i := range out {
-		v, err := strconv.ParseUint(string(h[1+2*i:3+2*i]), 16, 8)
-		if err != nil {
-			panic(err)
-		}
-		out[i] = int(v)
-	}
-	return out
-}
-
-func topAndBottom(h color.Hex) (top, bottom int) {
-	c := channels(h)
-	return max(c[0], c[1], c[2]), min(c[0], c[1], c[2])
+func topAndBottom(h Hex) (top, bottom int) {
+	r, g, b := h.RByte(), h.GByte(), h.BByte()
+	return max(r, g, b), min(r, g, b)
 }
 
 /*
@@ -36,38 +22,38 @@ those sites take it down to 0x94. Figma itself does both, floor at +30 and +270 
 */
 func TestHSLRotationMatchesColorWheelSites(t *testing.T) {
 	for _, tc := range []struct {
-		harmony color.Harmony
-		want    []color.Hex
+		harmony Harmony
+		want    []Hex
 	}{
-		{color.Complement, []color.Hex{"#5ccdcd"}},
-		{color.SplitComplement, []color.Hex{"#5ccd95", "#5c95cd"}},
-		{color.Triad, []color.Hex{"#5ccd5c", "#5c5ccd"}},
-		{color.Analogous, []color.Hex{"#cd5c95", "#cd955c"}},
-		{color.Square, []color.Hex{"#95cd5c", "#5ccdcd", "#955ccd"}},
+		{Complement, []Hex{"#5ccdcd"}},
+		{SplitComplement, []Hex{"#5ccd95", "#5c95cd"}},
+		{Triad, []Hex{"#5ccd5c", "#5c5ccd"}},
+		{Analogous, []Hex{"#cd5c95", "#cd955c"}},
+		{Square, []Hex{"#95cd5c", "#5ccdcd", "#955ccd"}},
 	} {
 		t.Run(string(tc.harmony), func(t *testing.T) {
-			require.Equal(t, tc.want, tc.harmony.Colors(color.HSL, "#cd5c5c"))
+			require.Equal(t, tc.want, tc.harmony.Colors(SpaceHSL, "#cd5c5c"))
 		})
 	}
 }
 
 func TestHSLTriadOfYellowIsCyanAndMagenta(t *testing.T) {
 	require.Equal(t,
-		[]color.Hex{"#00ffff", "#ff00ff"},
-		color.Triad.Colors(color.HSL, "#ffff00"))
+		[]Hex{"#00ffff", "#ff00ff"},
+		Triad.Colors(SpaceHSL, "#ffff00"))
 }
 
 // OkLCh holds chroma instead and lets lightness move
 func TestHSLRotationHoldsTopAndBottomChannel(t *testing.T) {
-	for _, base := range []color.Hex{"#cd5c5c", "#1f9d55", "#4682b4", "#ffff00", "#8a2be2"} {
+	for _, base := range []Hex{"#cd5c5c", "#1f9d55", "#4682b4", "#ffff00", "#8a2be2"} {
 		t.Run(string(base), func(t *testing.T) {
 			top, bottom := topAndBottom(base)
 
-			for _, name := range []color.Harmony{
-				color.Complement, color.SplitComplement, color.Triad,
-				color.Analogous, color.Square,
+			for _, name := range []Harmony{
+				Complement, SplitComplement, Triad,
+				Analogous, Square,
 			} {
-				for _, got := range name.Colors(color.HSL, base) {
+				for _, got := range name.Colors(SpaceHSL, base) {
 					gotTop, gotBottom := topAndBottom(got)
 					require.Equalf(t, top, gotTop, "%s of %s was %s", name, base, got)
 					require.Equalf(t, bottom, gotBottom, "%s of %s was %s", name, base, got)
@@ -77,62 +63,51 @@ func TestHSLRotationHoldsTopAndBottomChannel(t *testing.T) {
 	}
 }
 
-func TestHSLComplementRoundTripsWhereBothEndsHaveHue(t *testing.T) {
-	const digits = "0123456789abcdef"
-
-	for r := range 16 {
-		for g := range 16 {
-			for b := range 16 {
-				in := color.Hex([]byte{
-					'#', digits[r], digits[r], digits[g], digits[g], digits[b], digits[b],
-				})
-
-				there := color.Complement.Colors(color.HSL, in)[0]
-				if groupOf(in) == 0 || groupOf(there) == 0 {
-					continue
-				}
-
-				back := color.Complement.Colors(color.HSL, there)[0]
-				require.Equalf(t, in, back, "%s -> %s -> %s", in, there, back)
-			}
-		}
-	}
-}
-
 // #887777 is chroma .02114 and its complement is .01975
 func TestHSLRotationStopsWhereItLandsUnderNeutralCutoff(t *testing.T) {
-	there := color.Complement.Colors(color.HSL, "#887777")[0]
+	there := Complement.Colors(SpaceHSL, "#887777")[0]
 
-	require.Equal(t, color.Hex("#778888"), there)
-	require.Equal(t, there, color.Complement.Colors(color.HSL, there)[0])
+	require.Equal(t, Hex("#778888"), there)
+	require.Equal(t, there, Complement.Colors(SpaceHSL, there)[0])
 }
 
 func TestSweepsAnswerSameInBothSpaces(t *testing.T) {
-	for _, name := range []color.Harmony{color.Ramp, color.Tones} {
+	for _, name := range []Harmony{Ramp, Tones} {
 		t.Run(string(name), func(t *testing.T) {
-			for _, base := range []color.Hex{"#cd5c5c", "#1f9d55", "#ffff00"} {
+			for _, base := range []Hex{"#cd5c5c", "#1f9d55", "#ffff00"} {
 				require.Equal(t,
-					name.Colors(color.OKLab, base),
-					name.Colors(color.HSL, base))
+					name.Colors(SpaceOkLab, base),
+					name.Colors(SpaceHSL, base))
 			}
 		})
 	}
 }
 
-func TestParseSpaceAcceptsBothWheels(t *testing.T) {
-	for _, want := range []color.Space{color.OKLab, color.HSL} {
-		got, err := color.ParseSpace(string(want))
+// HSV
 
-		require.NoError(t, err)
-		require.Equal(t, want, got)
+func TestHexToHSVFollowsHexToHSLClosedForm(t *testing.T) {
+	for _, h := range []Hex{
+		"#ffffff", "#000000", "#808080", "#3cb371", "#ce5f14", "#d56784", "#000011",
+	} {
+		hslHue, saturation, lightness := hexToHSL(h)
+		hsvHue, hsvSaturation, value := hexToHSV(h)
+
+		require.InDeltaf(t, hslHue, hsvHue, 1e-12, "hue of %s", h)
+
+		require.InDeltaf(t, lightness+saturation*min(lightness, 1-lightness), value, 1e-12,
+			"value of %s", h)
+
+		if value == 0 {
+			require.Zerof(t, hsvSaturation, "saturation of %s", h)
+			continue
+		}
+		require.InDeltaf(t, 2*(1-lightness/value), hsvSaturation, 1e-12, "saturation of %s", h)
 	}
 }
 
-func TestParseSpaceRejectsUnknownEmptyAndWrongCase(t *testing.T) {
-	for _, s := range []string{"", "hsv", "OKLab", " hsl", "hsl "} {
-		got, err := color.ParseSpace(s)
+// #000011 divides to 1.0000000000000002, a float artifact rather than a color; hexToHSL clamps it.
+func TestHexToHSLKeepsSaturationAtOrBelowOne(t *testing.T) {
+	_, saturation, _ := hexToHSL("#000011")
 
-		require.Empty(t, got)
-		require.ErrorIs(t, err, color.ErrUnknownSpace)
-	}
+	require.LessOrEqual(t, saturation, 1.0)
 }

@@ -4,12 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
-
-	"github.com/salandered/strvalid"
 )
-
-// Hex is a normalized color code like "#rrggbb"
-type Hex string
 
 const HexLen = 7
 
@@ -23,21 +18,6 @@ type Color struct {
 type Common struct {
 	Hex  Hex
 	Name string
-}
-
-var hexCfg = strvalid.HexConfig{
-	Subject:   "hex color",
-	EchoValue: true,
-}
-
-// ParseHex creates a Hex out of s. Validates and normalizes data from s.
-// Normalization: trimmed, lowercased, added '#' if wasn't provided.
-func ParseHex(s string) (Hex, error) {
-	parsed, err := strvalid.ParseHex(s, hexCfg)
-	if err != nil {
-		return "", err
-	}
-	return Hex(parsed), nil
 }
 
 // Feel is the perceptual ordering key of h
@@ -62,12 +42,12 @@ const (
 type Space string
 
 const (
-	OKLab Space = "oklab"
-	HSL   Space = "hsl"
+	SpaceOkLab Space = "oklab"
+	SpaceHSL   Space = "hsl"
 )
 
 // DefSpace is what an unset Space means.
-const DefSpace = HSL
+const DefSpace = SpaceHSL
 
 /*
 Each row is a harmony name + its hue rotations or the sweep
@@ -108,10 +88,10 @@ var ErrUnknownSpace = errors.New("unknown color space")
 // Unknown returns error.
 func ParseSpace(s string) (Space, error) {
 	switch space := Space(s); space {
-	case OKLab, HSL:
+	case SpaceOkLab, SpaceHSL:
 		return space, nil
 	}
-	return "", fmt.Errorf("%w %q: want %q or %q", ErrUnknownSpace, s, OKLab, HSL)
+	return "", fmt.Errorf("%w %q: want %q or %q", ErrUnknownSpace, s, SpaceOkLab, SpaceHSL)
 }
 
 // HarmonyNames lists the harmony names in table order.

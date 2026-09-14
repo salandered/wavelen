@@ -15,6 +15,7 @@ const DETAILS_KEY = "details_open";
 const ZEN_KEY = "zen";
 const DENSE_KEY = "dense";
 const PALETTE_DENSE_KEY = "palette_dense";
+const STRIPS_DENSE_KEY = "strips_dense";
 const PINNED_KEY = "pinned";
 const SESSION_KEY = "session";
 const CONTROLS_KEY = "controls";
@@ -646,6 +647,7 @@ function commitSelection(hex, label) {
 function selectionChanged() {
 	markSelected();
 	renderDetail();
+	showInfo();
 	// panel controls
 	for (const id of ["pick", "selected-add", "selected-fullscreen"]) {
 		$(id).disabled = selectedHex === null;
@@ -844,9 +846,83 @@ function renderDetail() {
 	$("detail").replaceChildren(stack, caption);
 }
 
+// ---- color info ----
+
+let infoGeneration = 0;
+
+function showInfo() {
+	const generation = ++infoGeneration;
+	if (selectedHex === null) {
+		$("detail-info").hidden = true;
+		return;
+	}
+	loadInfo(selectedHex, generation);
+}
+
+async function loadInfo(hex, generation) {
+	try {
+		// bare six digits in the path
+		const { data } = await call("GET", `/colors/${hex.slice(1)}/info`);
+		if (generation !== infoGeneration) {
+			return; // newer selection is current
+		}
+		drawInfo(data);
+	} catch (err) {
+		if (generation !== infoGeneration) {
+			return;
+		}
+		$("detail-info").hidden = true;
+		setStatus(err.message, true);
+	}
+}
+
+// The group around the two lists is markup. Only the rows are drawn.
+function drawInfo(info) {
+	const models = [
+		["rgb", `${info.rgb.r} ${info.rgb.g} ${info.rgb.b}`],
+		["hsl", `${info.hsl.h} ${info.hsl.s}% ${info.hsl.l}%`],
+		["hsv", `${info.hsv.h} ${info.hsv.s}% ${info.hsv.v}%`],
+		["oklch", `${info.oklch.l}% ${info.oklch.c} ${info.oklch.h}`],
+	].flatMap(([name, value]) => {
+		const term = document.createElement("dt");
+		term.textContent = name;
+		const desc = document.createElement("dd");
+		desc.textContent = value;
+		return [term, desc];
+	});
+	$("detail-models").replaceChildren(...models);
+
+	const rows = [];
+	for (const [ground, contrast] of [
+		["white", info.contrast.white],
+		["black", info.contrast.black],
+	]) {
+		// the sample is the term, so it carries the words the chip replaced
+		const chip = document.createElement("span");
+		chip.className = "sample-chip";
+		chip.textContent = "Aa";
+		chip.style.background = ground;
+		chip.style.color = info.hex;
+		chip.setAttribute("role", "img");
+		chip.setAttribute("aria-label", `on ${ground}`);
+		const term = document.createElement("dt");
+		term.append(chip);
+
+		const ratio = document.createElement("dd");
+		ratio.className = "ratio";
+		ratio.textContent = `${contrast.ratio}:1`;
+		const level = document.createElement("dd");
+		level.textContent = contrast.level;
+		rows.push(term, ratio, level);
+	}
+	$("detail-contrast").replaceChildren(...rows);
+
+	$("detail-info").hidden = false;
+}
+
 // ---- color pickers ----
 // Several <input type="color"> elements. One of them
-// in the Selected panel touches the selection: it nudges the color that panel shows. 
+// in the Selected panel touches the selection: it nudges the color that panel shows.
 //
 // A color picker emits many values during a drag.
 // Harmony changes trigger requests, so wait until the drag pauses before committing the selection.
@@ -1032,7 +1108,7 @@ async function loadStrip(name, hex, space, generation) {
 		// immutable and has already meant two wheels. A scale holds the hue and keeps that URL.
 		const wheel = LEADING.has(name) ? `?space=${space}` : "";
 		// bare six digits in the path, same rule as the delete above
-		const { data } = await call("GET", `/colors/${hex.slice(1)}/${name}${wheel}`);
+		const { data } = await call("GET", `/colors/${hex.slice(1)}/harmonies/${name}${wheel}`);
 		if (generation !== stripGeneration) {
 			return; // a newer selection is current
 		}
@@ -1596,9 +1672,12 @@ function zenOn() {
 // Both grids take the shape from a toggle of their own, and they open in different ones: the
 // palette is dense in the markup and saved colors is not. The grid id names the button and the
 // stored key, so one function does both.
+// #strips is the third: one toggle for every pinned block rather than one per block, so the
+// entry here is what binds the click, the D key and the stored value.
 const DENSE_GRIDS = {
 	saved: { key: DENSE_KEY, def: false },
 	palette: { key: PALETTE_DENSE_KEY, def: true },
+	strips: { key: STRIPS_DENSE_KEY, def: false },
 };
 
 function applyDense(grid, on) {

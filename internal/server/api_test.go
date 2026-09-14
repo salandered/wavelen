@@ -933,7 +933,7 @@ func (s *APISuite) TestListCommonColorsRejectsInvalidQueryParams() {
 
 func (s *APISuite) TestHarmonyEchoesInputAndNamesTheHarmony() {
 	var out handlers.HarmonyResp
-	s.decode(s.get("/api/v1/colors/FF0000/complement"), &out)
+	s.decode(s.get("/api/v1/colors/FF0000/harmonies/complement"), &out)
 
 	want := color.Complement.Colors(color.DefSpace, "#ff0000")
 	s.Require().Equal("#ff0000", out.Hex)
@@ -943,10 +943,10 @@ func (s *APISuite) TestHarmonyEchoesInputAndNamesTheHarmony() {
 
 func (s *APISuite) TestHarmoniesAnswerSameShape() {
 	for _, name := range color.HarmonyNames() {
-		for _, space := range []color.Space{color.OKLab, color.HSL} {
+		for _, space := range []color.Space{color.SpaceOkLab, color.SpaceHSL} {
 			s.Run(string(name)+"/"+string(space), func() {
 				var out handlers.HarmonyResp
-				s.decode(s.get("/api/v1/colors/ff0000/"+string(name)+"?space="+string(space)), &out)
+				s.decode(s.get("/api/v1/colors/ff0000/harmonies/"+string(name)+"?space="+string(space)), &out)
 
 				want := name.Colors(space, "#ff0000")
 				s.Require().Equal("#ff0000", out.Hex)
@@ -963,7 +963,7 @@ func (s *APISuite) TestHarmoniesAnswerSameShape() {
 
 func (s *APISuite) TestTriadAnswersOtherTwoColorsInHueOrder() {
 	var out handlers.HarmonyResp
-	s.decode(s.get("/api/v1/colors/ff0000/triad"), &out)
+	s.decode(s.get("/api/v1/colors/ff0000/harmonies/triad"), &out)
 
 	want := color.Triad.Colors(color.DefSpace, "#ff0000")
 	s.Require().Len(out.Colors, 2)
@@ -972,7 +972,7 @@ func (s *APISuite) TestTriadAnswersOtherTwoColorsInHueOrder() {
 
 func (s *APISuite) TestRampAnswersSevenSteps() {
 	var out handlers.HarmonyResp
-	s.decode(s.get("/api/v1/colors/ff6b35/ramp"), &out)
+	s.decode(s.get("/api/v1/colors/ff6b35/harmonies/ramp"), &out)
 
 	s.Require().Len(out.Colors, 7)
 }
@@ -981,14 +981,14 @@ func (s *APISuite) TestHarmonyWithoutSpaceUseDefault() {
 	var out handlers.HarmonyResp
 
 	// when
-	s.decode(s.get("/api/v1/colors/cd5c5c/triad"), &out)
+	s.decode(s.get("/api/v1/colors/cd5c5c/harmonies/triad"), &out)
 
 	// then
 	s.Require().Equal("hsl", out.Space)
 	s.Require().Equal([]string{"#5ccd5c", "#5c5ccd"}, out.Colors)
 
 	// and when
-	s.decode(s.get("/api/v1/colors/cd5c5c/triad?space="), &out)
+	s.decode(s.get("/api/v1/colors/cd5c5c/harmonies/triad?space="), &out)
 
 	// then
 	s.Require().Equal("hsl", out.Space)
@@ -996,7 +996,7 @@ func (s *APISuite) TestHarmonyWithoutSpaceUseDefault() {
 
 func (s *APISuite) TestHarmonySpaceOklab() {
 	var out handlers.HarmonyResp
-	s.decode(s.get("/api/v1/colors/cd5c5c/triad?space=oklab"), &out)
+	s.decode(s.get("/api/v1/colors/cd5c5c/harmonies/triad?space=oklab"), &out)
 
 	s.Require().Equal("oklab", out.Space)
 	s.Require().Equal([]string{"#4b9a45", "#5482db"}, out.Colors)
@@ -1005,7 +1005,7 @@ func (s *APISuite) TestHarmonySpaceOklab() {
 func (s *APISuite) TestUnknownSpaceIsBadRequest() {
 	for _, raw := range []string{"hsv", "OKLab", "rgb", "lab"} {
 		s.Run(raw, func() {
-			resp := s.get("/api/v1/colors/ff0000/triad?space=" + raw)
+			resp := s.get("/api/v1/colors/ff0000/harmonies/triad?space=" + raw)
 
 			s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
 		})
@@ -1013,7 +1013,7 @@ func (s *APISuite) TestUnknownSpaceIsBadRequest() {
 }
 
 func (s *APISuite) TestUnknownHarmonyIsNotFoundAndListsThem() {
-	resp := s.get("/api/v1/colors/ff0000/tetrad")
+	resp := s.get("/api/v1/colors/ff0000/harmonies/tetrad")
 
 	s.Require().Equal(http.StatusNotFound, resp.StatusCode)
 	msg := s.errorMessage(resp)
@@ -1025,14 +1025,74 @@ func (s *APISuite) TestUnknownHarmonyIsNotFoundAndListsThem() {
 
 func (s *APISuite) TestHarmonyRejectsMalformedHexInThePath() {
 	for _, path := range []string{
-		"/api/v1/colors/%23ff0000/complement",
-		"/api/v1/colors/%23ff0000/triad",
-		"/api/v1/colors/fff/complement",
-		"/api/v1/colors/ff00gg/triad",
-		"/api/v1/colors/ff00gg/tetrad",
+		"/api/v1/colors/%23ff0000/harmonies/complement",
+		"/api/v1/colors/%23ff0000/harmonies/triad",
+		"/api/v1/colors/fff/harmonies/complement",
+		"/api/v1/colors/ff00gg/harmonies/triad",
+		"/api/v1/colors/ff00gg/harmonies/tetrad",
 	} {
 		s.Run(path, func() {
 			resp := s.get(path)
+			s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
+			s.Require().Contains(s.errorMessage(resp), "invalid hex color")
+		})
+	}
+}
+
+// Color info
+
+func (s *APISuite) TestColorInfoEchoesNormalizedHexAndInfo() {
+	var out handlers.ColorInfoResp
+	s.decode(s.get("/api/v1/colors/3CB371/info"), &out)
+
+	s.Require().Equal("#3cb371", out.Hex)
+	s.Require().Equal(handlers.RGBResp{R: 60, G: 179, B: 113}, out.RGB)
+	s.Require().Equal(handlers.HSLResp{H: 147, S: 50, L: 47}, out.HSL)
+	s.Require().Equal(handlers.HSVResp{H: 147, S: 66, V: 70}, out.HSV)
+	s.Require().Equal(handlers.OkLChResp{L: 68.4, C: 0.144, H: 155}, out.OkLCh)
+	s.Require().Equal(
+		handlers.ContrastResp{Ratio: 2.66, Level: string(color.LevelFail)}, out.Contrast.White)
+	s.Require().Equal(
+		handlers.ContrastResp{Ratio: 7.87, Level: string(color.LevelAAA)}, out.Contrast.Black)
+}
+
+func (s *APISuite) TestColorInfoRoundsToDisplayUnits() {
+	var out handlers.ColorInfoResp
+	s.decode(s.get("/api/v1/colors/e7ff00/info"), &out)
+
+	s.Require().Equal(handlers.HSLResp{H: 66, S: 100, L: 50}, out.HSL)
+	s.Require().Equal(94.9, out.OkLCh.L)
+	s.Require().Equal(0.218, out.OkLCh.C)
+	s.Require().Equal(18.7, out.Contrast.Black.Ratio)
+}
+
+func (s *APISuite) TestColorInfoOfNeutralReportsNoHue() {
+	var out handlers.ColorInfoResp
+	s.decode(s.get("/api/v1/colors/808080/info"), &out)
+
+	s.Require().Zero(out.HSL.H)
+	s.Require().Zero(out.HSL.S)
+	s.Require().Zero(out.HSV.H)
+	s.Require().Zero(out.OkLCh.H)
+	s.Require().Zero(out.OkLCh.C)
+}
+
+func (s *APISuite) TestColorInfoSetsDerivedCacheControl() {
+	resp := s.get("/api/v1/colors/ff0000/info")
+
+	s.Require().Equal(http.StatusOK, resp.StatusCode)
+	s.Require().Equal("public, max-age=600, immutable", resp.Header.Get("Cache-Control"))
+}
+
+func (s *APISuite) TestColorInfoRejectsMalformedHexInThePath() {
+	for _, path := range []string{
+		"/api/v1/colors/%23ff0000/info",
+		"/api/v1/colors/fff/info",
+		"/api/v1/colors/ff00gg/info",
+	} {
+		s.Run(path, func() {
+			resp := s.get(path)
+
 			s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
 			s.Require().Contains(s.errorMessage(resp), "invalid hex color")
 		})
@@ -1076,7 +1136,8 @@ func (s *APISuite) TestPublicRoutesDoNotUseTokenStore() {
 	for _, path := range []string{
 		"/livez",
 		"/api/v1/colors",
-		"/api/v1/colors/ff0000/complement",
+		"/api/v1/colors/ff0000/info",
+		"/api/v1/colors/ff0000/harmonies/complement",
 	} {
 		s.Run(path, func() {
 			resp := s.sendAs(http.MethodGet, path, nil, "")
