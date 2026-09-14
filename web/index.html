@@ -7,14 +7,18 @@
 		<link rel="icon" type="image/png" href="images/logo-mini.png" />
 
 		<!--
-			Apply the stored theme before the first paint to avoid a theme flash.
-			Run this before <body> exists, so the attribute is set on <html>.
+			Apply the stored theme and page fill before the first paint to avoid a flash.
+			Run this before <body> exists, so the attributes are set on <html>.
 		-->
 		<script>
 			try {
 				const stored = localStorage.getItem("theme");
 				if (stored) {
 					document.documentElement.dataset.theme = stored;
+				}
+				const bg = localStorage.getItem("bg");
+				if (bg && bg !== "off") {
+					document.documentElement.dataset.bg = bg;
 				}
 			} catch {
 				// no storage, the system preference is used
@@ -622,7 +626,7 @@
 							>
 								<svg class="icon" aria-hidden="true"><use href="#ui-shuffle" /></svg>
 							</button>
-							<button type="button" id="bulk-add">add 10 random</button>
+							<button type="button" id="bulk-add">add 5 random</button>
 						</form>
 						<!-- order reads desc/asc rather than newest/oldest: it applies to hex too -->
 						<!-- No labels for now -->
@@ -856,6 +860,8 @@
 						<button type="button" class="icon-button" id="zen"></button>
 						<!-- a sun or a moon out of the sprite, filled by app.js -->
 						<button type="button" class="icon-button" id="theme"></button>
+						<!-- EXPERIMENTAL cycler: app.js writes the label, the value stays in data-value -->
+						<button type="button" id="bg" data-value="off" aria-label="page fill"></button>
 						<div class="setting-help">
 							<!-- popover: the browser owns opening, light dismiss, Esc and the focus return -->
 							<button
@@ -873,8 +879,14 @@
 									<dd>zen mode</dd>
 									<dt>L</dt>
 									<dd>light / dark theme</dd>
+									<dt>B</dt>
+									<dd>page fill: off / soft / deep gray</dd>
 									<dt>D</dt>
 									<dd>dense grid, for the section under the pointer</dd>
+									<dt>F</dt>
+									<dd>full screen, for the section under the pointer</dd>
+									<dt>A</dt>
+									<dd>add the color under the pointer to the collection</dd>
 								</dl>
 							</div>
 						</div>
@@ -890,6 +902,8 @@
 						Adjusts the current selection.
 						Keep the input static so rebuilding the detail panel does not close an open picker.
 						Place it below the selected color so the picker dialog opens over the lower panels.
+						The full screen trigger shares the row, at the end: the panel has one row of
+						controls, so it does not spend a toolbar on a single glyph the way a section does.
 					-->
 					<div class="row detail-adjust">
 						<input
@@ -900,6 +914,26 @@
 							disabled
 						/>
 						<label for="pick">adjust</label>
+						<button
+							type="button"
+							class="icon-button"
+							id="selected-add"
+							title="add the color above"
+							aria-label="add the color above"
+							disabled
+						>
+							<svg class="icon" aria-hidden="true"><use href="#ui-circle-plus" /></svg>
+						</button>
+						<button
+							type="button"
+							class="icon-button"
+							id="selected-fullscreen"
+							title="the color above, full screen"
+							aria-label="the color above, full screen"
+							disabled
+						>
+							<svg class="icon" aria-hidden="true"><use href="#ui-monitor" /></svg>
+						</button>
 					</div>
 				</details>
 

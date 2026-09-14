@@ -10,7 +10,7 @@ import {
 // comes from the spec api.yaml.
 const API = "/api/v1";
 
-// "theme" stays a raw string and is not among these. Everything read through readStored is JSON.
+// "theme" and "bg" stay raw strings. Everything read through readStored is JSON.
 const DETAILS_KEY = "details_open";
 const ZEN_KEY = "zen";
 const DENSE_KEY = "dense";
@@ -221,7 +221,6 @@ function requireSession() {
 let collections = [];
 let activeCollection = null;
 
-// The request, kept rather than its answer, so the bulk-add workers share one lookup.
 let collectionsRequest = null;
 
 function ensureCollections() {
@@ -624,35 +623,15 @@ function swatchCell(hex, label) {
 	caption.className = "label";
 	caption.textContent = label;
 
-	text.append(code, caption);
+	// label on top, hex under it
+	text.append(caption, code);
 	cell.append(el, text);
 	return cell;
 }
 
-// The inputs that hold a hex: the two pickers and the add form's field, which is what "add" saves.
-// They mirror the selection, so each lands on a color chosen anywhere else and can nudge it.
-const HEX_INPUTS = ["pick", "add-pick", "hex"];
-
-// Update every input except the one that produced the value.
-// Writing back into it would fight an open picker dialog, or move the caret in the field.
-// With no source id, update all three inputs.
-function writeHexInputs(hex, from) {
-	for (const id of HEX_INPUTS) {
-		if (id !== from) {
-			$(id).value = hex;
-		}
-	}
-}
-
-// Swatches, the random button and a paste: none of them is one of the inputs, all three follow.
+// The Selected panel's picker mirrors the selection: it adjusts the color it shows
 function selectColor(hex, label) {
-	writeHexInputs(hex);
-	commitSelection(hex, label);
-}
-
-// one input's own path
-function selectFrom(id, hex, label) {
-	writeHexInputs(hex, id);
+	$("pick").value = hex;
 	commitSelection(hex, label);
 }
 
@@ -663,17 +642,14 @@ function commitSelection(hex, label) {
 	selectionChanged();
 }
 
-function clearSelection() {
-	selectedHex = null;
-	selectedLabel = "";
-	selectionChanged();
-}
-
 // Both detail panels depend on the same selection, so update them together.
 function selectionChanged() {
 	markSelected();
 	renderDetail();
-	$("pick").disabled = selectedHex === null;
+	// panel controls
+	for (const id of ["pick", "selected-add", "selected-fullscreen"]) {
+		$(id).disabled = selectedHex === null;
+	}
 
 	// this is the one place the reload has to read back (every producer ends here)
 	const stored = selectedHex === null ? null : { hex: selectedHex, name: selectedLabel };
@@ -702,6 +678,30 @@ function savedSwatch(hex, label) {
 	return cell;
 }
 
+// Palette cell has an add button (same as saved cell has delete).
+function paletteSwatch(hex, label) {
+	const cell = swatchCell(hex, label);
+	const add = addButton(() => hex);
+	labelAddButton(add, hex);
+	cell.append(add);
+	return cell;
+}
+
+function addButton(readHex) {
+	const add = document.createElement("button");
+	add.type = "button";
+	add.className = "add";
+	add.append(spriteSvg("ui-circle-plus", "icon"));
+	add.addEventListener("click", () => addColor(readHex(), add));
+	return add;
+}
+
+function labelAddButton(add, hex) {
+	add.style.color = labelColor(hex); // it sits on the color, like the hex
+	add.title = `add ${hex}`;
+	add.setAttribute("aria-label", `add ${hex}`);
+}
+
 // The path takes the six digits: api.yaml rejects a '#' (even if escaped).
 //
 // The cell is dropped rather than the list reloaded (a reload would drop every appended page).
@@ -721,6 +721,23 @@ async function deleteColor(hex, cell, button) {
 	} catch (err) {
 		button.disabled = false;
 		setStatus(err.message, true);
+	}
+}
+
+// One color into the active collection
+async function addColor(hex, button) {
+	if (!requireSession()) {
+		return;
+	}
+	button.disabled = true; // second click would answer nothing new
+	try {
+		const { status, data } = await call("POST", await savedColorsPath(), { hex });
+		setStatus(status === 201 ? `added ${data.hex}` : `${data.hex} was already saved`);
+		await loadSaved();
+	} catch (err) {
+		setStatus(err.message, true);
+	} finally {
+		button.disabled = false;
 	}
 }
 
@@ -783,7 +800,7 @@ async function pasteHex() {
 		setStatus("the clipboard is not a hex color", true);
 		return;
 	}
-	selectColor(hex, "pasted");
+	$("hex").value = hex;
 }
 
 // One panel for both grids, since the selection they share is one hex.
@@ -798,14 +815,14 @@ function renderDetail() {
 	const stack = document.createElement("div");
 	stack.className = "detail-stack";
 
-	// no text of its own, so the name is spelled out
-	const block = document.createElement("button");
-	block.type = "button";
+	const block = document.createElement("div");
 	block.className = "detail-color";
 	block.style.background = hex;
-	block.title = "full screen, click again to leave";
-	block.setAttribute("aria-label", `show ${hex} full screen`);
-	block.addEventListener("click", () => toggleFullscreenFrom(block, block));
+	block.addEventListener("click", () => {
+		if (document.fullscreenElement === block) {
+			toggleFullscreen(block);
+		}
+	});
 
 	const code = document.createElement("button");
 	code.type = "button";
@@ -815,7 +832,10 @@ function renderDetail() {
 	code.title = "copy";
 	code.addEventListener("click", () => copyHex(hex));
 
-	stack.append(block, code);
+	const add = addButton(() => hex);
+	labelAddButton(add, hex);
+
+	stack.append(block, code, add);
 
 	const caption = document.createElement("p");
 	caption.className = "detail-label";
@@ -825,10 +845,8 @@ function renderDetail() {
 }
 
 // ---- color pickers ----
-// Three <input type="color">, and the dialog belongs to the browser in all of them. The one in the
-// Selected panel nudges the selection and the one in the add row starts one, so what both produce
-// is a selection, the same as a swatch click. The one in the Picker panel is a scratch pad and
-// touches nothing else on the page.
+// Several <input type="color"> elements. One of them
+// in the Selected panel touches the selection: it nudges the color that panel shows. 
 //
 // A color picker emits many values during a drag.
 // Harmony changes trigger requests, so wait until the drag pauses before committing the selection.
@@ -836,18 +854,21 @@ const PICK_QUIET = 200;
 
 let pickTimer = null;
 
-// One timer for both: a pointer is in one dialog at a time, so the gesture that lands last is the
-// one to commit.
 function initPicker() {
-	for (const id of ["pick", "add-pick"]) {
-		// Browsers differ in how they emit input and change events during a drag.
-		// Treat both events the same and use one timer to collapse the gesture into a single commit.
-		for (const type of ["input", "change"]) {
-			$(id).addEventListener(type, () => {
-				clearTimeout(pickTimer);
-				pickTimer = setTimeout(() => selectFrom(id, $(id).value, "picked"), PICK_QUIET);
-			});
-		}
+	// Browsers differ in how they emit input and change events during a drag.
+	// Treat both events the same and use one timer to collapse the gesture into a single commit.
+	for (const type of ["input", "change"]) {
+		$("pick").addEventListener(type, () => {
+			clearTimeout(pickTimer);
+			// no write back into the input: it produced the value and its dialog is still open
+			pickTimer = setTimeout(() => commitSelection($("pick").value, "picked"), PICK_QUIET);
+		});
+	}
+
+	for (const type of ["input", "change"]) {
+		$("add-pick").addEventListener(type, () => {
+			$("hex").value = $("add-pick").value;
+		});
 	}
 }
 
@@ -934,6 +955,7 @@ function stripBlock(name) {
 	const block = document.createElement("div");
 	// a rotation is two to four bands and shares a row, a scale is seven and takes one
 	block.className = LEADING.has(name) ? "strip-block rotation" : "strip-block scale";
+	block.dataset.strip = name; // F key is over this, see fullscreenUnderPointer
 
 	const toolbar = document.createElement("div");
 	toolbar.className = "toolbar";
@@ -1048,7 +1070,15 @@ function drawStrip(name, bands) {
 	fillStrip(strip, bands, onBand);
 }
 
-// The strip is already on the page, so it goes full screen where it stands.
+function showSelectedFullscreen() {
+	const color = document.querySelector(".detail-color");
+	if (color === null) {
+		setStatus("nothing to show", true);
+		return;
+	}
+	toggleFullscreen(color);
+}
+
 function showStripFullscreen(name) {
 	const strip = $(`strip-${name}`)?.querySelector(".harmony") ?? null;
 	if (strip === null) {
@@ -1205,6 +1235,11 @@ function fillStrip(strip, hexes, onBand) {
 		const code = band.querySelector(".band-hex");
 		code.style.color = labelColor(hex);
 		code.textContent = hex;
+
+		const add = band.querySelector(".add");
+		if (add !== null) {
+			labelAddButton(add, hex);
+		}
 	}
 }
 
@@ -1239,6 +1274,10 @@ function buildBand(strip, onBand) {
 	code.addEventListener("click", () => copyHex(band.dataset.hex));
 
 	band.append(block, code);
+
+	if (onBand !== undefined) {
+		band.append(addButton(() => band.dataset.hex));
+	}
 	return band;
 }
 
@@ -1267,7 +1306,7 @@ async function loadPalette() {
 		const { data } = await call("GET", `/colors?${params}`);
 		renderSwatches(
 			$("palette"),
-			data.colors.map((c) => swatchCell(c.hex, c.name)),
+			data.colors.map((c) => paletteSwatch(c.hex, c.name)),
 		);
 	} catch (err) {
 		renderEmpty($("palette"), err.message);
@@ -1346,19 +1385,16 @@ async function loadSaved({ append = false } = {}) {
 
 // ---- random values ----
 // ---- bulk add ----
-// Dev only. The API has no bulk endpoint, so use ordinary POST requests.
-// Limit concurrency instead of sending all requests at once or waiting for each one sequentially.
+// API has no bulk endpoint, ordinary POSTs
 
-const BULK_COUNT = 10;
-const BULK_IN_FLIGHT = 8;
+const BULK_COUNT = 5;
 
 async function addRandomColors() {
 	if (!requireSession()) {
 		return;
 	}
 
-	// Resolved once, before any worker starts. A failed lookup ends the run here rather than
-	// failing every add with the same message.
+	// Resolved once, before any request goes out.
 	let path;
 	try {
 		path = await savedColorsPath();
@@ -1372,34 +1408,30 @@ async function addRandomColors() {
 	while (queue.size < BULK_COUNT) {
 		queue.add("#" + randomDigits());
 	}
-	const hexes = [...queue];
 
 	let done = 0;
 	let created = 0;
 	let failed = 0;
 	let firstError = null;
 
-	// each worker drains the same array, so a slow request doesn't hold up the others
-	const worker = async () => {
-		while (hexes.length > 0) {
-			const hex = hexes.pop();
-			try {
-				const { status } = await call("POST", path, { hex });
-				if (status === 201) {
-					created++;
-				}
-			} catch (err) {
-				failed++;
-				firstError ??= err.message;
+	// one failure is counted, not thrown: the run reports what it managed either way
+	const add = async (hex) => {
+		try {
+			const { status } = await call("POST", path, { hex });
+			if (status === 201) {
+				created++;
 			}
-			done++;
-			setProgress(`adding colors... ${done}/${BULK_COUNT}`);
+		} catch (err) {
+			failed++;
+			firstError ??= err.message;
 		}
+		done++;
+		setProgress(`adding colors... ${done}/${BULK_COUNT}`);
 	};
 
 	$("bulk-add").disabled = true;
 	try {
-		await Promise.all(Array.from({ length: BULK_IN_FLIGHT }, worker));
+		await Promise.all([...queue].map(add));
 	} finally {
 		$("bulk-add").disabled = false;
 	}
@@ -1513,6 +1545,35 @@ function applyTheme(theme) {
 	try {
 		// raw, not writeStored: the <head> script reads this one back without parsing it
 		localStorage.setItem("theme", theme);
+	} catch {
+		// the preference doesn't survive a reload
+	}
+}
+
+// EXPERIMENTAL. The page fill, off by default. Mirrors [data-bg] in style.css.
+const BG_VALUES = ["off", "soft", "deep"];
+
+function currentBg() {
+	return document.documentElement.dataset.bg ?? "off";
+}
+
+function nextBg(value) {
+	return BG_VALUES[(BG_VALUES.indexOf(value) + 1) % BG_VALUES.length];
+}
+
+function applyBg(value) {
+	if (value === "off") {
+		// the default is the absence of the attribute, so --bg stays the Canvas keyword
+		delete document.documentElement.dataset.bg;
+	} else {
+		document.documentElement.dataset.bg = value;
+	}
+	$("bg").dataset.value = value;
+	$("bg").textContent = value;
+	$("bg").title = `switch the page fill to ${nextBg(value)} (B)`;
+	try {
+		// raw, not writeStored: the <head> script reads this one back without parsing it
+		localStorage.setItem("bg", value);
 	} catch {
 		// the preference doesn't survive a reload
 	}
@@ -1710,6 +1771,13 @@ $("theme").addEventListener("click", (event) => {
 	}
 });
 
+$("bg").addEventListener("click", (event) => {
+	applyBg(nextBg(currentBg()));
+	if (event.detail > 0) {
+		event.currentTarget.blur();
+	}
+});
+
 // detail > 0 is a pointer click. Blurred there, since a focused button takes a focus ring at the
 // next keypress, and the key this one is bound to is a keypress the page expects.
 $("zen").addEventListener("click", (event) => {
@@ -1751,6 +1819,19 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
+	if (event.key !== "b" && event.key !== "B") {
+		return;
+	}
+	if (event.ctrlKey || event.metaKey || event.altKey) {
+		return;
+	}
+	if (event.target.closest("input, select, textarea, dialog") !== null) {
+		return;
+	}
+	applyBg(nextBg(currentBg()));
+});
+
+document.addEventListener("keydown", (event) => {
 	if (event.key !== "d" && event.key !== "D") {
 		return;
 	}
@@ -1768,17 +1849,73 @@ document.addEventListener("keydown", (event) => {
 	}
 });
 
-// A complete hex, typed or pasted, is a selection. Anything else clears it: a mark that does not
-// match the field would name a color other than the one about to be added.
-$("hex").addEventListener("input", () => {
-	const hex = parseHex($("hex").value);
-	if (hex === null) {
-		if (selectedHex !== null) {
-			clearSelection();
-		}
-	} else if (hex !== selectedHex) {
-		selectFrom("hex", hex, "typed");
+/*
+	The full screen of the region under the pointer. 
+	Four regions answer: the two
+	sections, one pinned strip, and the Selected panel. A strip carries its own name, since the
+	blocks are built per harmony rather than listed here. 
+	Returns nothing when the pointer is
+	somewhere else, or over a Selected panel with no color in it.
+*/
+function fullscreenUnderPointer() {
+	const block = [...document.querySelectorAll("#strips .strip-block")].find((el) =>
+		el.matches(":hover"),
+	);
+	if (block !== undefined) {
+		return () => showStripFullscreen(block.dataset.strip);
 	}
+	if ($("saved").closest("details").matches(":hover")) {
+		return showSavedFullscreen;
+	}
+	if ($("palette").closest("details").matches(":hover")) {
+		return showPaletteFullscreen;
+	}
+	if ($("detail").closest("details").matches(":hover")) {
+		return document.querySelector(".detail-color") === null ? undefined : showSelectedFullscreen;
+	}
+	return undefined;
+}
+
+document.addEventListener("keydown", (event) => {
+	if (event.key !== "f" && event.key !== "F") {
+		return;
+	}
+	if (event.ctrlKey || event.metaKey || event.altKey) {
+		return;
+	}
+	if (event.target.closest("input, select, textarea, dialog") !== null) {
+		return;
+	}
+	if (document.fullscreenElement !== null) {
+		toggleFullscreen(document.fullscreenElement);
+		return;
+	}
+	fullscreenUnderPointer()?.();
+});
+
+/*
+	"A" is the add of the color under the pointer, same as "F" is for full screen
+	A saved cell carries a delete rather than an add, so the key does nothing over the collection
+	grid - the same as the glyph there.
+*/
+function addUnderPointer() {
+	return document.querySelector(".cell:hover .add, .band:hover .add, .detail-stack:hover .add");
+}
+
+document.addEventListener("keydown", (event) => {
+	if (event.key !== "a" && event.key !== "A") {
+		return;
+	}
+	// ctrl+a is select all, and the field guard below does not cover a selection outside one
+	if (event.ctrlKey || event.metaKey || event.altKey) {
+		return;
+	}
+	if (event.target.closest("input, select, textarea, dialog") !== null) {
+		return;
+	}
+	// click, not addColor: the button carries the hex and the disabled flag, and the press dip
+	// comes with it, so the key looks like what it stands for
+	addUnderPointer()?.click();
 });
 
 for (const name of DERIVED) {
@@ -1794,12 +1931,15 @@ $("pins-none").addEventListener("click", () => applyPinned([]));
 
 $("bulk-add").addEventListener("click", addRandomColors);
 
-// a selection like any other, so the panels show what the button produced
 $("random-hex").addEventListener("click", () => {
-	selectColor("#" + randomDigits(), "random");
+	$("hex").value = "#" + randomDigits();
 });
 
 $("paste-hex").addEventListener("click", pasteHex);
+
+$("selected-add").addEventListener("click", () => addColor(selectedHex, $("selected-add")));
+
+$("selected-fullscreen").addEventListener("click", showSelectedFullscreen);
 
 for (const tab of ACCOUNT_TABS) {
 	$(`tab-${tab}`).addEventListener("click", () => selectAccountTab(tab));
@@ -2079,8 +2219,13 @@ $("add-form").addEventListener("submit", async (event) => {
 	if (!requireSession()) {
 		return;
 	}
+	const hex = parseHex($("hex").value);
+	if (hex === null) {
+		setStatus("type a hex first", true);
+		return;
+	}
 	try {
-		const { status, data } = await call("POST", await savedColorsPath(), { hex: $("hex").value });
+		const { status, data } = await call("POST", await savedColorsPath(), { hex });
 		setStatus(status === 201 ? `added ${data.hex}` : `${data.hex} was already saved`);
 		await loadSaved();
 	} catch (err) {
@@ -2092,6 +2237,9 @@ $("add-form").addEventListener("submit", async (event) => {
 // The theme attribute is already stamped by the inline script, this only labels the button.
 
 renderThemeButton(currentTheme());
+// the <head> script stamped the attribute already, this labels the button. A stored value outside
+// the three is dropped here (same as with a stored control outside CONTROL_VALUES).
+applyBg(BG_VALUES.includes(currentBg()) ? currentBg() : "off");
 applyZen(readStored(ZEN_KEY, false) === true);
 for (const [grid, { key, def }] of Object.entries(DENSE_GRIDS)) {
 	applyDense(grid, readStored(key, def) === true);

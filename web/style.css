@@ -54,14 +54,19 @@ character from its range, e.g a Cyrillic collection is fetched when someone type
 :root {
 	/* with no data-theme the browser decides, and light-dark() follows color-scheme */
 	color-scheme: light dark;
-	--fg: light-dark(#1c1a17, #ece7de);
-	--muted: light-dark(#6b6357, #9b9184);
-	--line: light-dark(#d6cfc2, #403a32);
+	/*
+	The four neutrals are neutral: hue 0, saturation 0. No warm colors.
+	*/
+	--fg: light-dark(#1a1a1a, #e7e7e7);
+	--muted: light-dark(#646464, #929292);
+	--line: light-dark(#d0d0d0, #3b3b3b);
 	--error: light-dark(#9b2f1c, #ee967d);
 	/* Warning color: same warm family as the error color, but shifted toward orange. */
 	--warn: light-dark(#a8560f, #e8a05e);
 	/* the fill of a submit button: a step down from --fg, so it doesn't glare */
-	--primary: light-dark(#4a4540, #c9c2b5);
+	--primary: light-dark(#464646, #c3c3c3);
+	/* the page fill */
+	--bg: Canvas;
 	/* one height for every control that sits in a row, whatever its content */
 	--control-h: 1.7rem;
 	/* page text, fallbacks apply when it is still loading */
@@ -107,6 +112,24 @@ character from its range, e.g a Cyrillic collection is fetched when someone type
 }
 
 /*
+EXPERIMENTAL, see web-wavelen-context.md. The two shades are a step of 10 L* each, measured
+*/
+:root[data-bg="soft"] {
+	--bg: light-dark(#e3e3e3, #262626);
+	--line: light-dark(#b8b8b8, #494949);
+}
+
+/*
+--line steps with the fill. It is a faint line by design, 1.55 against the default page, and a
+ground that walks onto its own lightness swallows every border and section rule on the page.
+Each pair keeps that 1.55.
+*/
+:root[data-bg="deep"] {
+	--bg: light-dark(#c7c7c7, #3c3c3c);
+	--line: light-dark(#a0a0a0, #5d5d5d);
+}
+
+/*
 Zen mode hides text and chrome while preserving layout.
 Use visibility instead of display so swatches, bands, and grid rows keep their size.
 */
@@ -142,6 +165,9 @@ body {
 	max-width: 66rem;
 	margin: 2rem auto;
 	padding: 0 1rem;
+	/* on body rather than :root: it propagates to the canvas, so the fill covers the whole
+	   viewport and not the 66rem column */
+	background: var(--bg);
 	color: var(--fg);
 }
 
@@ -207,7 +233,7 @@ The account chip: the nickname in a box.
 	padding: 0.25rem 0.6rem;
 	border-color: transparent;
 	border-radius: 8px;
-	background: light-dark(rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.06));
+	background: light-dark(rgba(0, 0, 0, 0.09), rgba(255, 255, 255, 0.11));
 	color: var(--muted);
 }
 
@@ -225,7 +251,7 @@ The account chip: the nickname in a box.
 .who-chip:hover,
 .who-chip[aria-expanded="true"],
 .login-chip:hover {
-	background: light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.12));
+	background: light-dark(rgba(0, 0, 0, 0.15), rgba(255, 255, 255, 0.18));
 	color: var(--fg);
 }
 
@@ -512,7 +538,8 @@ flips.
 */
 select,
 option {
-	background: Canvas;
+	/* page fill rather than Canvas */
+	background: var(--bg);
 	color: CanvasText;
 }
 
@@ -531,6 +558,7 @@ select,
 #order,
 #palette-sort,
 #palette-order,
+#bg,
 .stack > button {
 	box-sizing: border-box;
 	height: var(--control-h);
@@ -553,7 +581,8 @@ filled submits, outlined helpers, underlined settings, and tab-like collections.
 #order,
 #limit,
 #palette-sort,
-#palette-order {
+#palette-order,
+#bg {
 	padding-left: 0.2rem;
 	padding-right: 0.2rem;
 	border-color: transparent;
@@ -565,7 +594,8 @@ filled submits, outlined helpers, underlined settings, and tab-like collections.
 #order:hover,
 #limit:hover,
 #palette-sort:hover,
-#palette-order:hover {
+#palette-order:hover,
+#bg:hover {
 	border-color: var(--line);
 }
 
@@ -731,13 +761,19 @@ Center shorter labels within the reserved width.
 	min-width: 3.5rem;
 }
 
+#bg {
+	min-width: 2.6rem;
+}
+
 #load-more {
 	margin-top: 0.75rem;
 }
 
-/* seven monospace characters and room for a caret, so the toolbar keeps to one line */
+/*
+Seven monospace characters. The caret at the end still sits inside the box.
+*/
 #hex {
-	width: 4.5rem;
+	width: calc(7ch + 1rem + 2px);
 	font-family: var(--mono);
 }
 
@@ -952,6 +988,14 @@ input[type="color"] {
 	margin: 0.5rem 0 0;
 }
 
+/*
+The adjust pair keeps the left and the two triggers take the far end. The margin goes on the
+first of them only: on both, the row would share the slack between the two and set them apart.
+*/
+.detail-adjust .icon-button:first-of-type {
+	margin-left: auto;
+}
+
 #scratch-hex {
 	font-family: var(--mono);
 }
@@ -1091,6 +1135,10 @@ auto-fill therefore settles on five columns at the full layout width.
 
 /* it covers the color, so the click falls through to it. The hex takes its own back. */
 .swatch-text {
+	/*
+	Positioned so it paints over the color rather than beside it in DOM order.
+	*/
+	position: relative;
 	display: flex;
 	flex-direction: column;
 	gap: 0.1rem;
@@ -1103,10 +1151,18 @@ auto-fill therefore settles on five columns at the full layout width.
 .swatch-hex {
 	/* box is the hex and not the width of the cell: the color beside it still selects */
 	align-self: flex-start;
+	/*
+	The hex sits on the bottom edge of every cell, whichever grid and whichever density, and
+	the label takes the top. An auto margin rather than a justify-content on the text, because
+	the saved dense cell drops its label and one child has no space to distribute.
+	*/
+	margin-top: auto;
 	padding: 0;
 	border: none;
 	background: transparent;
 	font: inherit;
+	/* after the shorthand, which would otherwise put the cell's own size back */
+	font-size: 0.85rem;
 	pointer-events: auto;
 }
 
@@ -1140,11 +1196,6 @@ Long names are truncated; the Selected panel shows the full label.
 
 #saved.dense .label {
 	display: none;
-}
-
-/* without the label, keep the hex at the bottom of the cell */
-#saved.dense .swatch-text {
-	justify-content: flex-end;
 }
 
 /* the cell is positioned already, the lift is what paints the ring over the neighbours */
@@ -1224,11 +1275,17 @@ the same reason as the labels above: nothing reflows when it appears.
 	position: absolute;
 	top: 0.15rem;
 	right: 0.15rem;
-	padding: 0 0.25rem;
+	/* square, so the hover disc below is a circle and not an ellipse */
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.1rem;
+	height: 1.1rem;
+	padding: 0;
 	border: none;
 	background: none;
 	font-size: 0.9rem;
-	line-height: 1.2;
+	line-height: 1;
 	visibility: hidden;
 }
 
@@ -1242,6 +1299,91 @@ the same reason as the labels above: nothing reflows when it appears.
 	.cell .remove {
 		visibility: visible;
 	}
+}
+
+/*
+The add control, on a palette cell and on a band.
+
+The button is the glyph
+
+No (hover: none) twin, unlike the delete above: focus-within is the touch path. A first tap
+selects the color and leaves the button focused, which brings the plus out, and a second
+adds.
+*/
+.cell .add,
+.band .add,
+.detail-stack .add {
+	position: absolute;
+	display: flex;
+	padding: 0;
+	border: none;
+	background: none;
+	line-height: 1;
+	visibility: hidden;
+}
+
+/* a band and the Selected color have no label to stand in for, and their hex holds the bottom
+   edge, so the middle is the free ground */
+.band .add,
+.detail-stack .add {
+	top: 50%;
+	left: 50%;
+	translate: -50% -50%;
+	font-size: 1.4rem;
+}
+
+/* panel's color is the largest surface on the page, so the glyph takes a step up with it */
+.detail-stack .add {
+	font-size: 1.8rem;
+}
+
+.cell .add {
+	top: 0.6rem;
+	left: 0.5rem;
+	font-size: 1.1rem;
+}
+
+.dense .add {
+	top: 0.35rem;
+	left: 0.4rem;
+}
+
+.cell:hover .add,
+.cell:focus-within .add,
+.band:hover .add,
+.band:focus-within .add,
+.detail-stack:hover .add,
+.detail-stack:focus-within .add {
+	visibility: visible;
+}
+
+/* box-shadow rather than padding: the disc grows past the button box without moving the glyph */
+.cell .add:hover,
+.cell .add:focus-visible,
+.cell .remove:hover,
+.cell .remove:focus-visible,
+.band .add:hover,
+.band .add:focus-visible,
+.detail-stack .add:hover,
+.detail-stack .add:focus-visible {
+	border-radius: 50%;
+	background: color-mix(in srgb, currentColor 18%, transparent);
+	box-shadow: 0 0 0 0.15em color-mix(in srgb, currentColor 18%, transparent);
+}
+
+/*
+The label yields, the hex below it stays up. The saved grid needs this as much as the palette
+does: its label is a timestamp wide enough to run under the delete in the opposite corner.
+*/
+.cell:hover .label,
+.cell:focus-within .label {
+	visibility: hidden;
+}
+
+/* nothing acts while a strip or a grid fills the screen, the same as a band's hex */
+.harmony:fullscreen .add,
+.grid:fullscreen .add {
+	display: none;
 }
 
 /* the color and the hex stacked as siblings, same as .cell */
@@ -1329,7 +1471,7 @@ radius survive it: the color comes out letterboxed, hairlined and round-cornered
 	border: none;
 	background: transparent;
 	font-family: var(--mono);
-	font-size: 0.8rem;
+	font-size: 0.85rem;
 	text-align: center;
 }
 
@@ -1371,7 +1513,7 @@ builder guessing from a count or from screen.width.
 	container-type: inline-size;
 }
 
-@container (max-width: 4rem) {
+@container (max-width: 4.5rem) {
 	.band-hex {
 		display: none;
 	}
@@ -1405,6 +1547,24 @@ builder guessing from a count or from screen.width.
 	}
 	to {
 		opacity: 1;
+	}
+}
+
+/*
+Buttons that are a color with their hex laid over them as a sibling, see
+"Buttons inside buttons".
+*/
+.swatch.pressed,
+.harmony .band-color.pressed {
+	animation-name: press-fill;
+}
+
+@keyframes press-fill {
+	from {
+		filter: brightness(0.7);
+	}
+	to {
+		filter: brightness(1);
 	}
 }
 
