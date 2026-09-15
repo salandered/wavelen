@@ -5,14 +5,14 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/salandered/wavelen/internal/collection"
+	"github.com/salandered/wavelen/internal/clt"
 	"github.com/salandered/wavelen/internal/color"
 )
 
 // Returns whether the color already was in the collection.
 // An unknown collection yields ErrNotFound
 func (s *Postgres) AddColor(
-	ctx context.Context, cltID collection.ID, hex color.Hex,
+	ctx context.Context, cltID clt.ID, hex color.Hex,
 ) (bool, error) {
 	const query = `
 		INSERT INTO collection_colors (collection_id, hex, color_key)
@@ -29,7 +29,7 @@ func (s *Postgres) AddColor(
 	return tag.RowsAffected() == 1, nil
 }
 
-func (s *Postgres) CountColors(ctx context.Context, collectionID collection.ID) (int, error) {
+func (s *Postgres) CountColors(ctx context.Context, collectionID clt.ID) (int, error) {
 	const query = `SELECT count(*) FROM collection_colors WHERE collection_id = $1`
 
 	var n int
@@ -40,7 +40,7 @@ func (s *Postgres) CountColors(ctx context.Context, collectionID collection.ID) 
 }
 
 func (s *Postgres) HasColor(
-	ctx context.Context, cltID collection.ID, hex color.Hex,
+	ctx context.Context, cltID clt.ID, hex color.Hex,
 ) (bool, error) {
 	const query = `
 		SELECT EXISTS (
@@ -56,7 +56,7 @@ func (s *Postgres) HasColor(
 
 // ErrNotFound if no such row
 func (s *Postgres) DeleteColor(
-	ctx context.Context, cltID collection.ID, hex color.Hex,
+	ctx context.Context, cltID clt.ID, hex color.Hex,
 ) error {
 	const query = `DELETE FROM collection_colors WHERE collection_id = $1 AND hex = $2`
 
@@ -70,7 +70,7 @@ func (s *Postgres) DeleteColor(
 	return nil
 }
 
-func (s *Postgres) DeleteAllColors(ctx context.Context, cltID collection.ID) error {
+func (s *Postgres) DeleteAllColors(ctx context.Context, cltID clt.ID) error {
 	const query = `DELETE FROM collection_colors WHERE collection_id = $1`
 
 	if _, err := s.db.Exec(ctx, query, cltID); err != nil {
@@ -81,7 +81,7 @@ func (s *Postgres) DeleteAllColors(ctx context.Context, cltID collection.ID) err
 
 // One page after the cursor, ordered by the column p names with hex as the tiebreak
 func (s *Postgres) ListColors(
-	ctx context.Context, cltID collection.ID, p ListColorsParams,
+	ctx context.Context, cltID clt.ID, p ListColorsParams,
 ) (ColorPage, error) {
 	p = p.normalized()
 
@@ -109,7 +109,7 @@ func (s *Postgres) ListColors(
 }
 
 // Builds the query with all the arguments
-func (p ListColorsParams) listQuery(cltID collection.ID) (string, []any, error) {
+func (p ListColorsParams) listQuery(cltID clt.ID) (string, []any, error) {
 	const template = `
 		SELECT hex, created_at
 		FROM collection_colors

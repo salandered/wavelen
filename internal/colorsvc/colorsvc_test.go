@@ -12,7 +12,7 @@ import (
 	"uuid"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/salandered/wavelen/internal/collection"
+	"github.com/salandered/wavelen/internal/clt"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/colorsvc"
 	"github.com/salandered/wavelen/internal/storage"
@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-var unknownCollection = collection.ID(
+var unknownCollection = clt.ID(
 	uuid.MustParse("00000000-0000-7000-8000-00000000dead"))
 
 func TestQuotaSuite(t *testing.T) {
@@ -132,16 +132,16 @@ func (s *QuotaSuite) ctx(d time.Duration) context.Context {
 }
 
 // same what usersvc.CreateUser writes
-func (s *QuotaSuite) createUser() (user.ID, collection.ID) {
+func (s *QuotaSuite) createUser() (user.ID, clt.ID) {
 	ctx := s.ctx(10 * time.Second)
 
 	u := user.User{Nickname: "olya", PasswordHash: []byte("stub")}
 	s.Require().NoError(s.store.CreateUser(ctx, &u))
 
-	col, err := s.store.CreateCollection(ctx, u.ID, collection.CreateParams{
+	col, err := s.store.CreateCollection(ctx, u.ID, clt.CreateParams{
 		Name:      "My colors",
-		Icon:      collection.DefIconSlug,
-		Accent:    collection.DefIconAccent,
+		Icon:      clt.DefIconSlug,
+		Accent:    clt.DefIconAccent,
 		IsDefault: true,
 	})
 	s.Require().NoError(err)

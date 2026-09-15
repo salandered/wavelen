@@ -7,11 +7,11 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/salandered/wavelen/internal/collection"
+	"github.com/salandered/wavelen/internal/clt"
 	"github.com/stretchr/testify/require"
 )
 
-var testCollectionID = collection.ID(
+var testCollectionID = clt.ID(
 	uuid.MustParse("01999999-7777-7777-8888-999999999999"))
 
 var testCursor = &ColorCursor{

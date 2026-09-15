@@ -20,7 +20,7 @@ import (
 	"github.com/getkin/kin-openapi/routers/gorillamux"
 	"github.com/salandered/wavelen"
 	"github.com/salandered/wavelen/internal/auth"
-	"github.com/salandered/wavelen/internal/collection"
+	"github.com/salandered/wavelen/internal/clt"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/handlers"
 	"github.com/salandered/wavelen/internal/icon"
@@ -37,10 +37,10 @@ func TestAPISuite(t *testing.T) {
 }
 
 var (
-	collectionsPath = "/api/v1/me/collections"
-	collectionPath  = collectionsPath + "/" + stubCollectionID.String()
-	savedColorsPath = collectionPath + "/colors"
-	exportPath      = "/api/v1/me/export"
+	collectionsPath    = "/api/v1/me/collections"
+	collectionStubPath = collectionsPath + "/" + stubCollectionID.String()
+	savedColorsPath    = collectionStubPath + "/colors"
+	exportPath         = "/api/v1/me/export"
 )
 
 const (
@@ -215,8 +215,8 @@ func (s *APISuite) TestCreateUserAlsoCreatesTheDefaultCollection() {
 	s.Require().Equal(http.StatusCreated, resp.StatusCode)
 
 	s.Require().Equal(usersvc.DefCollectionName, s.storage.gotCltParams.Name)
-	s.Require().Equal(collection.DefIconSlug, s.storage.gotCltParams.Icon)
-	s.Require().Equal(collection.DefIconAccent, s.storage.gotCltParams.Accent)
+	s.Require().Equal(clt.DefIconSlug, s.storage.gotCltParams.Icon)
+	s.Require().Equal(clt.DefIconAccent, s.storage.gotCltParams.Accent)
 }
 
 func (s *APISuite) TestCreateUserDuplicateNicknameReturnsConflict() {
@@ -498,8 +498,8 @@ func (s *APISuite) TestCreateCollectionDefaultIconAndAccentWhenOmitted() {
 
 	var out handlers.OneCollectionResp
 	s.decode(resp, &out)
-	s.Require().Equal(string(collection.DefIconSlug), out.Collection.Icon)
-	s.Require().Equal(string(collection.DefIconAccent), out.Collection.Accent)
+	s.Require().Equal(string(clt.DefIconSlug), out.Collection.Icon)
+	s.Require().Equal(string(clt.DefIconAccent), out.Collection.Accent)
 }
 
 func (s *APISuite) TestCreateCollectionPassesVerbatimIconAndNormalizedAccentToStorage() {
@@ -518,7 +518,7 @@ func (s *APISuite) TestCreateCollectionRejectsBadInput() {
 	tests := map[string]string{
 		"empty name":     `{"name":""}`,
 		"blank name":     `{"name":"   "}`,
-		"overlong name":  `{"name":"` + strings.Repeat("a", collection.MaxNameLen+1) + `"}`,
+		"overlong name":  `{"name":"` + strings.Repeat("a", clt.MaxNameLen+1) + `"}`,
 		"missing name":   `{}`,
 		"unknown field":  `{"name":"Sunset","is_default":true}`,
 		"unknown icon":   `{"name":"Sunset","icon":"folder-open"}`,
@@ -566,12 +566,12 @@ func (s *APISuite) TestListCollectionsRendersEmptyArrayNotNull() {
 }
 
 func (s *APISuite) TestListCollectionsKeepsOrderAndNormalizesTimeToUTC() {
-	s.storage.collections = []collection.Collection{
+	s.storage.collections = []clt.Collection{
 		{
 			ID:         stubCollectionID,
 			Name:       "Main",
-			IconSlug:   collection.DefIconSlug,
-			IconAccent: collection.DefIconAccent,
+			IconSlug:   clt.DefIconSlug,
+			IconAccent: clt.DefIconAccent,
 			IsDefault:  true,
 			CreatedAt:  stubTime,
 		},
@@ -598,7 +598,7 @@ func (s *APISuite) TestListCollectionsKeepsOrderAndNormalizesTimeToUTC() {
 func (s *APISuite) TestGetCollection() {
 	s.storage.tokenUser = 42
 
-	resp := s.get(collectionPath)
+	resp := s.get(collectionStubPath)
 	s.Require().Equal(http.StatusOK, resp.StatusCode)
 
 	var out handlers.OneCollectionResp
@@ -608,16 +608,16 @@ func (s *APISuite) TestGetCollection() {
 	s.Require().Equal(stubCollectionID, s.storage.gotCollectionID)
 }
 
-func (s *APISuite) TestGetCollectionTheCallerDoesNotOwnReturnsNotFound() {
+func (s *APISuite) TestGetCollectionCallerDoesNotOwnReturnsNotFound() {
 	s.storage.resolveErr = storage.ErrNotFound
 
-	resp := s.get(collectionPath)
+	resp := s.get(collectionStubPath)
 
 	s.Require().Equal(http.StatusNotFound, resp.StatusCode)
 	s.Require().Equal("not found", s.errorMessage(resp))
 }
 
-func (s *APISuite) TestCollectionRoutesRejectAMalformedID() {
+func (s *APISuite) TestCollectionRoutesRejectMalformedID() {
 	for _, path := range []string{
 		"/api/v1/me/collections/main",
 		"/api/v1/me/collections/42",
@@ -632,10 +632,60 @@ func (s *APISuite) TestCollectionRoutesRejectAMalformedID() {
 	}
 }
 
+func (s *APISuite) TestUpdateCollectionKeepsTheFieldsNotSent() {
+	s.storage.tokenUser = 42
+
+	resp := s.patchRaw(collectionStubPath, `{"accent":"FF00AA"}`)
+	s.Require().Equal(http.StatusOK, resp.StatusCode)
+
+	var out handlers.OneCollectionResp
+	s.decode(resp, &out)
+	// changed
+	s.Require().Equal("#ff00aa", out.Collection.Accent)
+	// not changed
+	s.Require().Equal(stubCollectionName, out.Collection.Name)
+	// not changed
+	s.Require().Equal(string(clt.DefIconSlug), out.Collection.Icon)
+
+	s.Require().Nil(s.storage.gotCltUpdate.Name)
+	s.Require().Nil(s.storage.gotCltUpdate.Icon)
+	s.Require().Equal(user.ID(42), s.storage.gotUserID)
+	s.Require().Equal(stubCollectionID, s.storage.gotCollectionID)
+}
+
+func (s *APISuite) TestUpdateCollectionRejectsBadInput() {
+	tests := map[string]string{
+		"no fields":     `{}`, // no fields to patch
+		"null fields":   `{"name":null,"icon":null,"accent":null}`,
+		"empty name":    `{"name":""}`,
+		"blank name":    `{"name":"   "}`,
+		"unknown field": `{"is_default":true}`,
+		"unknown icon":  `{"icon":"folder-open"}`,
+		"bad accent":    `{"accent":"zzzzzz"}`,
+		"empty body":    ``,
+	}
+	for name, body := range tests {
+		s.Run(name, func() {
+			resp := s.patchRaw(collectionStubPath, body)
+			s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
+			s.Require().Empty(s.storage.gotCltUpdate)
+		})
+	}
+}
+
+func (s *APISuite) TestUpdateCollectionCallerDoesNotOwnReturnsNotFound() {
+	s.storage.resolveErr = storage.ErrNotFound
+
+	resp := s.patchRaw(collectionStubPath, `{"name":"Sunrise"}`)
+
+	s.Require().Equal(http.StatusNotFound, resp.StatusCode)
+	s.Require().Equal("not found", s.errorMessage(resp))
+}
+
 func (s *APISuite) TestDeleteCollectionReturnsNoContent() {
 	s.storage.tokenUser = 42
 
-	resp := s.del(collectionPath)
+	resp := s.del(collectionStubPath)
 
 	s.Require().Equal(http.StatusNoContent, resp.StatusCode)
 	s.Require().Empty(s.body(resp))
@@ -646,16 +696,16 @@ func (s *APISuite) TestDeleteCollectionReturnsNoContent() {
 func (s *APISuite) TestDeleteDefaultCollectionReturnsConflict() {
 	s.storage.cltIsDefault = true
 
-	resp := s.del(collectionPath)
+	resp := s.del(collectionStubPath)
 
 	s.Require().Equal(http.StatusConflict, resp.StatusCode)
 	s.Require().Equal("default collection cannot be deleted", s.errorMessage(resp))
 }
 
-func (s *APISuite) TestDeleteCollectionTheCallerDoesNotOwnReturnsNotFound() {
+func (s *APISuite) TestDeleteCollectionCallerDoesNotOwnReturnsNotFound() {
 	s.storage.resolveErr = storage.ErrNotFound
 
-	resp := s.del(collectionPath)
+	resp := s.del(collectionStubPath)
 
 	s.Require().Equal(http.StatusNotFound, resp.StatusCode)
 	s.Require().Equal("not found", s.errorMessage(resp))
@@ -1182,6 +1232,10 @@ func (s *APISuite) post(path string, body any) *http.Response {
 
 func (s *APISuite) postRaw(path, body string) *http.Response {
 	return s.send(http.MethodPost, path, strings.NewReader(body))
+}
+
+func (s *APISuite) patchRaw(path, body string) *http.Response {
+	return s.send(http.MethodPatch, path, strings.NewReader(body))
 }
 
 func (s *APISuite) del(path string) *http.Response {

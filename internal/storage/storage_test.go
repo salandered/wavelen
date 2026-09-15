@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/salandered/wavelen/internal/collection"
+	"github.com/salandered/wavelen/internal/clt"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/storagetest"
@@ -97,11 +97,11 @@ var stubPasswordHash = []byte("stub")
 
 const testCollectionName = "Main"
 
-func newCollection(name string, isDefault bool) collection.CreateParams {
-	return collection.CreateParams{
+func newCollection(name string, isDefault bool) clt.CreateParams {
+	return clt.CreateParams{
 		Name:      name,
-		Icon:      collection.DefIconSlug,
-		Accent:    collection.DefIconAccent,
+		Icon:      clt.DefIconSlug,
+		Accent:    clt.DefIconAccent,
 		IsDefault: isDefault,
 	}
 }
@@ -112,7 +112,7 @@ func (s *StorageSuite) createUser(nickname string) user.ID {
 }
 
 // An account and its def collection
-func (s *StorageSuite) createUserAndCollection(nickname string) (user.ID, collection.ID) {
+func (s *StorageSuite) createUserAndCollection(nickname string) (user.ID, clt.ID) {
 	u := user.User{Nickname: nickname, PasswordHash: stubPasswordHash}
 	s.Require().NoError(s.storage.CreateUser(s.ctx(), &u))
 
@@ -125,7 +125,7 @@ func (s *StorageSuite) createUserAndCollection(nickname string) (user.ID, collec
 	return u.ID, col.ID
 }
 
-func (s *StorageSuite) addColors(collectionID collection.ID, hexes ...color.Hex) {
+func (s *StorageSuite) addColors(collectionID clt.ID, hexes ...color.Hex) {
 	for _, hex := range hexes {
 		// one statement per row, so now() differs and no two rows share a created_at
 		_, err := s.storage.AddColor(s.ctx(), collectionID, hex)
@@ -141,7 +141,7 @@ func (s *StorageSuite) countCollections(userID user.ID) int {
 	return s.count(`SELECT count(*) FROM collections WHERE user_id = $1`, userID)
 }
 
-func (s *StorageSuite) countColorsIn(collectionID collection.ID) int {
+func (s *StorageSuite) countColorsIn(collectionID clt.ID) int {
 	return s.count(`SELECT count(*) FROM collection_colors WHERE collection_id = $1`, collectionID)
 }
 

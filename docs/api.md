@@ -64,6 +64,10 @@ curl -X POST $HOST/api/v1/me/collections -H "Authorization: Bearer $TOKEN" -d '{
 
 CLT="<collection id from above>"
 
+# rename it, change the icon or the accent; any subset, an absent field is kept
+curl -X PATCH $HOST/api/v1/me/collections/$CLT -H "Authorization: Bearer $TOKEN" -d '{"name":"Sunrise","icon":"sun"}'
+# {"collection":{"id":<uuid>, "name":"Sunrise", "icon":"sun", ...}}
+
 # delete collection and all its colors (the default collection can't be deleted)
 curl -X DELETE $HOST/api/v1/me/collections/$CLT -H "Authorization: Bearer $TOKEN"
 ```

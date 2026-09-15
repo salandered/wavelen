@@ -317,6 +317,12 @@
 					<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
 					<path d="m7 10 5 5 5-5" />
 				</symbol>
+				<symbol id="ui-pencil" viewBox="0 0 24 24">
+					<path
+						d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"
+					/>
+					<path d="m15 5 4 4" />
+				</symbol>
 				<symbol id="ui-ellipsis" viewBox="0 0 24 24">
 					<circle cx="12" cy="12" r="1" />
 					<circle cx="19" cy="12" r="1" />
@@ -514,8 +520,14 @@
 				<img src="images/logo.png" alt="wavelen" width="358" height="70" />
 			</h2>
 			<p>version <span id="about-version">-</span></p>
-			<p><a href="https://github.com/salandered/wavelen">github.com/salandered/wavelen</a></p>
-			<p class="about-warn">This project is a work in progress. Your data may be lost!</p>
+			<p class="about-note">
+				<a href="https://github.com/salandered/wavelen">github.com/salandered/wavelen</a>
+			</p>
+			<p class="about-warn">
+				This project is a work in progress. Your data may be lost!
+				<br />
+				Consider using the Export feature.
+			</p>
 			<p class="about-note">contact: <a href="mailto:salandered@pm.me">salandered@pm.me</a></p>
 			<hr />
 			<p class="about-note">Icons: <a href="https://lucide.dev">Lucide</a>, ISC and MIT.</p>
@@ -545,7 +557,11 @@
 							<svg class="icon" aria-hidden="true"><use href="#ui-plus" /></svg>
 						</button>
 					</div>
-					<!-- keep in sync with collection.MaxNameLen; the API rejects longer names -->
+					<!--
+						One form for both triggers: the plus creates, the pencil in the listing row edits
+						the active collection. app.js writes the submit's word per mode.
+						keep maxlength in sync with clt.MaxNameLen; the API rejects longer names
+					-->
 					<form id="collection-form" hidden>
 						<div class="row">
 							<input
@@ -597,7 +613,7 @@
 								></div>
 							</div>
 
-							<button>create</button>
+							<button id="collection-submit">create</button>
 						</div>
 					</form>
 					<!-- add controls and listing controls share the toolbar -->
@@ -633,7 +649,7 @@
 						<div class="row">
 							<!-- cyclers: app.js writes the labels, the value stays in data-value -->
 							<button type="button" id="sort" data-value="created_at" title="sort by"></button>
-							<button type="button" id="order" data-value="desc" title="order"></button>
+							<button type="button" id="order" data-value="asc" title="order"></button>
 							<select id="limit" title="per page">
 								<option value="10">10</option>
 								<option value="20" selected>20</option>
@@ -660,6 +676,18 @@
 								aria-label="the colors below, full screen"
 							>
 								<svg class="icon" aria-hidden="true"><use href="#ui-monitor" /></svg>
+							</button>
+							<!-- opens #collection-form on the active collection, the same form the plus opens empty -->
+							<button
+								type="button"
+								class="icon-button"
+								id="collection-edit"
+								title="edit this collection"
+								aria-label="edit this collection"
+								aria-expanded="false"
+								aria-controls="collection-form"
+							>
+								<svg class="icon" aria-hidden="true"><use href="#ui-pencil" /></svg>
 							</button>
 							<!-- both act on the active collection: eraser removes its colors; trash removes the collection too -->
 							<div class="collection-menu">
@@ -893,11 +921,11 @@
 									<dt>B</dt>
 									<dd>page fill: off / soft / deep gray</dd>
 									<dt>D</dt>
-									<dd>dense grid, for the section under the pointer</dd>
+									<dd>dense grid, for the section under the cursor</dd>
 									<dt>F</dt>
-									<dd>full screen, for the section under the pointer</dd>
+									<dd>full screen, for the section under the cursor</dd>
 									<dt>A</dt>
-									<dd>add the color under the pointer to the collection</dd>
+									<dd>add the color under the cursor to the collection</dd>
 								</dl>
 							</div>
 						</div>

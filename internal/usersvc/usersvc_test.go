@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/salandered/wavelen/internal/collection"
+	"github.com/salandered/wavelen/internal/clt"
 	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/storagetest"
 	"github.com/salandered/wavelen/internal/user"
@@ -96,8 +96,8 @@ func (s *SignupSuite) ctx() context.Context {
 // Reads the default collection
 func (s *SignupSuite) defaultCollection(
 	ctx context.Context, userID user.ID,
-) (collection.ID, string) {
-	var id collection.ID
+) (clt.ID, string) {
+	var id clt.ID
 	var name string
 
 	s.Require().NoError(s.pool.QueryRow(ctx,

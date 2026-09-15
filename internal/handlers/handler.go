@@ -9,7 +9,7 @@ import (
 
 	"github.com/salandered/httputils/httputils"
 	"github.com/salandered/wavelen/internal/authsvc"
-	"github.com/salandered/wavelen/internal/collection"
+	"github.com/salandered/wavelen/internal/clt"
 	"github.com/salandered/wavelen/internal/collectionsvc"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/colorsvc"
@@ -47,8 +47,8 @@ func HandleVersion(w http.ResponseWriter, req *http.Request) {
 	httputils.WriteJSON(req.Context(), w, http.StatusOK, VersionResp{Version: version.Get()})
 }
 
-func collectionIDFromPath(req *http.Request) (collection.ID, error) {
-	return collection.ParseID(req.PathValue(collectionIDPathValue))
+func collectionIDFromPath(req *http.Request) (clt.ID, error) {
+	return clt.ParseID(req.PathValue(collectionIDPathValue))
 }
 
 func hexFromPath(req *http.Request) (color.Hex, error) {

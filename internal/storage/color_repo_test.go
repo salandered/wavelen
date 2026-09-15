@@ -5,12 +5,12 @@ package storage_test
 import (
 	"uuid"
 
-	"github.com/salandered/wavelen/internal/collection"
+	"github.com/salandered/wavelen/internal/clt"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/storage"
 )
 
-var unknownCollection = collection.ID(
+var unknownCollection = clt.ID(
 	uuid.MustParse("00000000-0000-7000-8000-00000000dead"))
 
 func (s *StorageSuite) TestAddColorReportsCreatedOnTheFirstInsert() {
@@ -264,7 +264,7 @@ func (s *StorageSuite) TestDeletingAUserCascadesToTheirColors() {
 
 // Traverse the listing with p.Limit per page and returns every hex, ordered.
 func (s *StorageSuite) pageThrough(
-	collectionID collection.ID, p storage.ListColorsParams,
+	collectionID clt.ID, p storage.ListColorsParams,
 ) []color.Hex {
 	var seen []color.Hex
 	for range 100 { // a HasMore that never clears must fail the test, not hang it

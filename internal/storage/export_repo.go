@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/salandered/wavelen/internal/collection"
+	"github.com/salandered/wavelen/internal/clt"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/user"
 )
 
 type CltWithColors struct {
-	Clt    collection.Collection
+	Clt    clt.Collection
 	Colors []color.Color // empty (not nil) for a collection with no colors
 }
 
@@ -41,7 +41,7 @@ func (s *Postgres) ExportCollections(
 
 	out := []CltWithColors{}
 	for rows.Next() {
-		var clt collection.Collection
+		var clt clt.Collection
 		var hex *string
 		var colorCreatedAt *time.Time
 

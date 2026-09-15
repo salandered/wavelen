@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/salandered/wavelen/internal/collection"
+	"github.com/salandered/wavelen/internal/clt"
 	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/user"
 )
@@ -25,11 +25,11 @@ func New(store storage.Storage, quota int) *CollectionSvc {
 
 // A user already at the quota -> ErrQuotaFull.
 func (c *CollectionSvc) CreateCollection(
-	ctx context.Context, userID user.ID, p collection.CreateParams,
-) (*collection.Collection, error) {
+	ctx context.Context, userID user.ID, p clt.CreateParams,
+) (*clt.Collection, error) {
 	p.IsDefault = false // the default one is written at signup only
 
-	var created *collection.Collection
+	var created *clt.Collection
 
 	err := c.storage.InTx(
 		ctx,
@@ -59,20 +59,27 @@ func (c *CollectionSvc) CreateCollection(
 
 func (c *CollectionSvc) ListCollections(
 	ctx context.Context, userID user.ID,
-) ([]collection.Collection, error) {
+) ([]clt.Collection, error) {
 	return c.storage.ListCollections(ctx, userID)
 }
 
 func (c *CollectionSvc) CollectionByID(
-	ctx context.Context, userID user.ID, id collection.ID,
-) (*collection.Collection, error) {
+	ctx context.Context, userID user.ID, id clt.ID,
+) (*clt.Collection, error) {
 	return c.storage.CollectionByID(ctx, userID, id)
 }
 
+// one row to write, no lock and no transaction.
+func (c *CollectionSvc) UpdateCollection(
+	ctx context.Context, userID user.ID, id clt.ID, p clt.UpdateParams,
+) (*clt.Collection, error) {
+	return c.storage.UpdateCollection(ctx, userID, id, p)
+}
+
 func (c *CollectionSvc) DeleteCollection(
-	ctx context.Context, userID user.ID, id collection.ID,
+	ctx context.Context, userID user.ID, id clt.ID,
 ) error {
-	// Not using storage.InTx becase the default collection cannot be changed currently
+	// no storage.InTx: is_default can't be changed
 	col, err := c.storage.CollectionByID(ctx, userID, id)
 	if err != nil {
 		return err

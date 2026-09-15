@@ -68,6 +68,7 @@ func newMux(s storage.Storage, cfg HandlerConfig) *http.ServeMux {
 	mux.Handle("GET /api/v1/me/collections", authed(collections.HandleListCollections))
 	mux.Handle("POST /api/v1/me/collections", authed(collections.HandleCreateCollection))
 	mux.Handle("GET /api/v1/me/collections/{id}", authed(collections.HandleGetCollection))
+	mux.Handle("PATCH /api/v1/me/collections/{id}", authed(collections.HandleUpdateCollection))
 	mux.Handle("DELETE /api/v1/me/collections/{id}", authed(collections.HandleDeleteCollection))
 
 	mux.Handle("GET /api/v1/me/collections/{id}/colors", authed(colors.HandleListColors))

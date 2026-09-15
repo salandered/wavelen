@@ -3,7 +3,7 @@ package usersvc
 import (
 	"context"
 
-	"github.com/salandered/wavelen/internal/collection"
+	"github.com/salandered/wavelen/internal/clt"
 	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/user"
 )
@@ -27,10 +27,10 @@ func (u *Users) CreateUser(ctx context.Context, user *user.User) error {
 				return err
 			}
 
-			_, err := s.CreateCollection(ctx, user.ID, collection.CreateParams{
+			_, err := s.CreateCollection(ctx, user.ID, clt.CreateParams{
 				Name:      DefCollectionName,
-				Icon:      collection.DefIconSlug,
-				Accent:    collection.DefIconAccent,
+				Icon:      clt.DefIconSlug,
+				Accent:    clt.DefIconAccent,
 				IsDefault: true,
 			})
 			return err

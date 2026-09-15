@@ -6,24 +6,24 @@ import (
 	"time"
 
 	"github.com/salandered/httputils/httputils"
-	"github.com/salandered/wavelen/internal/collection"
+	"github.com/salandered/wavelen/internal/clt"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/user"
 )
 
 type ColorService interface {
-	AddColor(ctx context.Context, userID user.ID, cltID collection.ID, hex color.Hex,
+	AddColor(ctx context.Context, userID user.ID, cltID clt.ID, hex color.Hex,
 	) (bool, error)
 	ListColors(
-		ctx context.Context, userID user.ID, cltID collection.ID,
+		ctx context.Context, userID user.ID, cltID clt.ID,
 		p storage.ListColorsParams,
 	) (storage.ColorPage, error)
 	DeleteColor(
-		ctx context.Context, userID user.ID, cltID collection.ID, hex color.Hex,
+		ctx context.Context, userID user.ID, cltID clt.ID, hex color.Hex,
 	) error
 	DeleteAllColors(
-		ctx context.Context, userID user.ID, cltID collection.ID,
+		ctx context.Context, userID user.ID, cltID clt.ID,
 	) error
 }
 

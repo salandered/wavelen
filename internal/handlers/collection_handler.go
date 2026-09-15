@@ -2,11 +2,12 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
 
 	"github.com/salandered/httputils/httputils"
-	"github.com/salandered/wavelen/internal/collection"
+	"github.com/salandered/wavelen/internal/clt"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/icon"
 	"github.com/salandered/wavelen/internal/user"
@@ -14,13 +15,16 @@ import (
 
 type CollectionService interface {
 	CreateCollection(
-		ctx context.Context, userID user.ID, p collection.CreateParams,
-	) (*collection.Collection, error)
-	ListCollections(ctx context.Context, userID user.ID) ([]collection.Collection, error)
+		ctx context.Context, userID user.ID, p clt.CreateParams,
+	) (*clt.Collection, error)
+	ListCollections(ctx context.Context, userID user.ID) ([]clt.Collection, error)
 	CollectionByID(
-		ctx context.Context, userID user.ID, id collection.ID,
-	) (*collection.Collection, error)
-	DeleteCollection(ctx context.Context, userID user.ID, id collection.ID) error
+		ctx context.Context, userID user.ID, id clt.ID,
+	) (*clt.Collection, error)
+	UpdateCollection(
+		ctx context.Context, userID user.ID, id clt.ID, p clt.UpdateParams,
+	) (*clt.Collection, error)
+	DeleteCollection(ctx context.Context, userID user.ID, id clt.ID) error
 }
 
 type CollectionHandler struct {
@@ -31,6 +35,13 @@ type CreateCollectionReq struct {
 	Name   string `json:"name"`
 	Icon   string `json:"icon"`
 	Accent string `json:"accent"`
+}
+
+// using pointers - nil means "wasn't sent"
+type UpdateCollectionReq struct {
+	Name   *string `json:"name"`
+	Icon   *string `json:"icon"`
+	Accent *string `json:"accent"`
 }
 
 type CollectionResp struct {
@@ -115,6 +126,39 @@ func (h *CollectionHandler) HandleGetCollection(
 		OneCollectionResp{Collection: collectionToResp(col)})
 }
 
+func (h *CollectionHandler) HandleUpdateCollection(
+	w http.ResponseWriter, req *http.Request, userID user.ID,
+) {
+	ctx := req.Context()
+
+	id, err := collectionIDFromPath(req)
+	if err != nil {
+		writeRequestError(ctx, w, err)
+		return
+	}
+
+	var data UpdateCollectionReq
+	if err := httputils.ReadJSON(w, req, &data, maxRequestBodyBytes); err != nil {
+		writeRequestError(ctx, w, err)
+		return
+	}
+
+	params, err := updateCollectionParams(data)
+	if err != nil {
+		writeRequestError(ctx, w, err)
+		return
+	}
+
+	updated, err := h.CollectionSvc.UpdateCollection(ctx, userID, id, params)
+	if err != nil {
+		writeStorageError(ctx, w, err)
+		return
+	}
+
+	httputils.WriteJSON(ctx, w, http.StatusOK,
+		OneCollectionResp{Collection: collectionToResp(updated)})
+}
+
 func (h *CollectionHandler) HandleDeleteCollection(
 	w http.ResponseWriter, req *http.Request, userID user.ID,
 ) {
@@ -133,31 +177,66 @@ func (h *CollectionHandler) HandleDeleteCollection(
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func createCollectionParams(data CreateCollectionReq) (collection.CreateParams, error) {
-	name, err := collection.NormalizeName(data.Name)
+func createCollectionParams(data CreateCollectionReq) (clt.CreateParams, error) {
+	name, err := clt.NormalizeName(data.Name)
 	if err != nil {
-		return collection.CreateParams{}, err
+		return clt.CreateParams{}, err
 	}
 
 	// not required
-	slug := collection.DefIconSlug
+	slug := clt.DefIconSlug
 	if data.Icon != "" {
 		if slug, err = icon.ParseSlug(data.Icon); err != nil {
-			return collection.CreateParams{}, err
+			return clt.CreateParams{}, err
 		}
 	}
 
 	// not required
-	accent := collection.DefIconAccent
+	accent := clt.DefIconAccent
 	if data.Accent != "" {
 		if accent, err = color.NewHex(data.Accent); err != nil {
-			return collection.CreateParams{}, err
+			return clt.CreateParams{}, err
 		}
 	}
-	return collection.CreateParams{Name: name, Icon: slug, Accent: accent}, nil
+	return clt.CreateParams{Name: name, Icon: slug, Accent: accent}, nil
 }
 
-func collectionToResp(c *collection.Collection) CollectionResp {
+// Validates present fields. All nils is refused.
+func updateCollectionParams(data UpdateCollectionReq) (clt.UpdateParams, error) {
+	if data.Name == nil && data.Icon == nil && data.Accent == nil {
+		return clt.UpdateParams{},
+			errors.New("nothing to update: send name, icon or accent")
+	}
+
+	var p clt.UpdateParams
+
+	if data.Name != nil {
+		name, err := clt.NormalizeName(*data.Name)
+		if err != nil {
+			return clt.UpdateParams{}, err
+		}
+		p.Name = &name
+	}
+
+	if data.Icon != nil {
+		slug, err := icon.ParseSlug(*data.Icon)
+		if err != nil {
+			return clt.UpdateParams{}, err
+		}
+		p.Icon = &slug
+	}
+
+	if data.Accent != nil {
+		accent, err := color.NewHex(*data.Accent)
+		if err != nil {
+			return clt.UpdateParams{}, err
+		}
+		p.Accent = &accent
+	}
+	return p, nil
+}
+
+func collectionToResp(c *clt.Collection) CollectionResp {
 	return CollectionResp{
 		ID:        c.ID.String(),
 		Name:      c.Name,

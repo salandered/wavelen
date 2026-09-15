@@ -77,7 +77,7 @@ character from its range, e.g a Cyrillic collection is fetched when someone type
 	/*
 	Ten collection accents. 
 	'-dark' value is canonical: what picker sends and what collections.icon_accent
-	stores. internal/collection.DefIconAccent is the gray one. 
+	stores. internal/clt.DefIconAccent is the gray one. 
 	The light twin is shown and is not stored, light-dark() re-resolves every tint on a theme flip.
 	*/
 	--accent-gray-dark: #dbd7d0;
@@ -870,13 +870,17 @@ below shows. The summary already draws a line, so the strip is pulled up toward 
 	display: flex;
 }
 
-#collection-more {
-	color: var(--muted);
+/* full ink, like the buttons they share the row with. The open state is the tint the dense
+   toggles use, since a color step has nowhere to go from --fg. */
+#collection-edit[aria-expanded="true"],
+#collection-more[aria-expanded="true"] {
+	background: light-dark(rgba(0, 0, 0, 0.14), rgba(255, 255, 255, 0.18));
 }
 
-#collection-more:hover,
-#collection-more[aria-expanded="true"] {
-	color: var(--fg);
+/* account with no collection has nothing to edit */
+#collection-edit:disabled {
+	opacity: 0.4;
+	cursor: default;
 }
 
 /*

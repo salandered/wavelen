@@ -3,7 +3,9 @@
 package storage_test
 
 import (
-	"github.com/salandered/wavelen/internal/collection"
+	"github.com/salandered/wavelen/internal/clt"
+	"github.com/salandered/wavelen/internal/color"
+	"github.com/salandered/wavelen/internal/icon"
 	"github.com/salandered/wavelen/internal/storage"
 )
 
@@ -15,7 +17,7 @@ func (s *StorageSuite) TestCreateCollectionReturnsGeneratedIDAndCreatedAt() {
 	col, err := s.storage.CreateCollection(s.ctx(), userID, newCollection("Sunset", false))
 
 	s.Require().NoError(err)
-	s.Require().NotEqual(collection.ID{}, col.ID)
+	s.Require().NotEqual(clt.ID{}, col.ID)
 	s.Require().Equal("Sunset", col.Name)
 	s.Require().False(col.IsDefault)
 	s.Require().False(col.CreatedAt.IsZero())
@@ -57,7 +59,7 @@ func (s *StorageSuite) TestListCollectionsReturnsOldestFirstStartingWithDefaultC
 
 	// then
 	s.Require().NoError(err)
-	s.Require().Equal([]collection.ID{defaultID, sunset.ID, ocean.ID}, idsOf(got))
+	s.Require().Equal([]clt.ID{defaultID, sunset.ID, ocean.ID}, idsOf(got))
 	s.Require().True(got[0].IsDefault)
 	s.Require().False(got[1].IsDefault)
 }
@@ -69,7 +71,7 @@ func (s *StorageSuite) TestListCollectionsSkipsAnotherUserClts() {
 	got, err := s.storage.ListCollections(s.ctx(), olyaID)
 
 	s.Require().NoError(err)
-	s.Require().Equal([]collection.ID{olyaCollection}, idsOf(got))
+	s.Require().Equal([]clt.ID{olyaCollection}, idsOf(got))
 	s.Require().NotContains(idsOf(got), graceCollection)
 }
 
@@ -125,6 +127,56 @@ func (s *StorageSuite) TestCollectionByIDUnknownCollection() {
 	userID := s.createUser("olya")
 
 	_, err := s.storage.CollectionByID(s.ctx(), userID, unknownCollection)
+
+	s.Require().ErrorIs(err, storage.ErrNotFound)
+}
+
+// Update
+
+func (s *StorageSuite) TestUpdateCollectionChangesOnlyOneField() {
+	userID, collectionID := s.createUserAndCollection("olya")
+	name := "Sunrise"
+
+	updated, err := s.storage.UpdateCollection(
+		s.ctx(), userID, collectionID, clt.UpdateParams{Name: &name})
+
+	s.Require().NoError(err)
+	s.Require().Equal(name, updated.Name)
+	s.Require().Equal(clt.DefIconSlug, updated.IconSlug)
+	s.Require().Equal(clt.DefIconAccent, updated.IconAccent)
+	s.Require().True(updated.IsDefault)
+}
+
+func (s *StorageSuite) TestUpdateCollectionIconAndAccent() {
+	userID, collectionID := s.createUserAndCollection("olya")
+	slug, accent := icon.Slug("star"), color.Hex("#ff00aa")
+
+	updated, err := s.storage.UpdateCollection(
+		s.ctx(), userID, collectionID, clt.UpdateParams{Icon: &slug, Accent: &accent})
+
+	s.Require().NoError(err)
+	s.Require().Equal(slug, updated.IconSlug)
+	s.Require().Equal(accent, updated.IconAccent)
+	s.Require().Equal(testCollectionName, updated.Name)
+}
+
+func (s *StorageSuite) TestUpdateCollectionAnotherUserOwns() {
+	olyaID, _ := s.createUserAndCollection("olya")
+	_, graceCollection := s.createUserAndCollection("grace")
+	name := "Sunrise"
+
+	_, err := s.storage.UpdateCollection(
+		s.ctx(), olyaID, graceCollection, clt.UpdateParams{Name: &name})
+
+	s.Require().ErrorIs(err, storage.ErrNotFound)
+}
+
+func (s *StorageSuite) TestUpdateCollectionUnknownCollection() {
+	userID := s.createUser("olya")
+	name := "Sunrise"
+
+	_, err := s.storage.UpdateCollection(
+		s.ctx(), userID, unknownCollection, clt.UpdateParams{Name: &name})
 
 	s.Require().ErrorIs(err, storage.ErrNotFound)
 }
@@ -215,8 +267,8 @@ func (s *StorageSuite) TestDeleteCollectionUnknownCollection() {
 
 // Utils
 
-func idsOf(collections []collection.Collection) []collection.ID {
-	ids := make([]collection.ID, 0, len(collections))
+func idsOf(collections []clt.Collection) []clt.ID {
+	ids := make([]clt.ID, 0, len(collections))
 	for _, c := range collections {
 		ids = append(ids, c.ID)
 	}

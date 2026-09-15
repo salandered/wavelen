@@ -269,6 +269,10 @@ function setActiveCollection(id) {
 	activeCollection = id;
 	session = { ...session, collection: id };
 	writeStored(SESSION_KEY, session);
+	// form was opened on the clt that was showing, and this is another one
+	if (formMode === "edit") {
+		openCollectionForm(null);
+	}
 	renderCollections();
 }
 
@@ -289,6 +293,7 @@ function resetCollections() {
 	collections = [];
 	activeCollection = null;
 	collectionsRequest = null;
+	openCollectionForm(null);
 	renderCollections();
 }
 
@@ -315,7 +320,7 @@ const ACCENTS = [
 	"pink",
 ];
 
-// matches [collection.DefIconAccent]
+// matches [clt.DefIconAccent]
 const DEF_ACCENT = "gray";
 
 let selectedAccent = DEF_ACCENT;
@@ -463,6 +468,7 @@ function menuOpen(name) {
 // The trash is disabled while the default is the active one (server would refuse).
 function renderCollections() {
 	const active = collections.find((c) => c.id === activeCollection);
+	$("collection-edit").disabled = active === undefined;
 	$("collection-delete").disabled = active === undefined || active.is_default;
 
 	if (collections.length === 0) {
@@ -551,6 +557,38 @@ async function emptyCollection() {
 	} catch (err) {
 		setStatus(err.message, true);
 	}
+}
+
+// The default clt can be edited too.
+// Only what the form changed is sent.
+// An edit that changed nothing closes the form without a request.
+async function updateCollection() {
+	await ensureCollections();
+	const col = collections.find((c) => c.id === activeCollection);
+	if (col === undefined) {
+		return; // the pencil is disabled in that case, see renderCollections
+	}
+
+	const changes = {};
+	const name = $("collection-name").value.trim();
+	if (name !== col.name) {
+		changes.name = name;
+	}
+	if (selectedIcon !== col.icon) {
+		changes.icon = selectedIcon;
+	}
+	const accent = accentHex(selectedAccent);
+	if (accent !== col.accent) {
+		changes.accent = accent;
+	}
+	if (Object.keys(changes).length === 0) {
+		return;
+	}
+
+	const { data } = await call("PATCH", `/me/collections/${col.id}`, changes);
+	collections[collections.indexOf(col)] = data.collection;
+	setStatus(`${data.collection.name} updated`);
+	renderCollections();
 }
 
 // The list is ordered oldest first, which is where a new row belongs.
@@ -1929,7 +1967,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 /*
-	The full screen of the region under the pointer. 
+	The full screen of the region under the cursor. 
 	Four regions answer: the two
 	sections, one pinned strip, and the Selected panel. A strip carries its own name, since the
 	blocks are built per harmony rather than listed here. 
@@ -1973,7 +2011,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 /*
-	"A" is the add of the color under the pointer, same as "F" is for full screen
+	"A" is the add of the color under the cursor, same as "F" is for full screen
 	A saved cell carries a delete rather than an add, so the key does nothing over the collection
 	grid - the same as the glyph there.
 */
@@ -2170,36 +2208,69 @@ $("account-delete-form").addEventListener("submit", (event) => {
 	deleteAccount();
 });
 
-// Over USER_COLLECTION_QUOTA this answers 409, same as the color quota. The field keeps its value
-// on a failure, so the name can be retried once a collection has been freed.
+// Over USER_COLLECTION_QUOTA a create answers 409, same as the color quota. The fields keep their
+// values on a failure, so a name can be retried once a collection has been freed.
 $("collection-form").addEventListener("submit", async (event) => {
 	event.preventDefault();
 	if (!requireSession()) {
 		return;
 	}
 	try {
-		await createCollection($("collection-name").value, selectedIcon, accentHex(selectedAccent));
-		openCollectionForm(false); // the new tab is showing, and a second create is rare
+		if (formMode === "edit") {
+			await updateCollection();
+		} else {
+			await createCollection($("collection-name").value, selectedIcon, accentHex(selectedAccent));
+		}
+		openCollectionForm(null); // the tab strip is showing the result, and a second one is rare
 	} catch (err) {
 		setStatus(err.message, true);
 	}
 });
 
+/*
+	One form behind two triggers: the plus at the end of the tab strip creates, the pencil in the
+	listing row edits the active collection. Both write a name, an icon and an accent, so a second
+	form would be the same three controls over again. 
+*/
+const FORM_MODES = {
+	create: { trigger: "collection-new", submit: "create" },
+	edit: { trigger: "collection-edit", submit: "save" },
+};
+
+let formMode = null;
+
 // aria-expanded is the record, same as the icon menu. Opening lands the focus in the name field,
-// since the button is the only reason the form is up.
-function openCollectionForm(open) {
-	$("collection-new").setAttribute("aria-expanded", String(open));
-	$("collection-form").hidden = !open;
-	if (open) {
-		$("collection-name").value = randomCollectionName();
-		$("collection-name").focus();
-		$("collection-name").select();
+// since a trigger is the only reason the form is up.
+function openCollectionForm(mode) {
+	formMode = mode;
+	for (const [name, spec] of Object.entries(FORM_MODES)) {
+		$(spec.trigger).setAttribute("aria-expanded", String(name === mode));
 	}
+	$("collection-form").hidden = mode === null;
+	if (mode === null) {
+		return;
+	}
+	$("collection-submit").textContent = FORM_MODES[mode].submit;
+	fillCollectionForm(mode);
+	$("collection-name").focus();
+	$("collection-name").select();
 }
 
-$("collection-new").addEventListener("click", () => {
-	openCollectionForm($("collection-new").getAttribute("aria-expanded") !== "true");
-});
+// A create opens on a name to replace, an edit on the collection as it stands. The name is
+// selected either way: the first keystroke replaces a suggestion, and a rename usually is one.
+function fillCollectionForm(mode) {
+	const col = mode === "edit" ? collections.find((c) => c.id === activeCollection) : undefined;
+	$("collection-name").value = col?.name ?? randomCollectionName();
+	selectIcon(col?.icon ?? DEF_ICON);
+	// an accent outside the ten has no swatch to check, so the picker opens on the default
+	selectAccent((col === undefined ? undefined : accentSlugs.get(col.accent)) ?? DEF_ACCENT);
+}
+
+for (const [name, spec] of Object.entries(FORM_MODES)) {
+	$(spec.trigger).addEventListener("click", () => {
+		openCollectionForm(formMode === name ? null : name);
+	});
+}
 
 // Additional controls, folded behind the ellipsis.
 function openCollectionMenu(open) {

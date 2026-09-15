@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/salandered/wavelen/internal/collection"
+	"github.com/salandered/wavelen/internal/clt"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/user"
@@ -24,7 +24,7 @@ func New(store storage.Storage, quota int) *ColorSvc {
 // Returns whether the color was added.
 // A collection exceeding the quota -> ErrQuotaFull
 func (c *ColorSvc) AddColor(
-	ctx context.Context, userID user.ID, collectionID collection.ID, hex color.Hex,
+	ctx context.Context, userID user.ID, collectionID clt.ID, hex color.Hex,
 ) (bool, error) {
 	var created bool
 
@@ -67,7 +67,7 @@ func (c *ColorSvc) AddColor(
 
 // ErrNotFound if no color or no collection
 func (c *ColorSvc) DeleteColor(
-	ctx context.Context, userID user.ID, collectionID collection.ID, hex color.Hex,
+	ctx context.Context, userID user.ID, collectionID clt.ID, hex color.Hex,
 ) error {
 	owned, err := c.storage.ResolveCollection(ctx, userID, collectionID)
 	if err != nil {
@@ -78,7 +78,7 @@ func (c *ColorSvc) DeleteColor(
 
 // Deletes all colors from the collection.
 func (c *ColorSvc) DeleteAllColors(
-	ctx context.Context, userID user.ID, collectionID collection.ID,
+	ctx context.Context, userID user.ID, collectionID clt.ID,
 ) error {
 	owned, err := c.storage.ResolveCollection(ctx, userID, collectionID)
 	if err != nil {
@@ -89,7 +89,7 @@ func (c *ColorSvc) DeleteAllColors(
 
 // ErrNotFound if no collection.
 func (c *ColorSvc) ListColors(
-	ctx context.Context, userID user.ID, collectionID collection.ID,
+	ctx context.Context, userID user.ID, collectionID clt.ID,
 	p storage.ListColorsParams,
 ) (storage.ColorPage, error) {
 	owned, err := c.storage.ResolveCollection(ctx, userID, collectionID)

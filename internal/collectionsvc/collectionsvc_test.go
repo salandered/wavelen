@@ -12,7 +12,7 @@ import (
 	"uuid"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/salandered/wavelen/internal/collection"
+	"github.com/salandered/wavelen/internal/clt"
 	"github.com/salandered/wavelen/internal/collectionsvc"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/storage"
@@ -22,14 +22,14 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-var unknownCollection = collection.ID(
+var unknownCollection = clt.ID(
 	uuid.MustParse("00000000-0000-7000-8000-00000000dead"))
 
-func newCollection(name string) collection.CreateParams {
-	return collection.CreateParams{
+func newCollection(name string) clt.CreateParams {
+	return clt.CreateParams{
 		Name:   name,
-		Icon:   collection.DefIconSlug,
-		Accent: collection.DefIconAccent,
+		Icon:   clt.DefIconSlug,
+		Accent: clt.DefIconAccent,
 	}
 }
 
@@ -266,8 +266,8 @@ func (s *CollectionSuite) createUser(nickname string) user.ID {
 	return u.ID
 }
 
-func (s *CollectionSuite) defaultCollection(userID user.ID) collection.ID {
-	var id collection.ID
+func (s *CollectionSuite) defaultCollection(userID user.ID) clt.ID {
+	var id clt.ID
 	s.Require().NoError(s.pool.QueryRow(s.ctx(),
 		`SELECT id FROM collections WHERE user_id = $1 AND is_default`, userID).Scan(&id))
 	return id

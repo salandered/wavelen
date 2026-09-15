@@ -3,7 +3,7 @@
 package storage_test
 
 import (
-	"github.com/salandered/wavelen/internal/collection"
+	"github.com/salandered/wavelen/internal/clt"
 	"github.com/salandered/wavelen/internal/color"
 	"github.com/salandered/wavelen/internal/storage"
 	"github.com/salandered/wavelen/internal/user"
@@ -52,7 +52,7 @@ func (s *StorageSuite) TestExportCollectionsOrdersCollectionsOldestFirst() {
 
 	// then
 	s.Require().NoError(err)
-	s.Require().Equal([]collection.ID{defaultID, sunset.ID, ocean.ID}, cltIDsOf(got))
+	s.Require().Equal([]clt.ID{defaultID, sunset.ID, ocean.ID}, cltIDsOf(got))
 }
 
 func (s *StorageSuite) TestExportCollectionsGroupsColorsByCollectionOldestFirst() {
@@ -109,8 +109,8 @@ func (s *StorageSuite) TestExportCollectionsSkipsAnotherUserRows() {
 
 // Utils
 
-func cltIDsOf(items []storage.CltWithColors) []collection.ID {
-	ids := make([]collection.ID, 0, len(items))
+func cltIDsOf(items []storage.CltWithColors) []clt.ID {
+	ids := make([]clt.ID, 0, len(items))
 	for _, v := range items {
 		ids = append(ids, v.Clt.ID)
 	}

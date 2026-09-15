@@ -1,4 +1,4 @@
-package collection
+package clt
 
 import (
 	"time"
@@ -51,6 +51,12 @@ type CreateParams struct {
 	Icon      icon.Slug
 	Accent    color.Hex
 	IsDefault bool
+}
+
+type UpdateParams struct {
+	Name   *string
+	Icon   *icon.Slug
+	Accent *color.Hex
 }
 
 var nameCfg = strvalid.UnicodeConfig{
