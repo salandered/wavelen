@@ -20,8 +20,10 @@ HOST=localhost:8080
 
 ```sh
 # public CSS palette
-curl $HOST/api/v1/colors
-curl "$HOST/api/v1/colors?sort=hex&order=desc"
+curl $HOST/api/v1/palettes/css
+curl "$HOST/api/v1/palettes/css?sort=hex&order=desc"
+# public Open Color palette
+curl $HOST/api/v1/palettes/open-color
 # rgb, hsl/hsv, oklch and other color info
 curl $HOST/api/v1/colors/ff00aa/info
 # harmonies: complement, triad, square and others

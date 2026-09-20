@@ -31,7 +31,7 @@ const (
 	spaceQuery  = "space"
 )
 
-const derivedCacheControl = "public, max-age=600, immutable"
+const staticCacheControl = "public, max-age=600, immutable" // 10 min
 
 // Nothing large in bodies.
 const maxRequestBodyBytes = 1 << 16 // 64 kb

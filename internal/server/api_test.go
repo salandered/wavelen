@@ -932,7 +932,7 @@ const encodedCreatedAtCursor = "Y3JlYXRlZF9hdHxkZXNjfDIwMjYtMDgtMjNUMTQ6MDA6MDBa
 
 func (s *APISuite) TestListCommonColorsRendersTheWholePalette() {
 	var out handlers.ListCommonColorsResp
-	s.decode(s.get("/api/v1/colors"), &out)
+	s.decode(s.get("/api/v1/palettes/css"), &out)
 
 	s.Require().Len(out.Colors, 100)
 	for _, c := range out.Colors {
@@ -943,7 +943,7 @@ func (s *APISuite) TestListCommonColorsRendersTheWholePalette() {
 
 func (s *APISuite) TestListCommonColorsAppliesDefaultsWhenNoParamsAreGiven() {
 	var out handlers.ListCommonColorsResp
-	s.decode(s.get("/api/v1/colors"), &out)
+	s.decode(s.get("/api/v1/palettes/css"), &out)
 
 	names := make([]string, 0, len(out.Colors))
 	for _, c := range out.Colors {
@@ -954,7 +954,7 @@ func (s *APISuite) TestListCommonColorsAppliesDefaultsWhenNoParamsAreGiven() {
 
 func (s *APISuite) TestListCommonColorsPassesTheSortAndOrderDown() {
 	var out handlers.ListCommonColorsResp
-	s.decode(s.get("/api/v1/colors?sort=hex&order=desc"), &out)
+	s.decode(s.get("/api/v1/palettes/css?sort=hex&order=desc"), &out)
 
 	hexes := make([]string, 0, len(out.Colors))
 	for _, c := range out.Colors {
@@ -965,7 +965,7 @@ func (s *APISuite) TestListCommonColorsPassesTheSortAndOrderDown() {
 
 func (s *APISuite) TestListCommonColorsPassesTheColorSortDown() {
 	var out handlers.ListCommonColorsResp
-	s.decode(s.get("/api/v1/colors?sort=color"), &out)
+	s.decode(s.get("/api/v1/palettes/css?sort=color"), &out)
 
 	s.Require().Equal("black", out.Colors[0].Name) // the perceptual order opens on the neutrals
 }
@@ -973,8 +973,29 @@ func (s *APISuite) TestListCommonColorsPassesTheColorSortDown() {
 func (s *APISuite) TestListCommonColorsRejectsInvalidQueryParams() {
 	for _, query := range []string{"sort=created_at", "sort=names", "order=sideways"} {
 		s.Run(query, func() {
-			resp := s.get("/api/v1/colors?" + query)
+			resp := s.get("/api/v1/palettes/css?" + query)
 			s.Require().Equal(http.StatusBadRequest, resp.StatusCode)
+		})
+	}
+}
+
+func (s *APISuite) TestListShadesRendersTheWholeGrid() {
+	var out handlers.ListShadesResp
+	s.decode(s.get("/api/v1/palettes/open-color"), &out)
+
+	s.Require().Len(out.Families, 13)
+	for _, f := range out.Families {
+		s.Require().Len(f.Colors, 10, f.Name)
+	}
+}
+
+func (s *APISuite) TestPalettesSetStaticCacheControl() {
+	for _, path := range []string{"/api/v1/palettes/css", "/api/v1/palettes/open-color"} {
+		s.Run(path, func() {
+			resp := s.get(path)
+
+			s.Require().Equal(http.StatusOK, resp.StatusCode)
+			s.Require().Equal("public, max-age=600, immutable", resp.Header.Get("Cache-Control"))
 		})
 	}
 }
@@ -1185,7 +1206,8 @@ func (s *APISuite) TestUnknownOrExpiredTokenIsUnauthorized() {
 func (s *APISuite) TestPublicRoutesDoNotUseTokenStore() {
 	for _, path := range []string{
 		"/livez",
-		"/api/v1/colors",
+		"/api/v1/palettes/css",
+		"/api/v1/palettes/open-color",
 		"/api/v1/colors/ff0000/info",
 		"/api/v1/colors/ff0000/harmonies/complement",
 	} {

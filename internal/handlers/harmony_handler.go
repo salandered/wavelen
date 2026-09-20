@@ -41,7 +41,7 @@ func HandleHarmony(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	w.Header().Set("Cache-Control", derivedCacheControl)
+	w.Header().Set("Cache-Control", staticCacheControl)
 	httputils.WriteJSON(ctx, w, http.StatusOK, HarmonyResp{
 		Hex:     string(hex),
 		Harmony: string(harmony),

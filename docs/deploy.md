@@ -46,7 +46,7 @@ select * from schema_migrations;
 
 ```sh
 # app works
-curl.exe -s https://wavelen.ink/api/v1/colors
+curl.exe -s https://wavelen.ink/api/v1/palettes/css
 ```
 
 ## Release

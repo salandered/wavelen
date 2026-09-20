@@ -531,6 +531,13 @@
 			<p class="about-note">contact: <a href="mailto:salandered@pm.me">salandered@pm.me</a></p>
 			<hr />
 			<p class="about-note">Icons: <a href="https://lucide.dev">Lucide</a>, ISC and MIT.</p>
+			<p class="about-note">
+				Fonts: <a href="https://github.com/rsms/inter">Inter</a> and
+				<a href="https://github.com/JetBrains/JetBrainsMono">JetBrains Mono</a>, OFL.
+			</p>
+			<p class="about-note">
+				Shades: <a href="https://github.com/yeun/open-color">Open Color</a>, MIT.
+			</p>
 			<!-- method=dialog: the submit closes it, no script -->
 			<form method="dialog" class="dialog-close">
 				<button>close</button>
@@ -857,7 +864,20 @@
 
 				<details data-collapse-key="palette" open>
 					<!-- the name the CSS Color spec uses: the 100 named colors -->
-					<summary>CSS named colors</summary>
+					<summary>
+						CSS named colors
+						<!-- inside the summary, it is reachable while the section is shut. app.js
+					     keeps the click off the toggle, see initSourceHelp -->
+						<button
+							type="button"
+							class="help summary-help"
+							id="palette-source-open"
+							title="where these colors come from"
+							aria-label="where these colors come from"
+						>
+							<svg class="icon" aria-hidden="true"><use href="#ui-info" /></svg>
+						</button>
+					</summary>
 					<!-- the palette is 100 fixed rows, it sorts but doesn't page. The toolbar puts the
 			     one row on the right, where the saved section keeps its listing controls. -->
 					<div class="toolbar">
@@ -889,6 +909,64 @@
 					</div>
 					<div class="grid dense" id="palette"></div>
 				</details>
+
+				<!-- outside the section: a popover inside a shut <details> comes out
+			     0x0, and this one answers while the section is shut -->
+				<div class="help-panel" id="palette-source" popover>
+					<p class="help-line">The 100 named colors of the CSS Color spec.</p>
+					<p class="help-hint">
+						<a href="https://www.w3.org/TR/css-color-4/#named-colors">w3.org, CSS Color 4</a>
+					</p>
+				</div>
+
+				<details data-collapse-key="shades" open>
+					<!-- the palette's own name -->
+					<summary>
+						Open Color
+						<button
+							type="button"
+							class="help summary-help"
+							id="shades-source-open"
+							title="where these colors come from"
+							aria-label="where these colors come from"
+						>
+							<svg class="icon" aria-hidden="true"><use href="#ui-info" /></svg>
+						</button>
+					</summary>
+					<div class="toolbar">
+						<div class="row">
+							<button
+								type="button"
+								class="icon-button"
+								id="shades-dense"
+								title="dense grid"
+								aria-label="dense grid"
+								aria-pressed="true"
+							>
+								<svg class="icon" aria-hidden="true"><use href="#ui-grid" /></svg>
+							</button>
+							<!-- every family in one grid, see showShadesFullscreen -->
+							<button
+								type="button"
+								class="icon-button"
+								id="shades-fullscreen"
+								title="the colors below, full screen"
+								aria-label="the colors below, full screen"
+							>
+								<svg class="icon" aria-hidden="true"><use href="#ui-monitor" /></svg>
+							</button>
+						</div>
+					</div>
+					<div class="shades dense" id="shades"></div>
+				</details>
+
+				<!-- outside the section, same as the palette's above -->
+				<div class="help-panel" id="shades-source" popover>
+					<p class="help-line">13 hue families of 10 shades.</p>
+					<p class="help-hint">
+						<a href="https://github.com/yeun/open-color">github.com/yeun/open-color</a>
+					</p>
+				</div>
 			</main>
 
 			<aside>

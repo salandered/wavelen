@@ -16,6 +16,7 @@ const ZEN_KEY = "zen";
 const DENSE_KEY = "dense";
 const PALETTE_DENSE_KEY = "palette_dense";
 const STRIPS_DENSE_KEY = "strips_dense";
+const SHADES_DENSE_KEY = "shades_dense";
 const PINNED_KEY = "pinned";
 const SESSION_KEY = "session";
 const CONTROLS_KEY = "controls";
@@ -1260,18 +1261,17 @@ function showSavedFullscreen() {
 	showOffstage(buildStrip(hexes));
 }
 
-// Show the palette as a grid, using a clone of the current grid.
+// Show copied cells as one grid. The copy is built rather than cloned from a container.
 // Full-screen mode is always dense.
 // See web-wavelen-context.md "Full screen".
-function showPaletteFullscreen() {
-	const grid = $("palette");
-	if (grid.querySelector(".swatch") === null) {
+function showCellsFullscreen(cells) {
+	if (cells.length === 0) {
 		setStatus("nothing to show", true);
 		return;
 	}
-	const copy = grid.cloneNode(true);
-	copy.classList.add("dense");
-	copy.removeAttribute("id"); // two of an id, and $("palette") could answer with this one
+	const copy = document.createElement("div");
+	copy.className = "grid dense";
+	copy.append(...cells.map((cell) => cell.cloneNode(true)));
 
 	// Inert, like the listeners the clone dropped. Dropping data-hex is deliberate: it keeps a
 	// later markSelected off these cells.
@@ -1287,6 +1287,14 @@ function showPaletteFullscreen() {
 		}
 	});
 	showOffstage(copy);
+}
+
+function showPaletteFullscreen() {
+	showCellsFullscreen([...document.querySelectorAll("#palette .cell")]);
+}
+
+function showShadesFullscreen() {
+	showCellsFullscreen([...document.querySelectorAll("#shades .cell")]);
 }
 
 // An element that is on the page only to be full screen: off stage in <body> while it is up, and
@@ -1417,7 +1425,7 @@ async function loadPalette() {
 		order: readControl("palette-order"),
 	});
 	try {
-		const { data } = await call("GET", `/colors?${params}`);
+		const { data } = await call("GET", `/palettes/css?${params}`);
 		renderSwatches(
 			$("palette"),
 			data.colors.map((c) => paletteSwatch(c.hex, c.name)),
@@ -1425,6 +1433,24 @@ async function loadPalette() {
 	} catch (err) {
 		renderEmpty($("palette"), err.message);
 	}
+}
+
+async function loadShades() {
+	try {
+		const { data } = await call("GET", "/palettes/open-color");
+		$("shades").replaceChildren(...data.families.map(shadeRow));
+		markSelected();
+	} catch (err) {
+		renderEmpty($("shades"), err.message);
+	}
+}
+
+// One family is one grid
+function shadeRow(family) {
+	const grid = document.createElement("div");
+	grid.className = "grid";
+	grid.append(...family.colors.map((c) => paletteSwatch(c.hex, c.name)));
+	return grid;
 }
 
 // Cursor for the next saved-colors page, or null at the end.
@@ -1716,6 +1742,8 @@ const DENSE_GRIDS = {
 	saved: { key: DENSE_KEY, def: false },
 	palette: { key: PALETTE_DENSE_KEY, def: true },
 	strips: { key: STRIPS_DENSE_KEY, def: false },
+	// the class goes on the container: a family is a grid of its own, see the .shades rules
+	shades: { key: SHADES_DENSE_KEY, def: true },
 };
 
 function applyDense(grid, on) {
@@ -1807,6 +1835,16 @@ function initControls() {
 		if (validControl(id, state[id])) {
 			writeControl(id, state[id]);
 		}
+	}
+}
+
+function initSourceHelp() {
+	for (const button of document.querySelectorAll(".summary-help")) {
+		const panel = $(button.id.replace(/-open$/, ""));
+		button.addEventListener("click", (event) => {
+			event.preventDefault();
+			panel.togglePopover();
+		});
 	}
 }
 
@@ -1968,8 +2006,8 @@ document.addEventListener("keydown", (event) => {
 
 /*
 	The full screen of the region under the cursor. 
-	Four regions answer: the two
-	sections, one pinned strip, and the Selected panel. A strip carries its own name, since the
+	Regions: the three
+	grid sections, one pinned strip, and the Selected panel. A strip carries its own name, since the
 	blocks are built per harmony rather than listed here. 
 	Returns nothing when the pointer is
 	somewhere else, or over a Selected panel with no color in it.
@@ -1986,6 +2024,9 @@ function fullscreenUnderPointer() {
 	}
 	if ($("palette").closest("details").matches(":hover")) {
 		return showPaletteFullscreen;
+	}
+	if ($("shades").closest("details").matches(":hover")) {
+		return showShadesFullscreen;
 	}
 	if ($("detail").closest("details").matches(":hover")) {
 		return document.querySelector(".detail-color") === null ? undefined : showSelectedFullscreen;
@@ -2308,6 +2349,7 @@ for (const grid of Object.keys(DENSE_GRIDS)) {
 
 $("saved-fullscreen").addEventListener("click", showSavedFullscreen);
 $("palette-fullscreen").addEventListener("click", showPaletteFullscreen);
+$("shades-fullscreen").addEventListener("click", showShadesFullscreen);
 
 // One grid at a time: the form row has no width for two, and the second would cover the first.
 for (const name of MENUS) {
@@ -2395,6 +2437,7 @@ for (const [grid, { key, def }] of Object.entries(DENSE_GRIDS)) {
 	applyDense(grid, readStored(key, def) === true);
 }
 initCollapsibleSections();
+initSourceHelp();
 loadSession(); // before renderSession and the first loadSaved, both of which read it
 initControls(); // before the cyclers below, which label themselves from data-value
 for (const id of ["sort", "order"]) {
@@ -2437,6 +2480,7 @@ renderAccentPicker(); // reads the --accent-* tokens once
 renderCollections(); // the empty list, until the first response replaces it
 renderSession(); // picks the account panel, and hides the two sections that need a token
 loadPalette(); // public, so it runs logged out too
+loadShades(); // public
 if (session !== null) {
 	loadSaved(); // pulls the collection list on its way, see savedColorsPath
 }

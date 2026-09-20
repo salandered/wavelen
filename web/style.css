@@ -436,6 +436,12 @@ summary {
 	user-select: none;
 }
 
+.summary-help {
+	float: right;
+	/* the heading is uppercase 0.8rem, the icon is 1rem: pull it back onto the baseline */
+	margin-top: -0.15rem;
+}
+
 details:not([open]) summary {
 	margin-bottom: 0;
 }
@@ -690,6 +696,14 @@ filled submits, outlined helpers, underlined settings, and tab-like collections.
 	color: var(--muted);
 }
 
+.help-line {
+	margin: 0;
+}
+
+.help-panel a {
+	color: inherit;
+}
+
 .help-hint {
 	margin: 0.5rem 0 0;
 	padding-top: 0.5rem;
@@ -727,6 +741,26 @@ filled submits, outlined helpers, underlined settings, and tab-like collections.
 		position-area: block-end span-inline-start;
 		box-sizing: border-box;
 		width: 15rem;
+		margin-top: 0.25rem;
+	}
+
+	#palette-source-open {
+		anchor-name: --palette-source;
+	}
+
+	#palette-source {
+		position-anchor: --palette-source;
+		position-area: block-end span-inline-start;
+		margin-top: 0.25rem;
+	}
+
+	#shades-source-open {
+		anchor-name: --shades-source;
+	}
+
+	#shades-source {
+		position-anchor: --shades-source;
+		position-area: block-end span-inline-start;
 		margin-top: 0.25rem;
 	}
 
@@ -1329,8 +1363,22 @@ Long names are truncated; the Selected panel shows the full label.
 .grid and not a bare .dense: #strips takes the same class, and it is a flex row with a gap of
 its own.
 */
-.grid.dense {
+.grid.dense,
+.shades.dense > .grid {
 	grid-template-columns: repeat(10, minmax(0, 1fr));
+	gap: 0;
+}
+
+/*
+Open Color: one .grid per family, so a family is a row of ten under .dense and its own block
+of five when the columns stack. 
+*/
+.shades {
+	display: grid;
+	gap: 0.4rem;
+}
+
+.shades.dense {
 	gap: 0;
 }
 
@@ -1362,7 +1410,8 @@ Ten to a row is a 32px square once the columns stack. Here and not in the layout
 at the top of the file: same specificity, so the rule that comes later wins.
 */
 @media (max-width: 38rem) {
-	.grid.dense {
+	.grid.dense,
+	.shades.dense > .grid {
 		grid-template-columns: repeat(5, minmax(0, 1fr));
 	}
 }

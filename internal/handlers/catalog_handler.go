@@ -37,6 +37,8 @@ func HandleListCommonColors(w http.ResponseWriter, req *http.Request) {
 	for _, c := range common {
 		resp.Colors = append(resp.Colors, CommonColorResp{Hex: string(c.Hex), Name: c.Name})
 	}
+
+	w.Header().Set("Cache-Control", staticCacheControl)
 	httputils.WriteJSON(ctx, w, http.StatusOK, resp)
 }
 

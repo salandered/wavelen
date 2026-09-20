@@ -59,7 +59,7 @@ func HandleColorInfo(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.Header().Set("Cache-Control", derivedCacheControl)
+	w.Header().Set("Cache-Control", staticCacheControl)
 	httputils.WriteJSON(ctx, w, http.StatusOK, colorInfoResp(color.Describe(hex)))
 }
 

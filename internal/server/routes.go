@@ -76,8 +76,11 @@ func newMux(s storage.Storage, cfg HandlerConfig) *http.ServeMux {
 	mux.Handle("DELETE /api/v1/me/collections/{id}/colors", authed(colors.HandleDeleteAllColors))
 	mux.Handle("DELETE /api/v1/me/collections/{id}/colors/{hex}", authed(colors.HandleDeleteColor))
 
-	//// common data and operations
-	mux.HandleFunc("GET /api/v1/colors", handlers.HandleListCommonColors)
+	//// read-only palettes
+	mux.HandleFunc("GET /api/v1/palettes/css", handlers.HandleListCommonColors)
+	mux.HandleFunc("GET /api/v1/palettes/open-color", handlers.HandleListShades)
+
+	//// derived from one hex
 	mux.HandleFunc("GET /api/v1/colors/{hex}/info", handlers.HandleColorInfo)
 	mux.HandleFunc("GET /api/v1/colors/{hex}/harmonies/{harmony}", handlers.HandleHarmony)
 

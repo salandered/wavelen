@@ -60,6 +60,19 @@ JetBrains Mono 2.304, https://github.com/JetBrains/JetBrainsMono
 
 See `attribution/LICENSE-inter.txt` and `attribution/LICENSE-jetbrains-mono.txt`.
 
+## Palettes
+
+Read-only sets.
+
+- The 100 CSS named colors, from `internal/palette`.
+- Open Color, 13 hue families of 10 shades, from `internal/shades`.
+
+### License
+
+Open Color, https://github.com/yeun/open-color
+
+See `attribution/LICENSE-open-color.txt`.
+
 ## Icons
 
 The collection icons are the SVG sprite at the top of `web/index.html`.

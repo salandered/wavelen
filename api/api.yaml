@@ -16,8 +16,8 @@ tags:
     description: A user's own groups of colors
   - name: Colors
     description: The colors inside one collection
-  - name: Palette
-    description: The shared read-only palette
+  - name: Palettes
+    description: The read-only palettes
   - name: ColorInfo
     description: Values derived from one hex, never from stored rows
 
@@ -543,11 +543,13 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-  /api/v1/colors:
+  /api/v1/palettes/css:
     get:
-      tags: [Palette]
-      summary: Lists the shared palette
-      description: The 100 preset named colors.
+      tags: [Palettes]
+      summary: Lists the CSS named colors
+      description: |
+        The 100 preset named colors.
+        See https://www.w3.org/TR/css-color-4/#named-colors
       parameters:
         - name: sort
           in: query
@@ -569,12 +571,36 @@ paths:
           headers:
             X-Request-Id:
               $ref: "#/components/headers/XRequestId"
+            Cache-Control:
+              $ref: "#/components/headers/StaticCacheControl"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ListCommonColorsResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/palettes/open-color:
+    get:
+      tags: [Palettes]
+      summary: Lists the Open Color palette
+      description: |
+        13 hue families of 10 shades, lightest first, named "red-0" to "red-9".
+        See https://github.com/yeun/open-color
+      responses:
+        "200":
+          description: The families
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/XRequestId"
+            Cache-Control:
+              $ref: "#/components/headers/StaticCacheControl"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListShadesResponse"
         "500":
           $ref: "#/components/responses/InternalServerError"
 
@@ -595,7 +621,7 @@ paths:
             X-Request-Id:
               $ref: "#/components/headers/XRequestId"
             Cache-Control:
-              $ref: "#/components/headers/DerivedCacheControl"
+              $ref: "#/components/headers/StaticCacheControl"
           content:
             application/json:
               schema:
@@ -622,7 +648,7 @@ paths:
             X-Request-Id:
               $ref: "#/components/headers/XRequestId"
             Cache-Control:
-              $ref: "#/components/headers/DerivedCacheControl"
+              $ref: "#/components/headers/StaticCacheControl"
           content:
             application/json:
               schema:
@@ -660,9 +686,9 @@ components:
         type: string
       example: 'attachment; filename="wavelen-salandered-123-20260912T143005Z.json"'
 
-    DerivedCacheControl:
+    StaticCacheControl:
       description: >-
-        Everything under /colors/{hex}/ depends on the URL and a formula. 
+        The answer ships with the binary: a palette, or a value derived from the URL by a formula.
       schema:
         type: string
       example: "public, max-age=600, immutable"
@@ -1022,6 +1048,29 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CommonColor"
+
+    ShadeFamily:
+      type: object
+      required: [name, colors]
+      properties:
+        name:
+          type: string
+          example: red
+        colors:
+          type: array
+          minItems: 10
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/CommonColor"
+
+    ListShadesResponse:
+      type: object
+      required: [families]
+      properties:
+        families:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShadeFamily"
 
     ColorInfoResponse:
       type: object
