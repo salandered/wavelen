@@ -36,11 +36,11 @@ curl $HOST/api/v1/version
 
 ```sh
 # signup
-curl -X POST $HOST/api/v1/users -d '{"nickname":"alice","password":"correct-horse"}'
+curl -X POST $HOST/api/v1/users -d '{"nickname":"alice","password":"correct-horse-battery"}'
 # {"user":{"nickname":"alice", "created_at":"..."}}
 
 # login
-curl -X POST $HOST/api/v1/tokens -d '{"nickname":"alice","password":"correct-horse"}'
+curl -X POST $HOST/api/v1/tokens -d '{"nickname":"alice","password":"correct-horse-battery"}'
 # 201 {"token":"...","expiry":"..."}
 
 TOKEN="<token from above>"

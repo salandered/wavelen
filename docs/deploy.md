@@ -45,6 +45,8 @@ Against a cluster
 helm template wavelen deploy/wavelen -f deploy/values-vps.yaml --dry-run=server
 # same, through the install path
 helm upgrade --install wavelen deploy/wavelen -f deploy/values-vps.yaml --dry-run=server
+# what an apply would change, validated server side (CRD schemas included)
+helm template wavelen deploy/wavelen -f deploy/values-vps.yaml --no-hooks | kubectl diff -f -
 ```
 
 ## Get info

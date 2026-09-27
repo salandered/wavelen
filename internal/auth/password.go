@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	MinPasswordLen = 8
+	MinPasswordLen = 16
 	// max that bcrypt supports
 	MaxPasswordLen = 72
 )

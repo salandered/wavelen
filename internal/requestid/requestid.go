@@ -2,7 +2,7 @@ package requestid
 
 import (
 	"context"
-	"crypto/rand"
+	"uuid"
 )
 
 // Header is where the id is echoed back. An inbound one is ignored, see requestIDMiddleware.
@@ -10,9 +10,9 @@ const Header = "X-Request-Id"
 
 type contextKey struct{}
 
+// New returns a uuidv7.
 func New() string {
-	// TODO: consider using uuid with go 1.27
-	return rand.Text()
+	return uuid.NewV7().String()
 }
 
 func NewContext(ctx context.Context, id string) context.Context {
