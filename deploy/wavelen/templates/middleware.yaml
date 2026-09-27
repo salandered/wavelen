@@ -14,3 +14,31 @@ spec:
     # UPD: actually 308 Permanent Redirect is used
     permanent: true
 {{- end }}
+{{- if .Values.rateLimit.enabled }}
+---
+{{- /*
+Per client IP token bucket.
+The key is the connection's remote address. 
+NOTE: It can be used as a real client only if traefikSourceIP is applied. 
+Without it every client arrives as 10.42.0.1 and would share one bucket.
+*/}}
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: rate-limit
+  labels:
+    {{- include "wavelen.appLabels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  # https://doc.traefik.io/traefik/reference/routing-configuration/http/middlewares/ratelimit/
+  rateLimit:
+    # Bucket size is 'burst'. 'average' tokens are refilled per sec.
+    # (period 1s => 'average' is just requests per sec)
+    average: {{ .Values.rateLimit.average }}
+    period: 1s
+    burst: {{ .Values.rateLimit.burst }}
+    sourceCriterion:
+      ipStrategy:
+        # https://doc.traefik.io/traefik/reference/routing-configuration/http/middlewares/ratelimit/#opt-sourceCriterion-ipStrategy-depth
+        depth: 0
+{{- end }}

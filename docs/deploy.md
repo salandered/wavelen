@@ -1,5 +1,30 @@
 # Deployment
 
+- [Release](#release)
+- [Validation](#validation)
+- [Get info](#get-info)
+- [DB backup](#db-backup)
+- [What usually survives (and should)](#what-usually-survives-and-should)
+- [⚠️ Danger zone](#️-danger-zone)
+	- [Full reinstall (db is lost)](#full-reinstall-db-is-lost)
+	- [Keep the release, delete the volume](#keep-the-release-delete-the-volume)
+
+## Release
+
+The image comes from CI.
+A push to `main` runs the release job
+	-> computes the next patch version
+	-> publishes `ghcr.io/salandered/wavelen:<version>`
+	-> pushes the matching `v<version>` git tag.
+
+Bump `Chart.appVersion` to that version, then
+
+```sh
+make k8s/apply/vps
+```
+
+`Chart.version` is a separate field, bumped when the templates or values change, not the app.
+
 ## Validation
 
 ```sh
@@ -17,11 +42,9 @@ Against a cluster
 
 ```sh
 # render, then API server validates every object against its schema
-helm template wavelen deploy/wavelen -f deploy/values-vps.yaml --validate
+helm template wavelen deploy/wavelen -f deploy/values-vps.yaml --dry-run=server
 # same, through the install path
 helm upgrade --install wavelen deploy/wavelen -f deploy/values-vps.yaml --dry-run=server
-# catches an immutable-field violation (like a changed spec.selector)
-helm template wavelen deploy/wavelen -f deploy/values-vps.yaml | kubectl apply --dry-run=server -f -
 ```
 
 ## Get info
@@ -49,23 +72,27 @@ select * from schema_migrations;
 curl.exe -s https://wavelen.ink/api/v1/palettes/css
 ```
 
-## Release
-
-### Usual
-
-The image comes from CI.
-A push to `main` runs the release job
-	-> computes the next patch version
-	-> publishes `ghcr.io/salandered/wavelen:<version>`
-	-> pushes the matching `v<version>` git tag.
-
-Bump `Chart.appVersion` to that version, then
+## DB backup
 
 ```sh
-make k8s/apply/vps
+kubectl exec postgres-0 -- sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > backup.sql
 ```
 
-`Chart.version` is a separate field, bumped when the templates or values change, not the app.
+Restore: delete the volume, wait for Postgres Ready, restore, only then apply the chart.
+
+```sh
+kubectl exec -i postgres-0 -- sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < backup.sql
+```
+
+## What usually survives (and should)
+
+- **`wavelen-db`** - created by `kubectl create secret` outside the chart.
+- **`wavelen-tls`** - cert-manager does not delete the Secret unless
+  `enableCertificateOwnerRef` is on. `cert-manager-values.yaml` does not set it.
+- **`pgdata-postgres-0`** - generated from `volumeClaimTemplates`. `kubectl delete -f` and `helm uninstall` won't remove it.
+  It's a good thing, deleting it destroys the data.
+
+## ⚠️ Danger zone
 
 ### Full reinstall (db is lost)
 
@@ -95,23 +122,3 @@ The StatefulSet controller recreates the claim from `volumeClaimTemplates` when 
 comes back (hence the waiting `--for=condition=ready`)
 
 If the prev job is still there: `kubectl delete job wavelen-migrate --ignore-not-found`
-
-## DB backup
-
-```sh
-kubectl exec postgres-0 -- sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > backup.sql
-```
-
-Restore: delete the volume, wait for Postgres Ready, restore, only then apply the chart.
-
-```sh
-kubectl exec -i postgres-0 -- sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < backup.sql
-```
-
-## What usually survives (and should)
-
-- **`wavelen-db`** - created by `kubectl create secret` outside the chart.
-- **`wavelen-tls`** - cert-manager does not delete the Secret unless
-  `enableCertificateOwnerRef` is on. `cert-manager-values.yaml` does not set it.
-- **`pgdata-postgres-0`** - generated from `volumeClaimTemplates`. `kubectl delete -f` and `helm uninstall` won't remove it.
-  It's a good thing, deleting it destroys the data.

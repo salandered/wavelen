@@ -31,3 +31,24 @@ app.kubernetes.io/version: {{ .Values.image.tag | default .Chart.AppVersion | qu
 {{- define "wavelen.selectorLabels" -}}
 app: wavelen
 {{- end }}
+
+{{- /* Traefik middlewares for the Ingress annotation, comma separated, applied in order.
+       Empty when none is enabled.
+       redirect-https goes first: a plain HTTP request gets its redirect without spending a token.
+
+       https://doc.traefik.io/traefik/reference/routing-configuration/kubernetes/ingress/#opt-traefik-ingress-kubernetes-iorouter-middlewares
+       Old docs describe the format explicitly https://doc.traefik.io/traefik/v2.2/middlewares/overview/#provider-namespace:
+	       <middleware-namespace>-<middleware-name>@kubernetescrd
+       Latest doc version: https://doc.traefik.io/traefik/reference/routing-configuration/kubernetes/crd/http/middleware/ 
+	   
+	   If all enabled would be like "default-redirect-https@kubernetescrd,default-rate-limit@kubernetescrd" */}}
+{{- define "wavelen.middlewares" -}}
+{{- $m := list }}
+{{- if .Values.redirect.enabled }}
+{{- $m = append $m (printf "%s-redirect-https@kubernetescrd" .Release.Namespace) }}
+{{- end }}
+{{- if .Values.rateLimit.enabled }}
+{{- $m = append $m (printf "%s-rate-limit@kubernetescrd" .Release.Namespace) }}
+{{- end }}
+{{- join "," $m }}
+{{- end }}

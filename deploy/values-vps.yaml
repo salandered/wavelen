@@ -8,5 +8,8 @@ tls:
 redirect:
   enabled: true
 
+rateLimit:
+  enabled: true
+
 traefikSourceIP:
   enabled: true

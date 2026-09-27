@@ -27,6 +27,13 @@ tls:
 redirect:
   enabled: false
 
+# Traefik rateLimit on the Ingress, per client IP, per second.
+# NOTE: Keyed on the real client only when traefikSourceIP.enabled: true.
+rateLimit:
+  enabled: false
+  average: 50
+  burst: 100
+
 # Reconfigures the k3s Traefik Service to externalTrafficPolicy: Local
 # Makes sense when Traefik fronts real clients.
 traefikSourceIP:
